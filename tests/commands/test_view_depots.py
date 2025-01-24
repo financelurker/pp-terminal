@@ -1,0 +1,61 @@
+"""
+    Copyright (C) 2025 Dipl.-Ing. Christoph Massmann <chris@dev-investor.de>
+
+    This file is part of pp-terminal.
+
+    pp-terminal is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    pp-terminal is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
+"""
+
+import sqlite3
+from datetime import datetime
+
+import numpy as np
+import pandas as pd
+from _pytest.fixtures import TopRequest
+from _pytest.monkeypatch import MonkeyPatch
+from pandas.testing import assert_frame_equal
+
+from pp_terminal.portfolio_snapshot import PortfolioSnapshot
+from pp_terminal.pp_portfolio_service_adapter import PortfolioPerformanceService
+from pp_terminal.commands.view_depots import calculate_sum
+
+
+def test_kommer(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))
+    portfolio = PortfolioPerformanceService(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+
+    expected_df = pd.DataFrame([  # @todo we currently do not respect the USD currency, that's why value is a bit off
+        ['Kryptowährung', 72.07],
+        ['Depot', 17070.17],
+    ], columns=['Name', 'Value'], index=[
+        '57ede399-7ef8-4696-a874-1f425e25d1f5',
+        'dc6fac85-6c6e-47f1-a968-2b5b84d90997',
+    ])
+    expected_df.index.name = 'AccountId'
+
+    result = calculate_sum(PortfolioSnapshot(portfolio, datetime(2024, 1, 1)))[['Name', 'Value']]
+
+    assert_frame_equal(expected_df, result.round(2), check_names=False)
+
+
+def test_empty_file(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))
+    portfolio = PortfolioPerformanceService(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
+
+    expected_df = pd.DataFrame([], columns=['Name', 'Value'], index=[]).astype({'Value': np.float64})
+    expected_df.index.name = 'AccountId'
+
+    result = calculate_sum(PortfolioSnapshot(portfolio))[['Name', 'Value']]
+
+    assert_frame_equal(expected_df, result)

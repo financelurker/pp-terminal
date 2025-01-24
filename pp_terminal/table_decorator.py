@@ -1,0 +1,97 @@
+"""
+    Copyright (C) 2025 Dipl.-Ing. Christoph Massmann <chris@dev-investor.de>
+
+    This file is part of pp-terminal.
+
+    pp-terminal is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    pp-terminal is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
+"""
+
+from typing import Callable, Literal, Any
+
+import pandas as pd
+from rich.table import Table
+from rich.text import Text
+
+from pp_terminal.helper import format_money, drop_empty_df_values
+
+
+class TableDecorator(Table):
+    _formatter: Callable[[float],str]
+    _show_index: bool = True
+    _show_total: bool = True
+    _footer_lines: int = 0  # the last X lines will be used as the footer
+
+    def __init__(self, show_index: bool = True, show_total: bool = True, footer_lines: int = 0, formatter: Callable[[float], str] = format_money, **kwargs: Any) -> None:
+        self._show_index = show_index
+        self._show_total = show_total
+        self._footer_lines = footer_lines
+        self._formatter = formatter
+
+        super().__init__(show_footer=self.show_default_footer, **kwargs)
+
+    @property
+    def show_default_footer(self) -> bool:
+        return self._footer_lines == 0  # multiple footer lines are not supported in rich by default
+
+    def add_df(self, df: pd.DataFrame) -> Table:
+        df = drop_empty_df_values(df)
+        if df.empty:
+            return self
+
+        summary_row = (df.iloc[:-self._footer_lines] if self._footer_lines > 0 else df).select_dtypes(include='number').sum()  # only sum up numeric values
+        summary_row = pd.concat([summary_row, pd.Series(['Total'], index=['Name'])])
+
+        # in case we have multiple footer lines, insert the total value into the right position in the dataframe
+        df_bottom = None
+        if self._show_total and not self.show_default_footer:
+            df_bottom = df.iloc[-self._footer_lines:, :]
+            df = df.iloc[:-self._footer_lines, :]
+            df_bottom = pd.concat([df, summary_row.to_frame().T, df_bottom], ignore_index=True)
+
+        # Add DataFrame columns to the table
+        for i, column in enumerate(df.columns):
+            footer_value = self._formatter(summary_row[column]) if self._show_total and column in summary_row.index else ''
+            justify = 'right' if footer_value != '' else 'left'  # type: Literal["right", "left"]
+
+            if not self._show_index and footer_value == '' and i == 0:  # column is non-numeric
+                footer_value = 'Total'
+
+            self.add_column(str(column), footer=footer_value if self.show_default_footer else '', justify=justify)
+
+        for row_data in self._prepare_rows(df):
+            self.add_row(*row_data)
+
+        if df_bottom is None:
+            return self
+
+        self._print_footer(df_bottom)
+
+        return self
+
+    def _print_footer(self, df: pd.DataFrame) -> None:
+        self.add_section()
+
+        i = 0
+        for row_data in self._prepare_rows(df.iloc[-(self._footer_lines + 1):]):
+            self.add_row(*list(map(lambda x: Text(x, style='bold') if i == 0 else x, row_data)))  # pylint: disable=cell-var-from-loop
+            i += 1
+
+    def _prepare_rows(self, df: pd.DataFrame) -> list[list[str]]:
+        rows = []
+        for index, row in df.iterrows():
+            row_data = [str(index)] if self._show_index else []
+            row_data.extend([self._formatter(float(value)) if isinstance(value, float) else value for value in row])
+            rows.append(row_data)
+
+        return rows

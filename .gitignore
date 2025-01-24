@@ -1,0 +1,10 @@
+.idea
+*.pyc
+__pycache__/
+*.pyo
+.env
+dist/
+build/
+*.egg-info/
+tests/.coverage
+tests/coverage.xml

@@ -6,6 +6,7 @@ A CLI application for the great [Portfolio Performance app](https://www.portfoli
 analysis on the portfolio data.
 
 For example, _pp-terminal_ can calculate the preliminary tax ("Vorabpauschale") for Germany:
+
 ![Vorabpauschale command in pp-terminal](sample_vorabpauschale.png)
 
 _pp-terminal_ is a handy tool for all the nice-to-have features that won't make it into the official Portfolio Performance app.
@@ -16,15 +17,15 @@ file and **does not modify** the original xml file.
 
 By default, `pp-terminal` provides the following commands:
 
-| Command                   | Description                                                                  |
-|---------------------------|------------------------------------------------------------------------------|
-| `view accounts`           | display a detailed table with the balances per account                       |
-| `view depots`             | display a detailed table with the current values per depot                   |
-| `simulate vorabpauschale` | run a simulation for the preliminary tax ("Vorabpauschale") on the portfolio |
+| Command                   | Description                                                                         |
+|---------------------------|-------------------------------------------------------------------------------------|
+| `view accounts`           | display a detailed table with the balances per account                              |
+| `view depots`             | display a detailed table with the current values per depot                          |
+| `simulate vorabpauschale` | run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio |
 
 Code completion for commands and options is also available.
 
-In addition to the standard set, developers can easily [create their own commands](#create-your-own-command-) and share them with the community.
+In addition to the standard set, developers can easily [create their own commands](#user-content-create-your-own-command-️) and share them with the community.
 
 **Important Note:**  
 I am not a tax consultant. All results of this application are non-binding and without guarantee.
@@ -56,6 +57,11 @@ pp-terminal view depots
 ```
 
 To view all available arguments you can always use the `--help` option.
+
+If you want another formatting for numbers, assure that the terminal has the correct language settings, e.g. for Germany:
+```
+export LANG=de_DE.UTF-8
+```
 
 ## Create Your Own Command ⚒️
 

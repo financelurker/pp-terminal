@@ -27,11 +27,11 @@ import typer
 
 from .schemas import TransactionType
 
-locale.setlocale(locale.LC_ALL, 'de_DE.UTF-8')
+locale.setlocale(locale.LC_ALL, '')
 
 
 def format_money(value: float) -> str:
-    return locale.currency(value, grouping=True, international=True) if not pd.isna(value) and isinstance(value, float) else ''
+    return locale.format_string("%.2f", value, grouping=True, monetary=True) if not pd.isna(value) and isinstance(value, float) else ''
 
 
 def drop_empty_df_values(df: pd.DataFrame | pd.Series) -> pd.DataFrame:

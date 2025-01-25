@@ -5,15 +5,13 @@
 A CLI application for the great [Portfolio Performance app](https://www.portfolio-performance.info/) to run different 
 analysis on the portfolio data.
 
-For example, _pp-terminal_ can calculate the preliminary tax ("Vorabpauschale") for Germany:
+For example, _pp-terminal_ includes a command to calculate the preliminary tax ("Vorabpauschale") for Germany:
 
 ![Vorabpauschale command in pp-terminal](sample_vorabpauschale.png)
 
 _pp-terminal_ is a handy tool for all the nice-to-have features that won't make it into the official Portfolio Performance app.
 This can be because of country-dependant tax rules, complex Java implementation, highly individual requirements, 
-too many edge-cases, etc.  
-The application internally uses [ppxml2db](https://github.com/pfalcon/ppxml2db) to parse the Portfolio Performance XML 
-file and **does not modify** the original xml file.
+too many edge-cases, etc.
 
 By default, `pp-terminal` provides the following commands:
 
@@ -23,9 +21,11 @@ By default, `pp-terminal` provides the following commands:
 | `view depots`             | display a detailed table with the current values per depot                          |
 | `simulate vorabpauschale` | run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio |
 
-Code completion for commands and options is also available.
+Code completion for commands and options is also available.  
+The application **does not modify** the original Portfolio Performance file.
 
-In addition to the standard set, developers can easily [create their own commands](#user-content-create-your-own-command-️) and share them with the community.
+In addition to the standard set, developers can easily [create their own commands](#user-content-create-your-own-command-️) 
+and share them with the community.
 
 **Important Note:**  
 I am not a tax consultant. All results of this application are non-binding and without guarantee.
@@ -35,7 +35,7 @@ They may deviate from the actual values.
 
 - [pipx](https://pipx.pypa.io/latest/#install-pipx) to install the application (without having to worry about different Python runtimes)
 - Portfolio Performance version >= 0.70.3
-- XML file must be saved as "XML with ids"
+- Portfolio Performance file must be saved as "XML with id attributes"
 
 ## Installing
 
@@ -89,13 +89,14 @@ For more sophisticated samples take a look at the packaged commands in the `pp_t
 e.g. a good starting point is `view_accounts.py`.
 
 The app uses [Typer](https://typer.tiangolo.com/) for composing the commands and [Rich](https://github.com/Textualize/rich)
-for nice console outputs. The data is held in [panda dataframes](https://pandas.pydata.org/).
+for nice console outputs. The Portfolio Performance XML file is read with [ppxml2db](https://github.com/pfalcon/ppxml2db)  
+and efficiently held in [panda dataframes](https://pandas.pydata.org/).
 
 If your command makes sense for a broader audience, I'm happy to accept a pull request.
 
 ## Known Limitations 🚧
 
-- The script is still in beta version, so there might be Portfolio Performance XML files that are not compatible with and also public APIs can change
+- The script is still in beta version, so there might be Portfolio Performance files that are not compatible with and also public APIs can change
 - Only Euro currency is supported at the moment
 
 ## License

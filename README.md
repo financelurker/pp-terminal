@@ -24,12 +24,8 @@ By default, `pp-terminal` provides the following commands:
 Code completion for commands and options is also available.  
 The application **does not modify** the original Portfolio Performance file.
 
-In addition to the standard set, developers can easily [create their own commands](#user-content-create-your-own-command-️) 
+In addition to the standard set, you can easily [create your own commands](#user-content-create-your-own-command-️) 
 and share them with the community.
-
-**Important Note:**  
-I am not a tax consultant. All results of this application are non-binding and without guarantee.
-They may deviate from the actual values.
 
 ## Requirements
 
@@ -86,7 +82,7 @@ def hello_world() -> None:
 This will result in the command `pp-terminal hello-world` being available.
 
 For more sophisticated samples take a look at the packaged commands in the `pp_terminal/commands` directory, 
-e.g. a good starting point is `view_accounts.py`.
+e.g. a good starting point is [view_accounts.py](https://github.com/ma4nn/pp-terminal/blob/master/pp_terminal/commands/view_accounts.py).
 
 The app uses [Typer](https://typer.tiangolo.com/) for composing the commands and [Rich](https://github.com/Textualize/rich)
 for nice console outputs. The Portfolio Performance XML file is read with [ppxml2db](https://github.com/pfalcon/ppxml2db)  
@@ -98,6 +94,10 @@ If your command makes sense for a broader audience, I'm happy to accept a pull r
 
 - The script is still in beta version, so there might be Portfolio Performance files that are not compatible with and also public APIs can change
 - Only Euro currency is supported at the moment
+
+## Important Note
+I am not a tax consultant. All results of this application are non-binding and without guarantee.
+They may deviate from the actual values.
 
 ## License
 

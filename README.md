@@ -54,9 +54,17 @@ pp-terminal view depots
 
 To view all available arguments you can always use the `--help` option.
 
+### Customize Number Formats
 If you want another formatting for numbers, assure that the terminal has the correct language settings, e.g. for Germany:
 ```
 export LANG=de_DE.UTF-8
+```
+
+### Disable Colored Output
+To disable all colors in the console output for a better readability, you can set the `NO_COLOR` [environment variable](https://no-color.org/)
+to any value like this
+```
+export NO_COLOR=1
 ```
 
 ## Create Your Own Command ⚒️
@@ -85,7 +93,7 @@ For more sophisticated samples take a look at the packaged commands in the `pp_t
 e.g. a good starting point is [view_accounts.py](https://github.com/ma4nn/pp-terminal/blob/master/pp_terminal/commands/view_accounts.py).
 
 The app uses [Typer](https://typer.tiangolo.com/) for composing the commands and [Rich](https://github.com/Textualize/rich)
-for nice console outputs. The Portfolio Performance XML file is read with [ppxml2db](https://github.com/pfalcon/ppxml2db)  
+for nice console outputs. The Portfolio Performance XML file is read with [ppxml2db](https://github.com/pfalcon/ppxml2db) 
 and efficiently held in [panda dataframes](https://pandas.pydata.org/).
 
 If your command makes sense for a broader audience, I'm happy to accept a pull request.

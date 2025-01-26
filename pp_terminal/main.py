@@ -59,7 +59,7 @@ def version_callback(value: bool) -> None:
 )
 def main(
         ctx: typer.Context,
-        portfolio_performance_file: Annotated[Path, typer.Argument(envvar="PP_TERMINAL_INPUT_FILE", help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)],
+        file: Annotated[Path, typer.Option(envvar="PP_TERMINAL_INPUT_FILE", help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)],
         debug: Optional[bool] = typer.Option(False, help="Enable verbose debug logging"),
         version: Annotated[  # pylint: disable=unused-argument
             Optional[bool],
@@ -73,7 +73,7 @@ def main(
         logging.basicConfig(level=logging.WARN, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=False, show_time=False, show_path=False)])
 
     try:
-        ctx.obj = SimpleNamespace(portfolio=PortfolioPerformanceService(portfolio_performance_file))
+        ctx.obj = SimpleNamespace(portfolio=PortfolioPerformanceService(file))
     except (RuntimeError, InputError) as e:
         if debug:
             raise e

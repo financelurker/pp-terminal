@@ -14,7 +14,7 @@ dependencies = [
     "ppxml2db @ git+https://github.com/ma4nn/ppxml2db",
 ]
 scripts = { pp-terminal = "pp_terminal.main:app" }
-entry-points = { "pp_terminal.commands" = { "view.accounts" = "pp_terminal.commands.view_accounts:app", "view.depots" = "pp_terminal.commands.view_depots:app", "simulate.vorabpauschale" = "pp_terminal.commands.simulate_vorabpauschale:app" } }
+entry-points = { "pp_terminal.commands" = { "view.deposit_accounts" = "pp_terminal.commands.view_deposit_accounts:app", "view.securities_accounts" = "pp_terminal.commands.view_securities_accounts:app", "simulate.vorabpauschale" = "pp_terminal.commands.simulate_vorabpauschale:app" } }
 
 
 [build-system]

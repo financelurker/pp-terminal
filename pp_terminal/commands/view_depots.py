@@ -35,14 +35,14 @@ log = logging.getLogger(__name__)
 
 
 def calculate_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
-    return (pd.merge(snapshot.portfolio.depots, snapshot.values.groupby('AccountId').sum(), left_index=True, right_index=True, how="right")
+    return (pd.merge(snapshot.portfolio.securities_accounts, snapshot.values.groupby('AccountId').sum(), left_index=True, right_index=True, how="right")
             .sort_values(by='Value'))
 
 
-@app.command(name="depots")
-def print_depots_table(ctx: typer.Context, by: datetime = datetime.now()) -> None:
+@app.command(name="securities-accounts")
+def print_accounts_table(ctx: typer.Context, by: datetime = datetime.now()) -> None:
     """
-    Show a detailed table with the current balance per depot.
+    Show a detailed table with the current balance per securities account.
     """
 
     portfolio = ctx.obj.portfolio # type: PortfolioService
@@ -52,7 +52,7 @@ def print_depots_table(ctx: typer.Context, by: datetime = datetime.now()) -> Non
     if df.empty:
         raise handle_nothing_found(console)
 
-    table = TableDecorator(title="Depot Values per " + by.strftime("%Y-%m-%d"), show_index=False)
+    table = TableDecorator(title="Values on Securities Accounts", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False)
     table.add_df(df[df['is_retired'] == False][['Name', 'Value']])  # pylint: disable=singleton-comparison
 
     console.print()

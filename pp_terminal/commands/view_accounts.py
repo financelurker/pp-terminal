@@ -35,14 +35,14 @@ log = logging.getLogger(__name__)
 
 
 def calculate_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
-    return (pd.merge(snapshot.portfolio.accounts, snapshot.balances, left_index=True, right_index=True, how="right")
+    return (pd.merge(snapshot.portfolio.deposit_accounts, snapshot.balances, left_index=True, right_index=True, how="right")
             .sort_values(by='Balance'))
 
 
-@app.command(name="accounts")
+@app.command(name="deposit-accounts")
 def print_accounts_table(ctx: typer.Context, by: datetime = datetime.now()) -> None:
     """
-    Show a detailed table with the current balance per bank account.
+    Show a detailed table with the current balance per deposit account.
     """
 
     portfolio = ctx.obj.portfolio # type: PortfolioService
@@ -52,7 +52,7 @@ def print_accounts_table(ctx: typer.Context, by: datetime = datetime.now()) -> N
     if df.empty:
         raise handle_nothing_found(console)
 
-    table = TableDecorator(title="Account Balances per " + by.strftime("%Y-%m-%d"), show_index=False)
+    table = TableDecorator(title="Balances on Deposit Account", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False)
     table.add_df(df[(df['is_retired'] == False) & (df['Balance'] > 0)][['Name', 'Balance']])  # pylint: disable=singleton-comparison
 
     console.print()

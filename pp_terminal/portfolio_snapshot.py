@@ -18,7 +18,7 @@
 """
 
 from datetime import datetime
-from typing import Literal, cast
+from typing import cast
 
 import pandas as pd
 import pandera as pa
@@ -28,7 +28,7 @@ from .helper import filter_df_by_date, filter_df_by_type, enum_list_to_values
 from .portfolio_service import PortfolioService
 from .schemas import TransactionType, TransactionSchema
 
-_NEGATIVE_ACCOUNT_TRANSACTION_TYPES = [
+_NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES = [
     TransactionType.TRANSFER_OUT,
     TransactionType.REMOVAL,
     TransactionType.INTEREST_CHARGE,
@@ -37,7 +37,7 @@ _NEGATIVE_ACCOUNT_TRANSACTION_TYPES = [
     TransactionType.BUY,
 ]
 
-_NEGATIVE_DEPOT_TRANSACTION_TYPES = [
+_NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES = [
     TransactionType.SELL,
     TransactionType.DELIVERY_OUTBOUND,
     TransactionType.TRANSFER_OUT,
@@ -73,16 +73,16 @@ class PortfolioSnapshot:
     @property
     @pa.check_types()
     def transactions(self) -> DataFrame[TransactionSchema]:
-        return cast(DataFrame[TransactionSchema], filter_df_by_date(self._portfolio.depot_transactions, self._per_date))
+        return cast(DataFrame[TransactionSchema], filter_df_by_date(self._portfolio.securities_account_transactions, self._per_date))
 
     @property
     @pa.check_types()
     def account_transactions(self) -> pd.DataFrame | None:
-        transactions = self.portfolio.account_transactions
+        transactions = self.portfolio.deposit_account_transactions
         if transactions is None:
             return None
 
-        return filter_df_by_date(self.portfolio.account_transactions, self._per_date)
+        return filter_df_by_date(self.portfolio.deposit_account_transactions, self._per_date)
 
     @property
     @pa.check_types()
@@ -91,11 +91,8 @@ class PortfolioSnapshot:
         if transactions is None:
             return None
 
-        def _get_sign(row: pd.Series) -> Literal[-1, 1]:
-            return -1 if row['Type'] in enum_list_to_values(_NEGATIVE_DEPOT_TRANSACTION_TYPES) else 1
-
         transactions['Shares'] = transactions.apply(
-            lambda row: -1 if row['Type'] in enum_list_to_values(_NEGATIVE_DEPOT_TRANSACTION_TYPES) else 1,
+            lambda row: -1 if row['Type'] in enum_list_to_values(_NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES) else 1,
             axis=1
         ) * transactions['Shares']
 
@@ -129,7 +126,7 @@ class PortfolioSnapshot:
             return None
 
         transactions['amount'] = transactions.apply(
-            lambda row : -1 if row['Type'] in enum_list_to_values(_NEGATIVE_ACCOUNT_TRANSACTION_TYPES) else 1,
+            lambda row : -1 if row['Type'] in enum_list_to_values(_NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES) else 1,
             axis=1
         ) * transactions['amount']
 

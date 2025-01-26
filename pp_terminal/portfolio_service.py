@@ -62,32 +62,32 @@ class PortfolioService:
             log.warning('security prices schema invalid: %s', e)
 
     @property
-    def depots(self) -> DataFrame[AccountSchema] | None:
+    def securities_accounts(self) -> DataFrame[AccountSchema] | None:
         if self._accounts is None:
             return None
 
-        return cast(DataFrame[AccountSchema], self._accounts[self._accounts['Type'] == AccountType.DEPOT.value])
+        return cast(DataFrame[AccountSchema], self._accounts[self._accounts['Type'] == AccountType.SECURITIES.value])
 
     @property
-    def accounts(self) -> DataFrame[AccountSchema] | None:
+    def deposit_accounts(self) -> DataFrame[AccountSchema] | None:
         if self._accounts is None:
             return None
 
-        return cast(DataFrame[AccountSchema], self._accounts[self._accounts['Type'] == AccountType.ACCOUNT.value])
+        return cast(DataFrame[AccountSchema], self._accounts[self._accounts['Type'] == AccountType.DEPOSIT.value])
 
     @property
-    def depot_transactions(self) -> DataFrame[TransactionSchema] | None:
+    def securities_account_transactions(self) -> DataFrame[TransactionSchema] | None:
         if self._transactions is None:
             return None
 
-        return cast(DataFrame[TransactionSchema], self._transactions[self._transactions['account_type'] == AccountType.DEPOT.value])
+        return cast(DataFrame[TransactionSchema], self._transactions[self._transactions['account_type'] == AccountType.SECURITIES.value])
 
     @property
-    def account_transactions(self) -> DataFrame[TransactionSchema] | None:
+    def deposit_account_transactions(self) -> DataFrame[TransactionSchema] | None:
         if self._transactions is None:
             return None
 
-        return cast(DataFrame[TransactionSchema], self._transactions[self._transactions['account_type'] == AccountType.ACCOUNT.value])
+        return cast(DataFrame[TransactionSchema], self._transactions[self._transactions['account_type'] == AccountType.DEPOSIT.value])
 
     @property
     def securities(self) -> DataFrame[SecuritySchema] | None:

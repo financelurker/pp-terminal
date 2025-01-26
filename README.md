@@ -17,8 +17,8 @@ By default, `pp-terminal` provides the following commands:
 
 | Command                   | Description                                                                         |
 |---------------------------|-------------------------------------------------------------------------------------|
-| `view accounts`           | display a detailed table with the balances per account                              |
-| `view depots`             | display a detailed table with the current values per depot                          |
+| `view deposit-accounts`   | display a detailed table with the balances per deposit account                      |
+| `view security-accounts`  | display a detailed table with the current values per security account               |
 | `simulate vorabpauschale` | run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio |
 
 Code completion for commands and options is also available.  
@@ -44,12 +44,12 @@ pipx install git+https://github.com/ma4nn/pp-terminal
 The commands mentioned above all require the Portfolio Performance XML file as input.  
 You can either provide that file as first parameter to the command
 ```
-pp-terminal --file=depot.xml view depots
+pp-terminal --file=depot.xml view security-accounts
 ```
 or by setting an environment variable you can omit the parameter
 ```
 export PP_TERMINAL_INPUT_FILE=depot.xml
-pp-terminal view depots
+pp-terminal view security-accounts
 ```
 
 To view all available arguments you can always use the `--help` option.

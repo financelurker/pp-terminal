@@ -33,12 +33,12 @@ from pp_terminal.commands.simulate_vorabpauschale import calculate
 from pp_terminal.pp_portfolio_service_adapter import PortfolioPerformanceService
 
 
-@pytest.fixture(name='sample_depots')
-def provide_sample_depots() -> pd.DataFrame:
-    depots = pd.DataFrame([['Testdepot', AccountType.DEPOT.value]], columns=['Name', 'Type'], index=['1'])
-    depots.index.name = 'AccountId'
+@pytest.fixture(name='sample_securities_accounts')
+def provide_sample_securities_accounts() -> pd.DataFrame:
+    securities_accounts = pd.DataFrame([['Testdepot', AccountType.SECURITIES.value]], columns=['Name', 'Type'], index=['1'])
+    securities_accounts.index.name = 'AccountId'
 
-    return depots
+    return securities_accounts
 
 
 @pytest.fixture(name='sample_securities')
@@ -60,21 +60,21 @@ def provide_sample_prices() -> pd.DataFrame:
 
 @pytest.fixture(name='sample_transactions')
 def provide_sample_transactions() -> pd.DataFrame:
-    return (pd.DataFrame([[datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.DEPOT.value]], columns=['Date', 'Type', 'amount', 'Shares', 'SecurityId', 'AccountId', 'account_type'])
+    return (pd.DataFrame([[datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.SECURITIES.value]], columns=['Date', 'Type', 'amount', 'Shares', 'SecurityId', 'AccountId', 'account_type'])
             .set_index(['Date', 'SecurityId', 'AccountId']))
 
 
-def test_calculate_empty_if_no_depots(sample_depots: pd.DataFrame, sample_securities: pd.DataFrame, sample_prices: pd.DataFrame) -> None:
-    transactions = (pd.DataFrame([[datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.DEPOT.value]], columns=['Date', 'Type', 'amount', 'Shares', 'SecurityId', 'AccountId', 'account_type'])
+def test_calculate_empty_if_no_securities_accounts(sample_securities_accounts: pd.DataFrame, sample_securities: pd.DataFrame, sample_prices: pd.DataFrame) -> None:
+    transactions = (pd.DataFrame([[datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.SECURITIES.value]], columns=['Date', 'Type', 'amount', 'Shares', 'SecurityId', 'AccountId', 'account_type'])
                     .set_index(['Date', 'SecurityId', 'AccountId']))
 
     # drop all rows
-    sample_depots = sample_depots.drop(sample_depots.index)
+    sample_securities_accounts = sample_securities_accounts.drop(sample_securities_accounts.index)
     sample_securities = sample_securities.drop(sample_securities.index)
     sample_prices = sample_prices.drop(sample_prices.index)
     transactions = transactions.drop(transactions.index)
 
-    portfolio = PortfolioService(sample_depots, transactions, sample_securities, sample_prices)
+    portfolio = PortfolioService(sample_securities_accounts, transactions, sample_securities, sample_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2022, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2022, 12, 31))
 
@@ -83,11 +83,11 @@ def test_calculate_empty_if_no_depots(sample_depots: pd.DataFrame, sample_securi
     assert result is None
 
 
-def test_calculate_empty_if_no_security_prices(sample_depots: pd.DataFrame, sample_transactions: pd.DataFrame, sample_securities: pd.DataFrame, sample_prices: pd.DataFrame) -> None:
+def test_calculate_empty_if_no_security_prices(sample_securities_accounts: pd.DataFrame, sample_transactions: pd.DataFrame, sample_securities: pd.DataFrame, sample_prices: pd.DataFrame) -> None:
     sample_prices = sample_prices.drop(sample_prices.index)
     sample_transactions = sample_transactions.drop(sample_transactions.index)
 
-    portfolio = PortfolioService(sample_depots, sample_transactions, sample_securities, sample_prices)
+    portfolio = PortfolioService(sample_securities_accounts, sample_transactions, sample_securities, sample_prices)
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2022, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2022, 12, 31))
@@ -97,8 +97,8 @@ def test_calculate_empty_if_no_security_prices(sample_depots: pd.DataFrame, samp
     assert result is None
 
 
-def test_inyear_buy(sample_depots: pd.DataFrame, sample_transactions: pd.DataFrame, sample_securities: pd.DataFrame, sample_prices: pd.DataFrame) -> None:
-    portfolio = PortfolioService(sample_depots, sample_transactions, sample_securities, sample_prices)
+def test_inyear_buy(sample_securities_accounts: pd.DataFrame, sample_transactions: pd.DataFrame, sample_securities: pd.DataFrame, sample_prices: pd.DataFrame) -> None:
+    portfolio = PortfolioService(sample_securities_accounts, sample_transactions, sample_securities, sample_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2018, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2018, 12, 31))
 
@@ -128,7 +128,7 @@ samples = [
 
 
 @pytest.mark.parametrize("expected_tax_value, payout, value_begin, value_end, base_rate_percent", samples)
-def test_single_security_buy_only(sample_depots: pd.DataFrame, sample_securities: pd.DataFrame, expected_tax_value: float, payout: float, value_begin: float, value_end: float, base_rate_percent: float) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+def test_single_security_buy_only(sample_securities_accounts: pd.DataFrame, sample_securities: pd.DataFrame, expected_tax_value: float, payout: float, value_begin: float, value_end: float, base_rate_percent: float) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
     share_price_begin = 50
     shares = value_begin/share_price_begin
 
@@ -142,11 +142,11 @@ def test_single_security_buy_only(sample_depots: pd.DataFrame, sample_securities
         [datetime(2025, 1, 2), '1234567890', 45.302],
     ], columns=['Date', 'SecurityId', 'Price']).set_index(['Date', 'SecurityId'])
     transactions = pd.DataFrame([
-        [datetime(2023, 12, 6), TransactionType.BUY.value, float(value_begin), shares, '1234567890', '1', AccountType.DEPOT.value],
-        [datetime(2024, 6, 4), TransactionType.DIVIDENDS.value, float(payout), shares, '1234567890', '1', AccountType.DEPOT.value],
+        [datetime(2023, 12, 6), TransactionType.BUY.value, float(value_begin), shares, '1234567890', '1', AccountType.SECURITIES.value],
+        [datetime(2024, 6, 4), TransactionType.DIVIDENDS.value, float(payout), shares, '1234567890', '1', AccountType.SECURITIES.value],
     ], columns=['Date', 'Type', 'amount', 'Shares', 'SecurityId', 'AccountId', 'account_type']).set_index(['Date', 'SecurityId', 'AccountId'])
 
-    portfolio = PortfolioService(sample_depots, transactions, sample_securities, prices)
+    portfolio = PortfolioService(sample_securities_accounts, transactions, sample_securities, prices)
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))

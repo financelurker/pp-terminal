@@ -81,18 +81,18 @@ def calculate(
         vorabpauschale.columns = [col[1] if len(col) > 1 else col[0] for col in vorabpauschale.columns]
 
     vorabpauschale = drop_empty_df_values(vorabpauschale)
-    if vorabpauschale.empty or snapshot_period_end.portfolio.securities is None or snapshot_period_end.portfolio.depots is None:
+    if vorabpauschale.empty or snapshot_period_end.portfolio.securities is None or snapshot_period_end.portfolio.securities_accounts is None:
         return None
 
     vorabpauschale = pd.merge(snapshot_period_end.portfolio.securities[['Wkn', 'Name']], vorabpauschale, left_index=True, right_index=True, how='right').sort_values(by='Name')
 
-    depots = snapshot_period_end.portfolio.depots
-    if depots is not None and 'ReferenceAccountId' in depots and snapshot_period_end.balances is not None:
+    securities_accounts = snapshot_period_end.portfolio.securities_accounts
+    if securities_accounts is not None and 'ReferenceAccountId' in securities_accounts and snapshot_period_end.balances is not None:
         # add the reference account balance
-        vorabpauschale.loc[len(vorabpauschale)] = (pd.merge(depots, snapshot_period_end.balances, left_on='ReferenceAccountId', right_index=True, how='left')['Balance'].dropna().to_dict()
+        vorabpauschale.loc[len(vorabpauschale)] = (pd.merge(securities_accounts, snapshot_period_end.balances, left_on='ReferenceAccountId', right_index=True, how='left')['Balance'].dropna().to_dict()
                                                    | {'Name': 'Related Account Balance'})
 
-    return vorabpauschale.rename(columns=depots['Name'])
+    return vorabpauschale.rename(columns=securities_accounts['Name'])
 
 
 def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series:
@@ -175,7 +175,7 @@ def print_tax_table(
         exemption_rate: Annotated[float, typer.Option(help="The default exemption rate (Teilfreistellung), can be overwritten for each security.", min=0, max=100, prompt="Default Exemption Rate (%)", prompt_required=True)] = 30
 ) -> None:
     """
-    Print a detailed table with calculated German preliminary tax values ("Vorabpauschale") for a specified year, per each security and depot.
+    Print a detailed table with calculated German preliminary tax values ("Vorabpauschale") for a specified year, per each security and account.
     """
 
     portfolio = ctx.obj.portfolio  # type: PortfolioService

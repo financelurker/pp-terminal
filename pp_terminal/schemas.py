@@ -43,8 +43,8 @@ class TransactionType(Enum):
 
 
 class AccountType(Enum):
-    DEPOT = "portfolio"
-    ACCOUNT = "account"
+    SECURITIES = "portfolio"
+    DEPOSIT = "account"
 
 
 # @todo make all lowercase

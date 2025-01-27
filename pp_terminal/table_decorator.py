@@ -27,12 +27,12 @@ from pp_terminal.helper import format_money, drop_empty_df_values
 
 
 class TableDecorator(Table):
-    _formatter: Callable[[float],str]
+    _formatter: Callable[[float, str],str]
     _show_index: bool = True
     _show_total: bool = True
     _footer_lines: int = 0  # the last X lines will be used as the footer
 
-    def __init__(self, show_index: bool = True, show_total: bool = True, footer_lines: int = 0, formatter: Callable[[float], str] = format_money, **kwargs: Any) -> None:
+    def __init__(self, show_index: bool = True, show_total: bool = True, footer_lines: int = 0, formatter: Callable[[float, str], str] = format_money, **kwargs: Any) -> None:
         self._show_index = show_index
         self._show_total = show_total
         self._footer_lines = footer_lines
@@ -61,13 +61,19 @@ class TableDecorator(Table):
 
         # Add DataFrame columns to the table
         for i, column in enumerate(df.columns):
-            footer_value = self._formatter(summary_row[column]) if self._show_total and column in summary_row.index else ''
+            if str(column) == 'currency':
+                continue
+
+            footer_value = self._formatter(summary_row[column], str(column)) if self._show_total and column in summary_row.index else ''
             justify = 'right' if footer_value != '' else 'left'  # type: Literal["right", "left"]
 
             if not self._show_index and footer_value == '' and i == 0:  # column is non-numeric
                 footer_value = 'Total'
 
-            self.add_column(str(column), footer=footer_value if self.show_default_footer else '', justify=justify)
+            column_title = str(column)
+            column_title = column_title[0].upper() + column_title[1:]
+
+            self.add_column(column_title, footer=footer_value if self.show_default_footer else '', justify=justify)
 
         for row_data in self._prepare_rows(df):
             self.add_row(*row_data)
@@ -91,7 +97,8 @@ class TableDecorator(Table):
         rows = []
         for index, row in df.iterrows():
             row_data = [str(index)] if self._show_index else []
-            row_data.extend([self._formatter(float(value)) if isinstance(value, float) else value for value in row])
+            currency = row['currency'] if 'currency' in row else ''
+            row_data.extend([self._formatter(float(value), currency) if isinstance(value, float) else value for value in row.drop('currency', errors="ignore")])
             rows.append(row_data)
 
         return rows

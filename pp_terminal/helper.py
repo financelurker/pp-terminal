@@ -24,14 +24,15 @@ from typing import List, Any
 import pandas as pd
 from rich.console import Console
 import typer
+from babel.numbers import format_currency
 
 from .schemas import TransactionType
 
 locale.setlocale(locale.LC_ALL, '')
 
 
-def format_money(value: float) -> str:
-    return locale.format_string("EUR %.2f", value, grouping=True, monetary=True) if not pd.isna(value) and isinstance(value, float) else ''
+def format_money(value: float, currency: str = '') -> str:
+    return format_currency(value, currency) if not pd.isna(value) and isinstance(value, float) else ''
 
 
 def drop_empty_df_values(df: pd.DataFrame | pd.Series) -> pd.DataFrame:
@@ -49,6 +50,11 @@ def drop_empty_df_values(df: pd.DataFrame | pd.Series) -> pd.DataFrame:
 
 def print_hint(console: Console, message: str) -> None:
     console.print(':bulb: [bold]Hint:[/bold] ' + message)
+    console.print()
+
+
+def print_warning(console: Console, message: str) -> None:
+    console.print(':backhand_index_pointing_right: [bold]Warning:[/bold] ' + message)
     console.print()
 
 
@@ -72,6 +78,13 @@ def filter_df_by_type(df: pd.DataFrame, transaction_types: TransactionType| list
         cleaned_transaction_types.append(transaction_type.name)
 
     return df[df['Type'].isin(cleaned_transaction_types)]
+
+
+def unstack_df_column_by_currency(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    column_unstacked = df[column].unstack(level='currency')
+    df_modified = df.drop(columns=column).reset_index(level='currency', drop=True).drop_duplicates()
+
+    return df_modified.join(column_unstacked, how='outer')
 
 
 def enum_types_to_name(enum_list: List[Any]) -> List[Any]:

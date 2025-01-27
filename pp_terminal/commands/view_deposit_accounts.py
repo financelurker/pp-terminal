@@ -24,7 +24,7 @@ from rich.console import Console
 import pandas as pd
 import typer
 
-from ..helper import handle_nothing_found
+from ..helper import handle_nothing_found, unstack_df_column_by_currency
 from ..portfolio_service import PortfolioService
 from ..portfolio_snapshot import PortfolioSnapshot
 from ..table_decorator import TableDecorator
@@ -35,8 +35,15 @@ log = logging.getLogger(__name__)
 
 
 def calculate_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
-    return (pd.merge(snapshot.portfolio.deposit_accounts, snapshot.balances, left_index=True, right_index=True, how="right")
+    balances = (pd.merge(snapshot.portfolio.deposit_accounts, snapshot.balances, left_index=True, right_on='AccountId', how="right")
             .sort_values(by='Balance'))
+    balances = balances[balances['is_retired'] == False][['Name', 'Balance', 'currency']]  # pylint: disable=singleton-comparison
+
+    balances = unstack_df_column_by_currency(balances, 'Balance')
+    if snapshot.portfolio.base_currency in balances:
+        balances.sort_values(by=snapshot.portfolio.base_currency, inplace=True)
+
+    return balances
 
 
 @app.command(name="deposit-accounts")
@@ -52,8 +59,8 @@ def print_accounts_table(ctx: typer.Context, by: datetime = datetime.now()) -> N
     if df.empty:
         raise handle_nothing_found(console)
 
-    table = TableDecorator(title="Balances on Deposit Account", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False)
-    table.add_df(df[(df['is_retired'] == False) & (df['Balance'] > 0)][['Name', 'Balance']])  # pylint: disable=singleton-comparison
+    table = TableDecorator(title="Balances on Deposit Accounts", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False)
+    table.add_df(df)
 
     console.print()
     console.print(table)

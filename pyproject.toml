@@ -1,6 +1,6 @@
 [project]
 name = "pp-terminal"
-version = "0.2.0"
+version = "0.2.0-dev"
 description = "The Analytic Companion for Portfolio Performance"
 authors = [{ name = "Christoph Massmann", email = "chris@dev-investor.de" }]
 readme = "README.md"

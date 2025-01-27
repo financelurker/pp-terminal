@@ -1,6 +1,6 @@
-# pp-terminal - Analytic Companion for Portfolio Performance
+# pp-terminal - The Analytic Companion for Portfolio Performance
 
-![build status](https://github.com/ma4nn/pp-terminal/actions/workflows/verify-app.yml/badge.svg)
+![build status](https://github.com/ma4nn/pp-terminal/actions/workflows/check-code.yml/badge.svg)
 
 A CLI application for the great [Portfolio Performance app](https://www.portfolio-performance.info/) to run different 
 analysis on the portfolio data.

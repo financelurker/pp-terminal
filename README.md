@@ -15,11 +15,11 @@ too many edge-cases, etc.
 
 By default, `pp-terminal` provides the following commands:
 
-| Command                   | Description                                                                         |
-|---------------------------|-------------------------------------------------------------------------------------|
-| `view deposit-accounts`   | display a detailed table with the balances per deposit account                      |
-| `view security-accounts`  | display a detailed table with the current values per security account               |
-| `simulate vorabpauschale` | run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio |
+| Command                    | Description                                                                         |
+|----------------------------|-------------------------------------------------------------------------------------|
+| `view deposit-accounts`    | display a detailed table with the balances per deposit account                      |
+| `view securities-accounts` | display a detailed table with the current values per security account               |
+| `simulate vorabpauschale`  | run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio |
 
 Code completion for commands and options is also available.  
 The application **does not modify** the original Portfolio Performance file.

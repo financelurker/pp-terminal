@@ -48,7 +48,7 @@ load_command_plugins(app)
 
 def version_callback(value: bool) -> None:
     if value:
-        print(f"pp-terminal Version: {__version__}")
+        print(f"[bold]pp-terminal[/bold] version: {__version__}")
         raise typer.Exit()
 
 

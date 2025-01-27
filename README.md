@@ -14,11 +14,12 @@ This can be because of country-dependant tax rules, complex Java implementation,
 too many edge-cases, etc.  
 By default, `pp-terminal` provides the following commands:
 
-| Command                    | Description                                                                         |
-|----------------------------|-------------------------------------------------------------------------------------|
-| `view deposit-accounts`    | display a detailed table with the balances per deposit account                      |
-| `view securities-accounts` | display a detailed table with the current values per securities account             |
-| `simulate vorabpauschale`  | run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio |
+| Command                    | Description                                                                                        |
+|----------------------------|----------------------------------------------------------------------------------------------------|
+| `view deposit-accounts`    | display a detailed table with the balances per each deposit account                                |
+| `view securities-accounts` | display a detailed table with the current values per each securities account                       |
+| `simulate vorabpauschale`  | run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
+| `validate`                 | run a number of different validation checks on the portfolio data, e.g. security prices up-to-date |
 
 Code completion for commands and options is also available.  
 The application **does not modify** the original Portfolio Performance file.

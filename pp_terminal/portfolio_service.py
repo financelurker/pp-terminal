@@ -21,7 +21,7 @@ import logging
 from typing import cast
 
 from pandera.errors import SchemaError
-from pandera.typing import DataFrame, Series
+from pandera.typing import DataFrame
 
 from .schemas import AccountType, TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema
 
@@ -94,5 +94,5 @@ class PortfolioService:
         return self._securities
 
     @property
-    def prices(self) -> Series[SecurityPriceSchema]:
-        return cast(Series[SecurityPriceSchema], self._prices)
+    def prices(self) -> DataFrame[SecurityPriceSchema]:
+        return cast(DataFrame[SecurityPriceSchema], self._prices)

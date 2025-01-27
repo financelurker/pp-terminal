@@ -24,6 +24,7 @@ from rich.console import Console
 import pandas as pd
 import typer
 
+from ..df_filter import filter_not_retired
 from ..helper import handle_nothing_found
 from ..portfolio_service import PortfolioService
 from ..portfolio_snapshot import PortfolioSnapshot
@@ -53,7 +54,7 @@ def print_accounts_table(ctx: typer.Context, by: datetime = datetime.now()) -> N
         raise handle_nothing_found(console)
 
     table = TableDecorator(title="Balances on Deposit Account", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False)
-    table.add_df(df[(df['is_retired'] == False) & (df['Balance'] > 0)][['Name', 'Balance']])  # pylint: disable=singleton-comparison
+    table.add_df(df.pipe(filter_not_retired)[['Name', 'Balance']])  # pylint: disable=singleton-comparison
 
     console.print()
     console.print(table)

@@ -24,7 +24,8 @@ import pandas as pd
 import pandera as pa
 from pandera.typing import DataFrame
 
-from .helper import filter_df_by_date, filter_df_by_type, enum_list_to_values
+from .df_filter import filter_by_date, filter_by_type
+from .helper import enum_list_to_values
 from .portfolio_service import PortfolioService
 from .schemas import TransactionType, TransactionSchema
 
@@ -61,7 +62,7 @@ class PortfolioSnapshot:
 
     @property
     def prices(self) -> pd.DataFrame:
-        return filter_df_by_date(self._portfolio.prices, self._per_date).sort_index(level='Date', ascending=False)
+        return self._portfolio.prices.pipe(filter_by_date, target_date=self._per_date).sort_index(level='Date', ascending=False)
 
     @property
     def latest_prices(self) -> pd.Series:
@@ -72,8 +73,11 @@ class PortfolioSnapshot:
 
     @property
     @pa.check_types()
-    def transactions(self) -> DataFrame[TransactionSchema]:
-        return cast(DataFrame[TransactionSchema], filter_df_by_date(self._portfolio.securities_account_transactions, self._per_date))
+    def transactions(self) -> DataFrame[TransactionSchema] | None:
+        if self._portfolio.securities_account_transactions is None:
+            return None
+
+        return cast(DataFrame[TransactionSchema], self._portfolio.securities_account_transactions.pipe(filter_by_date, target_date=self._per_date))
 
     @property
     @pa.check_types()
@@ -82,7 +86,7 @@ class PortfolioSnapshot:
         if transactions is None:
             return None
 
-        return filter_df_by_date(self.portfolio.deposit_account_transactions, self._per_date)
+        return transactions.pipe(filter_by_date, target_date=self._per_date)
 
     @property
     @pa.check_types()
@@ -96,7 +100,7 @@ class PortfolioSnapshot:
             axis=1
         ) * transactions['Shares']
 
-        shares = filter_df_by_type(transactions, [
+        shares = transactions.pipe(filter_by_type, transaction_types=[
             TransactionType.BUY,
             TransactionType.SELL,
             TransactionType.TRANSFER_IN,

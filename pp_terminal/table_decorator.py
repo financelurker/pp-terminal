@@ -23,7 +23,8 @@ import pandas as pd
 from rich.table import Table
 from rich.text import Text
 
-from pp_terminal.helper import format_money, drop_empty_df_values
+from pp_terminal.df_filter import drop_empty_values
+from pp_terminal.helper import format_money
 
 
 class TableDecorator(Table):
@@ -45,7 +46,7 @@ class TableDecorator(Table):
         return self._footer_lines == 0  # multiple footer lines are not supported in rich by default
 
     def add_df(self, df: pd.DataFrame) -> Table:
-        df = drop_empty_df_values(df)
+        df = df.pipe(drop_empty_values)
         if df.empty:
             return self
 

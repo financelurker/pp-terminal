@@ -18,33 +18,19 @@
 """
 
 import locale
-from datetime import datetime
-from typing import List, Any
+import logging
+from typing import List, Any, Callable
 
 import pandas as pd
 from rich.console import Console
 import typer
+from typer.models import CommandFunctionType
 
-from .schemas import TransactionType
-
-locale.setlocale(locale.LC_ALL, '')
+log = logging.getLogger(__name__)
 
 
 def format_money(value: float) -> str:
     return locale.format_string("EUR %.2f", value, grouping=True, monetary=True) if not pd.isna(value) and isinstance(value, float) else ''
-
-
-def drop_empty_df_values(df: pd.DataFrame | pd.Series) -> pd.DataFrame:
-    if df.empty:
-        return df
-
-    df = df[~(df.isna() | df == 0)]
-
-    df.dropna(how='all', axis=0, inplace=True)
-    if isinstance(df, pd.DataFrame):
-        df.dropna(how='all', axis=1, inplace=True)
-
-    return df
 
 
 def print_hint(console: Console, message: str) -> None:
@@ -58,22 +44,6 @@ def handle_nothing_found(console: Console) -> Exception:
     return typer.Exit()
 
 
-def filter_df_by_date(df: pd.DataFrame, end_date: datetime) -> pd.DataFrame:
-    return df[df.index.get_level_values('Date') <= end_date]
-
-
-def filter_df_by_type(df: pd.DataFrame, transaction_types: TransactionType| list[TransactionType]) -> pd.DataFrame:
-    if not isinstance(transaction_types, list):
-        transaction_types = [transaction_types]
-
-    # we store only the name of the enum to save some space, so we have to convert it here
-    cleaned_transaction_types = []
-    for transaction_type in transaction_types:
-        cleaned_transaction_types.append(transaction_type.name)
-
-    return df[df['Type'].isin(cleaned_transaction_types)]
-
-
 def enum_types_to_name(enum_list: List[Any]) -> List[Any]:
     # prepare for enum storage in dataframe
     for element in enum_list:
@@ -84,3 +54,17 @@ def enum_types_to_name(enum_list: List[Any]) -> List[Any]:
 
 def enum_list_to_values(enum_list: List[Any]) -> List[Any]:
     return [item.value for item in enum_list]
+
+
+def run_all_group_cmds(app: typer.Typer) -> Callable[[CommandFunctionType], Callable[[typer.Context], CommandFunctionType]]:
+    def decorator(func: CommandFunctionType) -> Callable[[typer.Context], CommandFunctionType]:
+        def wrapper(ctx: typer.Context) -> CommandFunctionType:
+            if ctx.invoked_subcommand is None:
+                for command in app.registered_commands:
+                    if command.callback is not None:
+                        log.debug('Running group command "%s"..', command.name)
+                        command.callback(ctx)
+
+            return func
+        return wrapper
+    return decorator

@@ -26,24 +26,13 @@ import typer
 from babel.numbers import format_currency
 from typer.models import CommandFunctionType
 
-
-from pp_terminal.schemas import Money
+from .schemas import Money
 
 log = logging.getLogger(__name__)
 
 
-def format_money(value: float, currency: str = '') -> str:
+def format_money(value: Money, currency: str = '') -> str:
     return format_currency(value, currency) if not pd.isna(value) and isinstance(value, Money) else ''
-
-
-def print_hint(console: Console, message: str) -> None:
-    console.print(':bulb: [bold]Hint:[/bold] ' + message)
-    console.print()
-
-
-def print_warning(console: Console, message: str) -> None:
-    console.print(':backhand_index_pointing_right: [bold]Warning:[/bold] ' + message)
-    console.print()
 
 
 def handle_nothing_found(console: Console) -> Exception:

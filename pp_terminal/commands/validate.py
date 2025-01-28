@@ -22,7 +22,6 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Callable, Any
 
-from rich.console import Console
 import pandas as pd
 import typer
 from typer.models import CommandFunctionType
@@ -30,6 +29,7 @@ from typer.models import CommandFunctionType
 from ..df_filter import filter_by_date, filter_not_retired
 from ..exceptions import ValidationError
 from ..helper import run_all_group_cmds
+from ..output import Console
 from ..portfolio_service import PortfolioService
 
 app = typer.Typer()

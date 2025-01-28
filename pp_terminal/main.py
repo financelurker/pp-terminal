@@ -29,7 +29,8 @@ from rich.logging import RichHandler
 import typer
 from typing_extensions import Annotated
 
-from pp_terminal.exceptions import InputError
+from .exceptions import InputError
+from .output import create_strategy, OutputFormat
 from .plugins import load_command_plugins
 from .pp_portfolio_service_adapter import PortfolioPerformanceService
 
@@ -71,13 +72,14 @@ def main(
             Optional[bool],
             typer.Option("--version", callback=version_callback, is_eager=True),  # declared the option name to avoid --no-version
         ] = None,
+        format: OutputFormat = OutputFormat.TABLE  # pylint: disable=redefined-builtin
 ) -> None:
 
     if debug:
         logging.basicConfig(force=True, level=logging.DEBUG, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=True, show_time=False)])
 
     try:
-        ctx.obj = SimpleNamespace(portfolio=PortfolioPerformanceService(file))
+        ctx.obj = SimpleNamespace(portfolio=PortfolioPerformanceService(file), output=create_strategy(format))
     except (RuntimeError, InputError) as e:
         if debug:
             raise e

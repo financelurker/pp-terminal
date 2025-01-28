@@ -1,6 +1,6 @@
 # pp-terminal - The Analytic Companion for Portfolio Performance
 
-![build status](https://github.com/ma4nn/pp-terminal/actions/workflows/check-code.yml/badge.svg)
+![build status](https://github.com/ma4nn/pp-terminal/actions/workflows/ci.yml/badge.svg)
 
 A powerful command-line tool that uses the openness of [Portfolio Performance](https://www.portfolio-performance.info/) data 
 and the convenient access of [ppxml2db](https://github.com/pfalcon/ppxml2db) to offer a whole new level of insights into your portfolio.  
@@ -17,13 +17,14 @@ By default, `pp-terminal` provides the following commands:
 
 | Command                    | Description                                                                                        |
 |----------------------------|----------------------------------------------------------------------------------------------------|
-| `view deposit-accounts`    | display a detailed table with the balances per each deposit account                                |
-| `view securities-accounts` | display a detailed table with the current values per each securities account                       |
-| `simulate vorabpauschale`  | run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
-| `validate`                 | run a number of different validation checks on the portfolio data, e.g. security prices up-to-date |
+| `view deposit-accounts`    | Get detailed information about the balances per each deposit account                               |
+| `view securities-accounts` | Get detailed information about the current values per each securities account                      |
+| `simulate vorabpauschale`  | Run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
+| `validate`                 | Run a number of different validation checks on the portfolio data, e.g. security prices up-to-date |
 
-Code completion for commands and options is also available.  
-The application **does not modify** the original Portfolio Performance file.
+Code completion for commands and options is available.  
+The application **does not modify** the original Portfolio Performance file.  
+You can choose between different output formats like JSON or CSV with the `--format` option.
 
 In addition to the standard set, you can easily [create your own commands](#user-content-create-your-own-command-️) 
 and share them with the community.
@@ -77,7 +78,7 @@ To hook into a sub-command, e.g. `view`, you have to prefix the entry point name
 The most basic _pp-terminal_ command looks like this:
 
 ```python
-from rich.console import Console
+from pp_terminal.output import Console
 import typer
 
 app = typer.Typer()

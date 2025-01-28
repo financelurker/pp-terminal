@@ -25,9 +25,9 @@ import numpy as np
 import pandas as pd
 from pandera.typing import DataFrame
 
-from pp_terminal.portfolio_service import PortfolioService
-from pp_terminal.schemas import TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema
-from pp_terminal.ppxml2db_wrapper import PortfolioPerformanceDbWrapper
+from .portfolio_service import PortfolioService
+from .schemas import TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema
+from .ppxml2db_wrapper import PortfolioPerformanceDbWrapper
 
 log = logging.getLogger(__name__)
 

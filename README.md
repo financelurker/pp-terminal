@@ -1,6 +1,6 @@
 # pp-terminal - The Analytic Companion for Portfolio Performance
 
-![build status](https://github.com/ma4nn/pp-terminal/actions/workflows/check-code.yml/badge.svg)
+![build status](https://github.com/ma4nn/pp-terminal/actions/workflows/ci.yml/badge.svg)
 
 A powerful command-line tool that uses the openness of [Portfolio Performance](https://www.portfolio-performance.info/) data 
 and the convenient access of [ppxml2db](https://github.com/pfalcon/ppxml2db) to offer a whole new level of insights into your portfolio.  

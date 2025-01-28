@@ -60,13 +60,16 @@ def enum_list_to_values(enum_list: List[Any]) -> List[Any]:
 
 def run_all_group_cmds(app: typer.Typer) -> Callable[[CommandFunctionType], Callable[[typer.Context], CommandFunctionType]]:
     def decorator(func: CommandFunctionType) -> Callable[[typer.Context], CommandFunctionType]:
-        def wrapper(ctx: typer.Context) -> CommandFunctionType:
+        def wrapper(ctx: typer.Context) -> Any:
+            invoked_command = ctx.invoked_subcommand
             if ctx.invoked_subcommand is None:
                 for command in app.registered_commands:
                     if command.callback is not None:
+                        ctx.invoked_subcommand = command.name
                         log.debug('Running group command "%s"..', command.name)
                         command.callback(ctx)
+            ctx.invoked_subcommand = invoked_command
 
-            return func
+            return func(ctx)
         return wrapper
     return decorator

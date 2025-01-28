@@ -23,6 +23,7 @@ from typing import Optional, TypeAlias
 import pandera as pa
 from pandera.typing import Index, Series
 
+
 Money: TypeAlias = float
 
 

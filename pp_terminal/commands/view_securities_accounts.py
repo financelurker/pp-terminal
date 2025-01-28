@@ -23,7 +23,7 @@ from datetime import datetime
 import pandas as pd
 import typer
 
-from ..df_filter import filter_not_retired
+from ..df_filter import filter_not_retired, unstack_column_by_currency
 from ..output import OutputStrategy, Console
 from ..portfolio_service import PortfolioService
 from ..portfolio_snapshot import PortfolioSnapshot
@@ -35,8 +35,15 @@ log = logging.getLogger(__name__)
 
 
 def calculate_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
-    return (pd.merge(snapshot.portfolio.securities_accounts, snapshot.values.groupby('AccountId').sum(), left_index=True, right_index=True, how="right")
+    values = (pd.merge(snapshot.portfolio.securities_accounts, snapshot.values.groupby(['AccountId', 'currency']).sum(), left_index=True, right_on='AccountId', how="right")
             .sort_values(by='Value'))
+    values = values.pipe(filter_not_retired)[['Name', 'Value']]  # pylint: disable=singleton-comparison
+
+    values = values.pipe(unstack_column_by_currency, column='Value')
+    if snapshot.portfolio.base_currency in values:
+        values.sort_values(by=snapshot.portfolio.base_currency, inplace=True)
+
+    return values
 
 
 @app.command(name="securities-accounts")
@@ -49,7 +56,6 @@ def print_accounts(ctx: typer.Context, by: datetime = datetime.now()) -> None:
     output = ctx.obj.output  # type: OutputStrategy
 
     df = calculate_sum(PortfolioSnapshot(portfolio, by))
-    df = df.pipe(filter_not_retired)[['Name', 'Value']]
 
     console.print(*output.result_table(
         df, TableOptions(title="Values on Securities Accounts", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False)

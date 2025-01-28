@@ -50,6 +50,8 @@ class PortfolioPerformanceService(PortfolioService):
             prices=self._parse_prices()
         )
 
+        self.base_currency = str(self._get_property('baseCurrency'))
+
         self._db.close()
 
     def _parse_securities(self) -> DataFrame[SecuritySchema]:
@@ -74,7 +76,7 @@ group by s.uuid
 
     def _parse_transactions(self) -> DataFrame[TransactionSchema]:
         transactions = (pd.read_sql_query("""
-select datetime(date) as Date, amount-fees as amount_wo_fees, fees, uuid, account, type, security, shares, acctype from xact
+select datetime(date) as Date, currency, amount-fees as amount_wo_fees, fees, uuid, account, type, security, shares, acctype from xact
         """, self._db.connection, index_col=['Date', 'account', 'security'], parse_dates={"Date": "%Y-%m-%d %H:%M:%S"}, dtype={'amount_wo_fees': np.float64, 'shares': np.float64})
                           .rename(columns={'uuid': 'TransactionId', 'account': 'AccountId', 'type': 'Type', 'security': 'SecurityId', 'shares': 'Shares', 'acctype': 'account_type', 'amount_wo_fees': 'amount'}))
         transactions['amount'] = transactions['amount'] / _CENTS_PER_EURO
@@ -89,3 +91,13 @@ select datetime(date) as Date, amount-fees as amount_wo_fees, fees, uuid, accoun
                           .rename(columns={'uuid': 'AccountId', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'ReferenceAccountId', 'isRetired': 'is_retired'}))
 
         return cast(DataFrame[AccountSchema], accounts)
+
+    def _get_property(self, name: str) -> str | None:
+        cursor = self._db.connection.cursor()
+        cursor.execute('select value from property where name = ?', (name, ))
+
+        result = cursor.fetchone()
+        if result is None:
+            return None
+
+        return str(result[0])

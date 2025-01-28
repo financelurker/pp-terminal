@@ -20,7 +20,6 @@
 import sqlite3
 from datetime import datetime
 
-import numpy as np
 import pandas as pd
 from _pytest.fixtures import TopRequest
 from _pytest.monkeypatch import MonkeyPatch
@@ -35,16 +34,16 @@ def test_kommer(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))
     portfolio = PortfolioPerformanceService(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
 
-    expected_df = pd.DataFrame([  # @todo we currently do not respect the USD currency, that's why value is a bit off
-        ['Kryptowährung', 72.07],
-        ['Depot', 17070.17],
-    ], columns=['Name', 'Value'], index=[
+    expected_df = pd.DataFrame([
+        ['Kryptowährung', 72.07, None],
+        ['Depot', 14031.37, 3038.80],
+    ], columns=['Name', 'EUR', 'USD'], index=[
         '57ede399-7ef8-4696-a874-1f425e25d1f5',
         'dc6fac85-6c6e-47f1-a968-2b5b84d90997',
     ])
     expected_df.index.name = 'AccountId'
 
-    result = calculate_sum(PortfolioSnapshot(portfolio, datetime(2024, 1, 1)))[['Name', 'Value']]
+    result = calculate_sum(PortfolioSnapshot(portfolio, datetime(2024, 1, 1)))
 
     assert_frame_equal(expected_df, result.round(2), check_names=False)
 
@@ -53,9 +52,9 @@ def test_empty_file(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))
     portfolio = PortfolioPerformanceService(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
 
-    expected_df = pd.DataFrame([], columns=['Name', 'Value'], index=[]).astype({'Value': np.float64})
+    expected_df = pd.DataFrame([], columns=['Name'], index=[])
     expected_df.index.name = 'AccountId'
 
-    result = calculate_sum(PortfolioSnapshot(portfolio))[['Name', 'Value']]
+    result = calculate_sum(PortfolioSnapshot(portfolio))
 
     assert_frame_equal(expected_df, result)

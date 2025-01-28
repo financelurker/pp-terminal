@@ -33,6 +33,7 @@ class PortfolioService:
     _securities: DataFrame[SecuritySchema] | None = None
     _transactions: DataFrame[TransactionSchema] | None = None
     _prices: DataFrame[SecurityPriceSchema] | None = None
+    base_currency: str = ''
 
     def __init__(
             self,

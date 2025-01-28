@@ -48,6 +48,9 @@ class OutputStrategy(ABC):
     def hint(self, message: str) -> str:  # pylint: disable=unused-argument
         return ''
 
+    def warning(self, message: str) -> str:  # pylint: disable=unused-argument
+        return ''
+
     def empty_result(self) -> str:
         return ''
 
@@ -64,6 +67,9 @@ class RichOutputStrategy(OutputStrategy):
 
     def hint(self, message: str) -> str:
         return ':bulb: [bold]Hint:[/bold] ' + message + "\n"
+
+    def warning(self, message: str) -> str:
+        return ':backhand_index_pointing_right: [bold]Warning:[/bold] ' + message + "\n"
 
     def empty_result(self) -> str:
         return 'Nothing here..:sleeping: '

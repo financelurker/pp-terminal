@@ -73,7 +73,7 @@ class PortfolioSnapshot:
 
     @property
     @pa.check_types()
-    def transactions(self) -> DataFrame[TransactionSchema] | None:
+    def transactions(self) -> DataFrame[TransactionSchema] | None:  # @todo rename
         if self._portfolio.securities_account_transactions is None:
             return None
 
@@ -107,7 +107,7 @@ class PortfolioSnapshot:
             TransactionType.TRANSFER_OUT,
             TransactionType.DELIVERY_INBOUND,
             TransactionType.DELIVERY_OUTBOUND
-        ]).groupby(['AccountId', 'SecurityId'])['Shares'].sum()
+        ]).groupby(['AccountId', 'SecurityId', 'currency'])['Shares'].sum()
         shares.name = 'Shares'
 
         return shares
@@ -116,12 +116,12 @@ class PortfolioSnapshot:
     def values(self) -> pd.Series:
         shares = self.shares
         if shares is None or shares.empty or self.latest_prices.empty:
-            return pd.Series([], name='Value', index=pd.MultiIndex.from_tuples([], names=['AccountId', 'SecurityId']), dtype='float64')
+            return pd.Series([], name='Value', index=pd.MultiIndex.from_tuples([], names=['AccountId', 'SecurityId', 'currency']), dtype='float64')
 
         values = self.latest_prices * shares
         values.name = 'Value'
 
-        return values.groupby(['AccountId', 'SecurityId']).sum()
+        return values.groupby(['AccountId', 'SecurityId', 'currency']).sum()
 
     @property
     def balances(self) -> pd.Series | None:
@@ -134,7 +134,7 @@ class PortfolioSnapshot:
             axis=1
         ) * transactions['amount']
 
-        balances = transactions.groupby(['AccountId'])['amount'].sum()
+        balances = transactions.groupby(['AccountId', 'currency'])['amount'].sum()
         balances.name = 'Balance'
 
         return balances

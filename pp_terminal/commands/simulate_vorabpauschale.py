@@ -39,7 +39,7 @@ begin = None  # pylint: disable=invalid-name
 
 
 # @see https://www.gesetze-im-internet.de/invstg_2018/__18.html
-def calculate(
+def calculate(  # pylint: disable=too-many-locals
         snapshot_period_begin: PortfolioSnapshot,
         snapshot_period_end: PortfolioSnapshot,
         base_rate_percent: float,
@@ -51,14 +51,18 @@ def calculate(
     payouts = _calculate_payouts(snapshot_period_end)
     logging.debug(payouts)
 
+    # @todo convert all values to EUR with rates from ECB, for the moment we simply remove currency
+    begin_values_in_eur = snapshot_period_begin.values.groupby(['AccountId', 'SecurityId']).sum()
+    end_values_in_eur = snapshot_period_end.values.groupby(['AccountId', 'SecurityId']).sum()
+
     # use df.subtract to align both matrices
-    outcome = snapshot_period_end.values.subtract(snapshot_period_begin.values, fill_value=0)
+    outcome = end_values_in_eur.subtract(begin_values_in_eur, fill_value=0)
     outcome.name = 'Outcome'
     logging.debug(outcome)
 
     # for securities that have been bought within the year we need to take the number of months held into account
     pro_rata_shares = _calculate_prorata_shares_for_inyear_buys(snapshot_period_end)
-    modified_values_begin = snapshot_period_begin.values.add(pro_rata_shares.mul(snapshot_period_begin.latest_prices, fill_value=0), fill_value=0) if pro_rata_shares is not None else snapshot_period_begin.values
+    modified_values_begin = begin_values_in_eur.add(pro_rata_shares.mul(snapshot_period_begin.latest_prices, fill_value=0), fill_value=0) if pro_rata_shares is not None else snapshot_period_begin.values
 
     base_yield = modified_values_begin * base_rate * 0.7
     base_yield = outcome.combine(base_yield, np.minimum)
@@ -90,7 +94,7 @@ def calculate(
     securities_accounts = snapshot_period_end.portfolio.securities_accounts
     if securities_accounts is not None and 'ReferenceAccountId' in securities_accounts and snapshot_period_end.balances is not None:
         # add the reference account balance
-        vorabpauschale.loc[len(vorabpauschale)] = (pd.merge(securities_accounts, snapshot_period_end.balances, left_on='ReferenceAccountId', right_index=True, how='left')['Balance'].dropna().to_dict()
+        vorabpauschale.loc[len(vorabpauschale)] = (pd.merge(securities_accounts, snapshot_period_end.balances.groupby(['AccountId']).sum(), left_on='ReferenceAccountId', right_index=True, how='left')['Balance'].dropna().to_dict()
                                                    | {'Name': 'Related Account Balance'})
 
     return vorabpauschale.rename(columns=securities_accounts['Name'])
@@ -205,3 +209,5 @@ def print_tax_table(
             footer_lines=1
         )
     ))
+
+    console.print(output.warning('For the current version this simulation assumes that all prices are in EUR.'))

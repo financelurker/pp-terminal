@@ -36,7 +36,7 @@ class TableOptions:  # pylint: disable=too-few-public-methods
             show_index: bool = True,
             show_total: bool = True,
             footer_lines: int = 0,
-            money_formatter: Callable[[float], str] = format_money
+            money_formatter: Callable[[float, str], str] = format_money
     ) -> None:
         self.title = title
         self.caption = caption
@@ -75,13 +75,19 @@ class TableDecorator(Table):
 
         # Add DataFrame columns to the table
         for i, column in enumerate(df.columns):
-            footer_value = self._options.money_formatter(summary_row[column]) if self._options.show_total and column in summary_row.index else ''
+            if str(column) == 'currency':
+                continue
+
+            footer_value = self._options.money_formatter(summary_row[column], str(column)) if self._options.show_total and column in summary_row.index else ''
             justify = 'right' if footer_value != '' else 'left'  # type: Literal["right", "left"]
 
             if not self._options.show_index and footer_value == '' and i == 0:  # column is non-numeric
                 footer_value = 'Total'
 
-            self.add_column(str(column), footer=footer_value if self.show_default_footer else '', justify=justify)
+            column_title = str(column)
+            column_title = column_title[0].upper() + column_title[1:]
+
+            self.add_column(column_title, footer=footer_value if self.show_default_footer else '', justify=justify)
 
         for row_data in self._prepare_rows(df):
             self.add_row(*row_data)
@@ -105,7 +111,8 @@ class TableDecorator(Table):
         rows = []
         for index, row in df.iterrows():
             row_data = [str(index)] if self._options.show_index else []
-            row_data.extend([self._options.money_formatter(float(value)) if isinstance(value, Money) else value for value in row])
+            currency = row['currency'] if 'currency' in row else ''
+            row_data.extend([self._options.money_formatter(float(value), currency) if isinstance(value, Money) else value for value in row.drop('currency', errors="ignore")])
             rows.append(row_data)
 
         return rows

@@ -39,7 +39,7 @@ begin = None  # pylint: disable=invalid-name
 
 
 # @see https://www.gesetze-im-internet.de/invstg_2018/__18.html
-def calculate(
+def calculate(  # pylint: disable=too-many-locals
         snapshot_period_begin: PortfolioSnapshot,
         snapshot_period_end: PortfolioSnapshot,
         base_rate_percent: float,

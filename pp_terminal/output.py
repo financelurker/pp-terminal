@@ -17,7 +17,6 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import locale
 from abc import abstractmethod, ABC
 from enum import Enum
 from typing import Any
@@ -26,8 +25,7 @@ import pandas as pd
 import rich
 from rich.console import NewLine
 
-from pp_terminal.schemas import Money
-from pp_terminal.table_decorator import TableDecorator
+from .table_decorator import TableDecorator, TableOptions
 
 
 class OutputFormat(str, Enum):
@@ -44,7 +42,7 @@ class Console(rich.console.Console):
 
 class OutputStrategy(ABC):
     @abstractmethod
-    def result_table(self, df: pd.DataFrame | None, title: str = '', caption: str = '', show_index: bool = False, footer_lines: int = 0) -> Any:
+    def result_table(self, df: pd.DataFrame | None, options: TableOptions) -> Any:
         pass
 
     def hint(self, message: str) -> str:  # pylint: disable=unused-argument
@@ -55,11 +53,11 @@ class OutputStrategy(ABC):
 
 
 class RichOutputStrategy(OutputStrategy):
-    def result_table(self, df: pd.DataFrame | None, title: str = '', caption: str = '', show_index: bool = False, footer_lines: int = 0) -> Any:
+    def result_table(self, df: pd.DataFrame | None, options: TableOptions) -> Any:
         if df is None or df.empty:
             return self.empty_result()
 
-        table = TableDecorator(title=title, caption=caption, show_index=show_index, money_formatter=format_money)
+        table = TableDecorator(options)
         table.add_df(df)
 
         return NewLine(), table
@@ -72,19 +70,19 @@ class RichOutputStrategy(OutputStrategy):
 
 
 class CsvOutputStrategy(OutputStrategy):
-    def result_table(self, df: pd.DataFrame | None, title: str = '', caption: str = '', show_index: bool = False, footer_lines: int = 0) -> Any:
+    def result_table(self, df: pd.DataFrame | None, options: TableOptions) -> Any:
         if df is None:
             return self.empty_result()
 
-        return (df.to_csv(index=show_index, float_format='%.2f'), )
+        return (df.to_csv(index=options.show_index, float_format='%.2f'), )
 
 
 class JsonOutputStrategy(OutputStrategy):
-    def result_table(self, df: pd.DataFrame | None, title: str = '', caption: str = '', show_index: bool = False, footer_lines: int = 0) -> Any:
+    def result_table(self, df: pd.DataFrame | None, options: TableOptions) -> Any:
         if df is None:
             return self.empty_result()
 
-        return (df.to_json(index=show_index, orient='records'), )
+        return (df.to_json(index=options.show_index, orient='records'), )
 
 
 def create_strategy(output_format: OutputFormat) -> OutputStrategy:
@@ -98,7 +96,3 @@ def create_strategy(output_format: OutputFormat) -> OutputStrategy:
         return JsonOutputStrategy()
 
     raise NotImplementedError('output format "' + output_format + '" not supported yet')
-
-
-def format_money(value: Money) -> str:
-    return locale.format_string("EUR %.2f", value, grouping=True, monetary=True) if not pd.isna(value) and isinstance(value, Money) else ''

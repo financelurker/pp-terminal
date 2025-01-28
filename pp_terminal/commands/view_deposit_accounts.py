@@ -27,6 +27,7 @@ from ..df_filter import filter_not_retired
 from ..output import OutputStrategy, Console
 from ..portfolio_service import PortfolioService
 from ..portfolio_snapshot import PortfolioSnapshot
+from ..table_decorator import TableOptions
 
 app = typer.Typer()
 console = Console()
@@ -51,5 +52,5 @@ def print_accounts(ctx: typer.Context, by: datetime = datetime.now()) -> None:
     df = df.pipe(filter_not_retired)[['Name', 'Balance']]
 
     console.print(*output.result_table(
-        df, title="Balances on Deposit Account", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False
+        df, TableOptions(title="Balances on Deposit Account", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False)
     ))

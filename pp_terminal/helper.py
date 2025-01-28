@@ -17,14 +17,22 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
+import locale
 import logging
 from typing import List, Any, Callable
 
+import pandas as pd
 from rich.console import Console
 import typer
 from typer.models import CommandFunctionType
 
+from .schemas import Money
+
 log = logging.getLogger(__name__)
+
+
+def format_money(value: Money) -> str:
+    return locale.format_string("EUR %.2f", value, grouping=True, monetary=True) if not pd.isna(value) and isinstance(value, Money) else ''
 
 
 def handle_nothing_found(console: Console) -> Exception:

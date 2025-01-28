@@ -29,8 +29,8 @@ from rich.logging import RichHandler
 import typer
 from typing_extensions import Annotated
 
-from pp_terminal.exceptions import InputError
-from pp_terminal.output import create_strategy, OutputFormat
+from .exceptions import InputError
+from .output import create_strategy, OutputFormat
 from .plugins import load_command_plugins
 from .pp_portfolio_service_adapter import PortfolioPerformanceService
 

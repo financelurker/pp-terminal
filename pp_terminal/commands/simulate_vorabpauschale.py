@@ -29,6 +29,7 @@ from ..output import OutputStrategy, Console
 from ..portfolio_snapshot import PortfolioSnapshot
 from ..portfolio_service import PortfolioService
 from ..schemas import TransactionType
+from ..table_decorator import TableOptions
 
 app = typer.Typer()
 console = Console()
@@ -197,8 +198,10 @@ def print_tax_table(
 
     console.print(*output.result_table(
         result,
-        title=f"Estimated Taxes on Vorabpauschale {year.year} (§18 InvStG)",
-        caption='Actual values will deviate (different security prices), excl. Sparerpauschbetrag',
-        show_index=False,
-        footer_lines=1
+        TableOptions(
+            title=f"Estimated Taxes on Vorabpauschale {year.year} (§18 InvStG)",
+            caption='Actual values will deviate (different security prices), excl. Sparerpauschbetrag',
+            show_index=False,
+            footer_lines=1
+        )
     ))

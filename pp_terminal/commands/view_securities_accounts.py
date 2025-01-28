@@ -56,7 +56,6 @@ def print_accounts(ctx: typer.Context, by: datetime = datetime.now()) -> None:
     output = ctx.obj.output  # type: OutputStrategy
 
     df = calculate_sum(PortfolioSnapshot(portfolio, by))
-    df = df.pipe(filter_not_retired)[['Name', 'Value']]
 
     console.print(*output.result_table(
         df, TableOptions(title="Values on Securities Accounts", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False)

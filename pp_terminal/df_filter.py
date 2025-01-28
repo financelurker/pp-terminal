@@ -55,3 +55,10 @@ def drop_empty_values(df: pd.DataFrame | pd.Series) -> pd.DataFrame:
         df.dropna(how='all', axis=1, inplace=True)
 
     return df
+
+
+def unstack_column_by_currency(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    column_unstacked = df[column].unstack(level='currency')
+    df_modified = df.drop(columns=column).reset_index(level='currency', drop=True).drop_duplicates()
+
+    return df_modified.join(column_unstacked, how='outer')

@@ -202,7 +202,7 @@ def print_tax_table(
         raise handle_nothing_found(console)
 
     table = TableDecorator(
-        title=f"Estimated Vorabpauschale {year.year} (§18 InvStG)",
+        title=f"Estimated Taxes on Vorabpauschale {year.year} (§18 InvStG)",
         caption='Actual values will deviate (different security prices), excl. Sparerpauschbetrag',
         show_index=False,
         footer_lines=1

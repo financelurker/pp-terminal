@@ -19,3 +19,6 @@
 
 class InputError(Exception):
     pass
+
+class ValidationError(Exception):
+    pass

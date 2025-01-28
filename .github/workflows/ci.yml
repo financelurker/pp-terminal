@@ -1,9 +1,9 @@
-name: Check Code
+name: CI Pipeline
 
 on: [push,workflow_dispatch,pull_request]
 
 jobs:
-  test:
+  test-and-build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -28,3 +28,6 @@ jobs:
       run: poetry run mypy .
     - name: Running tests
       run: poetry run pytest
+    - name: Build Package
+      if: success()
+      run: poetry build

@@ -25,6 +25,7 @@ from rich.text import Text
 
 from pp_terminal.df_filter import drop_empty_values
 from pp_terminal.helper import format_money
+from pp_terminal.schemas import Money
 
 
 class TableDecorator(Table):
@@ -92,7 +93,7 @@ class TableDecorator(Table):
         rows = []
         for index, row in df.iterrows():
             row_data = [str(index)] if self._show_index else []
-            row_data.extend([self._formatter(float(value)) if isinstance(value, float) else value for value in row])
+            row_data.extend([self._formatter(float(value)) if isinstance(value, Money) else value for value in row])
             rows.append(row_data)
 
         return rows

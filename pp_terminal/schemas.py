@@ -18,10 +18,12 @@
 """
 
 from enum import Enum
-from typing import Optional
+from typing import Optional, TypeAlias
 
 import pandera as pa
 from pandera.typing import Index, Series
+
+Money: TypeAlias = float
 
 
 class TransactionType(Enum):
@@ -54,7 +56,7 @@ class TransactionSchema(pa.DataFrameModel):
     AccountId: Index[str]
     SecurityId: Optional[str]
     Type: Series[str]  # @todo use pandera preprocessing?
-    amount: Series[float]
+    amount: Series[Money]
     Shares: Series[float]
     account_type: Series[str]
 
@@ -76,4 +78,4 @@ class SecuritySchema(pa.DataFrameModel):
 class SecurityPriceSchema(pa.DataFrameModel):
     Date: Index[pa.DateTime]
     SecurityId: Index[str]
-    Price: Series[float]
+    Price: Series[Money]

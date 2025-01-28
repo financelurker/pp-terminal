@@ -26,11 +26,13 @@ from rich.console import Console
 import typer
 from typer.models import CommandFunctionType
 
+from pp_terminal.schemas import Money
+
 log = logging.getLogger(__name__)
 
 
-def format_money(value: float) -> str:
-    return locale.format_string("EUR %.2f", value, grouping=True, monetary=True) if not pd.isna(value) and isinstance(value, float) else ''
+def format_money(value: Money) -> str:
+    return locale.format_string("EUR %.2f", value, grouping=True, monetary=True) if not pd.isna(value) and isinstance(value, Money) else ''
 
 
 def print_hint(console: Console, message: str) -> None:

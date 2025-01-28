@@ -3,7 +3,7 @@
 ![build status](https://github.com/ma4nn/pp-terminal/actions/workflows/check-code.yml/badge.svg)
 
 A powerful command-line tool that uses the openness of [Portfolio Performance](https://www.portfolio-performance.info/) data 
-and the convenient access of [ppxml2db](https://github.com/pfalcon/ppxml2db) to offer a whole new level of insights to your portfolio.  
+and the convenient access of [ppxml2db](https://github.com/pfalcon/ppxml2db) to offer a whole new level of insights into your portfolio.  
 
 For example, _pp-terminal_ includes a command to calculate the preliminary tax values ("Vorabpauschale") for Germany:
 
@@ -11,7 +11,8 @@ For example, _pp-terminal_ includes a command to calculate the preliminary tax v
 
 _pp-terminal_ is a lightweight tool for all the nice-to-have features that won't make it into the official Portfolio Performance app.
 This can be because of country-dependant tax rules, complex Java implementation, highly individual requirements, 
-too many edge-cases, etc.  
+too many edge-cases, etc.
+
 By default, `pp-terminal` provides the following commands:
 
 | Command                    | Description                                                                                        |
@@ -44,12 +45,12 @@ pipx install git+https://github.com/ma4nn/pp-terminal
 The commands mentioned above all require the Portfolio Performance XML file as input.  
 You can either provide that file as first option to the command
 ```
-pp-terminal --file=depot.xml view security-accounts
+pp-terminal --file=depot.xml view securities-accounts
 ```
 or by setting an environment variable you can omit the option
 ```
 export PP_TERMINAL_INPUT_FILE=depot.xml
-pp-terminal view security-accounts
+pp-terminal view securities-accounts
 ```
 
 To view all available arguments you can always use the `--help` option.

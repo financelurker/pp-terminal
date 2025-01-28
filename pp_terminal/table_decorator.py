@@ -24,21 +24,20 @@ from rich.table import Table
 from rich.text import Text
 
 from pp_terminal.df_filter import drop_empty_values
-from pp_terminal.helper import format_money
 from pp_terminal.schemas import Money
 
 
 class TableDecorator(Table):
-    _formatter: Callable[[float],str]
+    _money_formatter: Callable[[float],str]
     _show_index: bool = True
     _show_total: bool = True
     _footer_lines: int = 0  # the last X lines will be used as the footer
 
-    def __init__(self, show_index: bool = True, show_total: bool = True, footer_lines: int = 0, formatter: Callable[[float], str] = format_money, **kwargs: Any) -> None:
+    def __init__(self, show_index: bool = True, show_total: bool = True, footer_lines: int = 0, money_formatter: Callable[[float], str] = str, **kwargs: Any) -> None:
         self._show_index = show_index
         self._show_total = show_total
         self._footer_lines = footer_lines
-        self._formatter = formatter
+        self._money_formatter = money_formatter
 
         super().__init__(show_footer=self.show_default_footer, **kwargs)
 
@@ -63,7 +62,7 @@ class TableDecorator(Table):
 
         # Add DataFrame columns to the table
         for i, column in enumerate(df.columns):
-            footer_value = self._formatter(summary_row[column]) if self._show_total and column in summary_row.index else ''
+            footer_value = self._money_formatter(summary_row[column]) if self._show_total and column in summary_row.index else ''
             justify = 'right' if footer_value != '' else 'left'  # type: Literal["right", "left"]
 
             if not self._show_index and footer_value == '' and i == 0:  # column is non-numeric
@@ -93,7 +92,7 @@ class TableDecorator(Table):
         rows = []
         for index, row in df.iterrows():
             row_data = [str(index)] if self._show_index else []
-            row_data.extend([self._formatter(float(value)) if isinstance(value, Money) else value for value in row])
+            row_data.extend([self._money_formatter(float(value)) if isinstance(value, Money) else value for value in row])
             rows.append(row_data)
 
         return rows

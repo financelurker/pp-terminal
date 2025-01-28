@@ -19,18 +19,16 @@
 
 from datetime import datetime,date
 import logging
-from rich.console import Console
 import pandas as pd
 import typer
 from typing_extensions import Annotated
 import numpy as np
 
 from ..df_filter import filter_by_type, drop_empty_values
-from ..helper import print_hint, handle_nothing_found
+from ..output import OutputStrategy, Console
 from ..portfolio_snapshot import PortfolioSnapshot
 from ..portfolio_service import PortfolioService
 from ..schemas import TransactionType
-from ..table_decorator import TableDecorator
 
 app = typer.Typer()
 console = Console()
@@ -187,23 +185,20 @@ def print_tax_table(
     """
 
     portfolio = ctx.obj.portfolio  # type: PortfolioService
+    output = ctx.obj.output  # type: OutputStrategy
 
-    print_hint(console, 'You can define the exemption rate for each security individually by creating a custom security attribute with a name like "Teilfreistellung" of type "Percent Number" in Portfolio Performance.')
+    console.print(output.hint('You can define the exemption rate for each security individually by creating a custom security attribute with a name like "Teilfreistellung" of type "Percent Number" in Portfolio Performance.'))
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(year.year, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(year.year, 12, 31))
-    result = calculate(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate)
-    if result is None:
-        raise handle_nothing_found(console)
 
-    table = TableDecorator(
+    result = calculate(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate)
+    result = result.round(2) if result is not None else result
+
+    console.print(*output.result_table(
+        result,
         title=f"Estimated Taxes on Vorabpauschale {year.year} (§18 InvStG)",
         caption='Actual values will deviate (different security prices), excl. Sparerpauschbetrag',
         show_index=False,
         footer_lines=1
-    )
-    table.add_df(result.round(2))
-
-    console.print()
-    console.print(table)
-    console.print()
+    ))

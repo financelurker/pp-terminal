@@ -20,15 +20,13 @@
 import logging
 from datetime import datetime
 
-from rich.console import Console
 import pandas as pd
 import typer
 
 from ..df_filter import filter_not_retired
-from ..helper import handle_nothing_found
+from ..output import OutputStrategy, Console
 from ..portfolio_service import PortfolioService
 from ..portfolio_snapshot import PortfolioSnapshot
-from ..table_decorator import TableDecorator
 
 app = typer.Typer()
 console = Console()
@@ -41,21 +39,17 @@ def calculate_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
 
 
 @app.command(name="deposit-accounts")
-def print_accounts_table(ctx: typer.Context, by: datetime = datetime.now()) -> None:
+def print_accounts(ctx: typer.Context, by: datetime = datetime.now()) -> None:
     """
     Show a detailed table with the current balance per deposit account.
     """
 
-    portfolio = ctx.obj.portfolio # type: PortfolioService
+    portfolio = ctx.obj.portfolio  # type: PortfolioService
+    output = ctx.obj.output  # type: OutputStrategy
 
     df = calculate_sum(PortfolioSnapshot(portfolio, by))
+    df = df.pipe(filter_not_retired)[['Name', 'Balance']]
 
-    if df.empty:
-        raise handle_nothing_found(console)
-
-    table = TableDecorator(title="Balances on Deposit Account", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False)
-    table.add_df(df.pipe(filter_not_retired)[['Name', 'Balance']])  # pylint: disable=singleton-comparison
-
-    console.print()
-    console.print(table)
-    console.print()
+    console.print(*output.result_table(
+        df, title="Balances on Deposit Account", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False
+    ))

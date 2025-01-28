@@ -23,7 +23,9 @@ import pandas as pd
 from rich.table import Table
 from rich.text import Text
 
-from pp_terminal.helper import format_money, drop_empty_df_values
+from pp_terminal.df_filter import drop_empty_values
+from pp_terminal.helper import format_money
+from pp_terminal.schemas import Money
 
 
 class TableDecorator(Table):
@@ -45,7 +47,7 @@ class TableDecorator(Table):
         return self._footer_lines == 0  # multiple footer lines are not supported in rich by default
 
     def add_df(self, df: pd.DataFrame) -> Table:
-        df = drop_empty_df_values(df)
+        df = df.pipe(drop_empty_values)
         if df.empty:
             return self
 
@@ -98,7 +100,7 @@ class TableDecorator(Table):
         for index, row in df.iterrows():
             row_data = [str(index)] if self._show_index else []
             currency = row['currency'] if 'currency' in row else ''
-            row_data.extend([self._formatter(float(value), currency) if isinstance(value, float) else value for value in row.drop('currency', errors="ignore")])
+            row_data.extend([self._formatter(float(value), currency) if isinstance(value, Money) else value for value in row.drop('currency', errors="ignore")])
             rows.append(row_data)
 
         return rows

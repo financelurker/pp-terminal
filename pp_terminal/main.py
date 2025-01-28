@@ -17,6 +17,7 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
+import locale
 from pathlib import Path
 from types import SimpleNamespace
 import importlib.metadata
@@ -35,7 +36,12 @@ from .pp_portfolio_service_adapter import PortfolioPerformanceService
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich")
 app.add_typer(typer.Typer(no_args_is_help=True), name="simulate")
 app.add_typer(typer.Typer(no_args_is_help=True), name="view")
+
+# init default logging (this is e.g. import for errors during command plugin load
+logging.basicConfig(level=logging.WARN, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=False, show_time=False, show_path=False)])
 log = logging.getLogger(__name__)
+
+locale.setlocale(locale.LC_ALL, '')
 
 try:
     __version__ = importlib.metadata.version("pp-terminal")
@@ -48,7 +54,7 @@ load_command_plugins(app)
 
 def version_callback(value: bool) -> None:
     if value:
-        print(f"pp-terminal Version: {__version__}")
+        print(f"[bold]pp-terminal[/bold] version: {__version__}")
         raise typer.Exit()
 
 
@@ -68,9 +74,7 @@ def main(
 ) -> None:
 
     if debug:
-        logging.basicConfig(level=logging.DEBUG, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=True, show_time=False)])
-    else:
-        logging.basicConfig(level=logging.WARN, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=False, show_time=False, show_path=False)])
+        logging.basicConfig(force=True, level=logging.DEBUG, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=True, show_time=False)])
 
     try:
         ctx.obj = SimpleNamespace(portfolio=PortfolioPerformanceService(file))

@@ -1,6 +1,6 @@
 [project]
 name = "pp-terminal"
-version = "0.2.0"
+version = "0.3.0-dev"
 description = "The Analytic Companion for Portfolio Performance"
 authors = [{ name = "Christoph Massmann", email = "chris@dev-investor.de" }]
 readme = "README.md"
@@ -15,7 +15,7 @@ dependencies = [
     "babel (>=2.16.0,<3.0.0)",
 ]
 scripts = { pp-terminal = "pp_terminal.main:app" }
-entry-points = { "pp_terminal.commands" = { "view.deposit_accounts" = "pp_terminal.commands.view_deposit_accounts:app", "view.securities_accounts" = "pp_terminal.commands.view_securities_accounts:app", "simulate.vorabpauschale" = "pp_terminal.commands.simulate_vorabpauschale:app" } }
+entry-points = { "pp_terminal.commands" = { "view.deposit_accounts" = "pp_terminal.commands.view_deposit_accounts:app", "view.securities_accounts" = "pp_terminal.commands.view_securities_accounts:app", "simulate.vorabpauschale" = "pp_terminal.commands.simulate_vorabpauschale:app", "validate" = "pp_terminal.commands.validate:app" } }
 
 
 [build-system]

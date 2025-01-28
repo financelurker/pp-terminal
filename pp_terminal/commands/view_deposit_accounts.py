@@ -24,7 +24,9 @@ from rich.console import Console
 import pandas as pd
 import typer
 
-from ..helper import handle_nothing_found, unstack_df_column_by_currency
+from ..df_filter import filter_not_retired, unstack_column_by_currency
+from ..helper import handle_nothing_found
+
 from ..portfolio_service import PortfolioService
 from ..portfolio_snapshot import PortfolioSnapshot
 from ..table_decorator import TableDecorator
@@ -37,9 +39,9 @@ log = logging.getLogger(__name__)
 def calculate_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
     balances = (pd.merge(snapshot.portfolio.deposit_accounts, snapshot.balances, left_index=True, right_on='AccountId', how="right")
             .sort_values(by='Balance'))
-    balances = balances[balances['is_retired'] == False][['Name', 'Balance', 'currency']]  # pylint: disable=singleton-comparison
+    balances = balances.pipe(filter_not_retired)[['Name', 'Balance', 'currency']]  # pylint: disable=singleton-comparison
 
-    balances = unstack_df_column_by_currency(balances, 'Balance')
+    balances = balances.pipe(unstack_column_by_currency, column='Balance')
     if snapshot.portfolio.base_currency in balances:
         balances.sort_values(by=snapshot.portfolio.base_currency, inplace=True)
 

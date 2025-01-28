@@ -25,7 +25,9 @@ import typer
 from typing_extensions import Annotated
 import numpy as np
 
-from ..helper import print_hint, drop_empty_df_values, filter_df_by_type, handle_nothing_found, print_warning
+from ..df_filter import filter_by_type, drop_empty_values
+from ..helper import print_hint, print_warning, handle_nothing_found
+
 from ..portfolio_snapshot import PortfolioSnapshot
 from ..portfolio_service import PortfolioService
 from ..schemas import TransactionType
@@ -61,7 +63,8 @@ def calculate(
     logging.debug(outcome)
 
     # for securities that have been bought within the year we need to take the number of months held into account
-    modified_values_begin = begin_values_in_eur.add(_calculate_prorata_shares_for_inyear_buys(snapshot_period_end).mul(snapshot_period_begin.latest_prices, fill_value=0), fill_value=0)
+    pro_rata_shares = _calculate_prorata_shares_for_inyear_buys(snapshot_period_end)
+    modified_values_begin = begin_values_in_eur.add(pro_rata_shares.mul(snapshot_period_begin.latest_prices, fill_value=0), fill_value=0) if pro_rata_shares is not None else snapshot_period_begin.values
 
     base_yield = modified_values_begin * base_rate * 0.7
     base_yield = outcome.combine(base_yield, np.minimum)
@@ -84,7 +87,7 @@ def calculate(
         vorabpauschale = vorabpauschale.unstack(level='AccountId')
         vorabpauschale.columns = [col[1] if len(col) > 1 else col[0] for col in vorabpauschale.columns]
 
-    vorabpauschale = drop_empty_df_values(vorabpauschale)
+    vorabpauschale = vorabpauschale.pipe(drop_empty_values)
     if vorabpauschale.empty or snapshot_period_end.portfolio.securities is None or snapshot_period_end.portfolio.securities_accounts is None:
         return None
 
@@ -99,23 +102,29 @@ def calculate(
     return vorabpauschale.rename(columns=securities_accounts['Name'])
 
 
-def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series:
+def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
     transactions = snapshot_end.transactions
+    if transactions is None:
+        return None
+
     transactions = transactions[transactions.index.get_level_values('Date').year == snapshot_end.date.year] if not transactions.index.get_level_values('Date').empty else transactions
 
-    payouts = filter_df_by_type(transactions, TransactionType.DIVIDENDS).groupby(['AccountId', 'SecurityId'])['amount'].sum()
+    payouts = transactions.pipe(filter_by_type, transaction_types=TransactionType.DIVIDENDS).groupby(['AccountId', 'SecurityId'])['amount'].sum()
     payouts.name = 'Payouts'
 
     return payouts
 
 
-def _calculate_prorata_shares_for_inyear_buys(snapshot_end: PortfolioSnapshot) -> pd.Series:
+def _calculate_prorata_shares_for_inyear_buys(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
     transactions = snapshot_end.transactions
+    if transactions is None:
+        return None
+
     transactions_inyear = transactions[transactions.index.get_level_values('Date').year == snapshot_end.date.year] if not transactions.index.get_level_values('Date').empty else None
     if transactions_inyear is None:
         return pd.Series([], name='amount', index=pd.MultiIndex.from_tuples([], names=['AccountId', 'SecurityId']), dtype='float64')
 
-    transactions_inyear = filter_df_by_type(transactions_inyear, [TransactionType.BUY, TransactionType.DELIVERY_INBOUND])
+    transactions_inyear = transactions_inyear.pipe(filter_by_type, transaction_types=[TransactionType.BUY, TransactionType.DELIVERY_INBOUND])
     transactions_inyear['months_held'] = snapshot_end.date.month - transactions_inyear.index.get_level_values('Date').month + 1
     transactions_inyear['shares_original'] = transactions_inyear['Shares']
     transactions_inyear['Shares'] = transactions_inyear['Shares'] * transactions_inyear['months_held']/12

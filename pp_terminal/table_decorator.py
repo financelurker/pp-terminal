@@ -64,6 +64,8 @@ class TableDecorator(Table):
             return self
 
         summary_row = (df.iloc[:-self._options.footer_lines] if self._options.footer_lines > 0 else df).select_dtypes(include='number').sum()  # only sum up numeric values
+        if 'currency' in df:
+            summary_row['currency'] = df['currency'].mode()[0]
         summary_row = pd.concat([summary_row, pd.Series(['Total'], index=['Name'])])
 
         # in case we have multiple footer lines, insert the total value into the right position in the dataframe

@@ -43,7 +43,7 @@ def provide_sample_accounts() -> pd.DataFrame:
 
 @pytest.fixture(name='sample_securities')
 def provide_sample_securities() -> pd.DataFrame:
-    securities = pd.DataFrame([['Some Share', 'A23432']], columns=['Name', 'Wkn'], index=['1234567890'])
+    securities = pd.DataFrame([['Some Share', 'A23432', 'EUR']], columns=['Name', 'Wkn', 'currency'], index=['1234567890'])
     securities.index.name = 'SecurityId'
 
     return securities
@@ -106,7 +106,7 @@ def test_inyear_buy(sample_accounts: pd.DataFrame, sample_transactions: pd.DataF
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2018, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2018, 12, 31))
 
-    expected_df = pd.DataFrame([['A23432', 'Some Share', 1.76]], columns=['Wkn', 'Name', 'Testdepot'], index=['1234567890'])
+    expected_df = pd.DataFrame([['A23432', 'Some Share', 'EUR', 1.76]], columns=['Wkn', 'Name', 'currency', 'Testdepot'], index=['1234567890'])
     expected_df.index.name = 'SecurityId'
 
     result = calculate(snapshot_begin, snapshot_end, 2.29, 26.375)
@@ -155,7 +155,7 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))
 
-    expected_df = pd.DataFrame([['A23432', 'Some Share', expected_tax_value]], columns=['Wkn', 'Name', 'Testdepot'], index=['1234567890'])
+    expected_df = pd.DataFrame([['A23432', 'Some Share', 'EUR', expected_tax_value]], columns=['Wkn', 'Name', 'currency', 'Testdepot'], index=['1234567890'])
     expected_df.index.name = 'SecurityId'
 
     result = calculate(snapshot_begin, snapshot_end, base_rate_percent, 26.375 * 0.7)
@@ -174,13 +174,13 @@ def test_kommer(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
 
     expected_df = pd.DataFrame([
-        ['ETF013', 'Lyxor MSCI Pacific UCITS ETF', 1.44539],
-        ['A0MZWQ', 'iShares Core MSCI Europe UCITS ETF EUR (Dist)', 3.88498],
-        ['A2DK6R', 'iShares Diversified Commodity Swap UCITS ETF', 3.37515],
-        ['A0HGWC', 'iShares MSCI EM UCITS ETF (Dist)', 6.73028],
-        ['A0J201', 'iShares MSCI North America UCITS ETF', 5.84267],
-        [None, 'Related Account Balance', 475.88]
-    ], columns=['Wkn', 'Name', 'Depot'], index=[
+        ['ETF013', 'Lyxor MSCI Pacific UCITS ETF', 'EUR', 1.44539],
+        ['A0MZWQ', 'iShares Core MSCI Europe UCITS ETF EUR (Dist)', 'EUR', 3.88498],
+        ['A2DK6R', 'iShares Diversified Commodity Swap UCITS ETF', 'EUR', 3.37515],
+        ['A0HGWC', 'iShares MSCI EM UCITS ETF (Dist)', 'EUR', 6.73028],
+        ['A0J201', 'iShares MSCI North America UCITS ETF', 'EUR', 5.84267],
+        [None, 'Related Account Balance', 'EUR', 475.88]
+    ], columns=['Wkn', 'Name', 'currency', 'Depot'], index=[
         'ff0a2b77-9749-45b0-8333-cb1d9787812c',
         'c770a389-0a84-442c-ad85-2a58c3066924',
         '97000a3b-0a3d-4779-ad6c-1234bfea5e72',

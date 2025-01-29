@@ -73,7 +73,8 @@ class AccountSchema(pa.DataFrameModel):
 class SecuritySchema(pa.DataFrameModel):
     SecurityId: Index[str]
     Name: Series[str]
-    Wkn: Optional[Series[str]] = pa.Field(nullable=True)
+    Wkn: Series[str] = pa.Field(nullable=True)
+    currency: Series[str] = pa.Field(nullable=True)
 
 
 class SecurityPriceSchema(pa.DataFrameModel):

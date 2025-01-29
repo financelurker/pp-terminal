@@ -24,8 +24,8 @@ from pp_terminal.schemas import Money
 
 
 @pytest.mark.parametrize('expected, money, currency, locale_value', [
-    ('EUR\xa03.20', 3.2, 'EUR', None),
-    ('\xa03.20', 3.2, '', None),
+    ('3.20', 3.2, 'EUR', None),
+    ('3.20', 3.2, '', None),
     ('', 0, '', None),
     ('€3.20', 3.2, 'EUR', 'en_US'),
     ('3.20', 3.2, '', 'en_US'),

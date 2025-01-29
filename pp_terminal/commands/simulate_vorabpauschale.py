@@ -89,13 +89,13 @@ def calculate(  # pylint: disable=too-many-locals
     if vorabpauschale.empty or snapshot_period_end.portfolio.securities is None or snapshot_period_end.portfolio.securities_accounts is None:
         return None
 
-    vorabpauschale = pd.merge(snapshot_period_end.portfolio.securities[['Wkn', 'Name']], vorabpauschale, left_index=True, right_index=True, how='right').sort_values(by='Name')
+    vorabpauschale = pd.merge(snapshot_period_end.portfolio.securities[['Wkn', 'Name', 'currency']], vorabpauschale, left_index=True, right_index=True, how='right').sort_values(by='Name')
 
     securities_accounts = snapshot_period_end.portfolio.securities_accounts
     if securities_accounts is not None and 'ReferenceAccountId' in securities_accounts and snapshot_period_end.balances is not None:
         # add the reference account balance
         vorabpauschale.loc[len(vorabpauschale)] = (pd.merge(securities_accounts, snapshot_period_end.balances.groupby(['AccountId']).sum(), left_on='ReferenceAccountId', right_index=True, how='left')['Balance'].dropna().to_dict()
-                                                   | {'Name': 'Related Account Balance'})
+                                                   | {'Name': 'Related Account Balance', 'currency': snapshot_period_end.portfolio.base_currency})
 
     return vorabpauschale.rename(columns=securities_accounts['Name'])
 

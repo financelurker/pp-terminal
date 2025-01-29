@@ -45,22 +45,22 @@ class PortfolioService:
         try:
             self._accounts = AccountSchema.validate(accounts)  # type: ignore
         except SchemaError as e:
-            log.warning('accounts schema invalid: %s', e)
+            log.error('accounts schema invalid: %s', e)
 
         try:
             self._securities = SecuritySchema.validate(securities)  # type: ignore
         except SchemaError as e:
-            log.warning('securities schema invalid: %s', e)
+            log.error('securities schema invalid: %s', e)
 
         try:
             self._transactions = TransactionSchema.validate(transactions)  # type: ignore
         except SchemaError as e:
-            log.warning('transactions schema invalid: %s', e)
+            log.error('transactions schema invalid: %s', e)
 
         try:
             self._prices = SecurityPriceSchema.validate(prices)  # type: ignore
         except SchemaError as e:
-            log.warning('security prices schema invalid: %s', e)
+            log.error('security prices schema invalid: %s', e)
 
     @property
     def securities_accounts(self) -> DataFrame[AccountSchema] | None:

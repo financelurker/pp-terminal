@@ -20,6 +20,7 @@
 import logging
 from typing import List, Any, Callable
 
+import babel.numbers
 import pandas as pd
 from rich.console import Console
 import typer
@@ -31,7 +32,7 @@ from .schemas import Money
 log = logging.getLogger(__name__)
 
 
-def format_money(value: Money, currency: str = '', locale: str | None = None) -> str:
+def format_money(value: Money, currency: str = '', locale: str | None = babel.numbers.LC_NUMERIC) -> str:
     try:
         return format_currency(value, currency, locale=locale) if not pd.isna(value) and isinstance(value, Money) else ''
     except Exception as e:  # pylint: disable=broad-exception-caught

@@ -102,7 +102,6 @@ If your command makes sense for a broader audience, I'm happy to accept a pull r
 ## Known Limitations 🚧
 
 - The script is still in beta version, so there might be Portfolio Performance files that are not compatible with and also public APIs can change
-- Only Euro currency is supported at the moment
 
 ## Important Note
 I am not a tax consultant. All results of this application are non-binding and without guarantee.

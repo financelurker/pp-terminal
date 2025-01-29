@@ -39,7 +39,8 @@ def load_command_plugins(app: typer.Typer) -> None:
                 raise RuntimeError('not a Typer app')
 
             group = _get_app_group_from_entry_point(app, entry_point)
-            assert group.typer_instance is not None
+            if group.typer_instance is None:
+                raise RuntimeError('missing instance')
 
             group.typer_instance.add_typer(plugin)
             log.debug('loaded plugin command "%s" into group "%s"', entry_point.name, group.name)

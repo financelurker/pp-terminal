@@ -63,7 +63,7 @@ class RichOutputStrategy(OutputStrategy):
         table = TableDecorator(options)
         table.add_df(df)
 
-        return NewLine(), table
+        return NewLine(), table, NewLine()
 
     def hint(self, message: str) -> str:
         return ':bulb: [bold]Hint:[/bold] ' + message + "\n"

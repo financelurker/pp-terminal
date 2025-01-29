@@ -30,6 +30,8 @@ jobs:
       run: poetry install --no-root
     - name: Run Linter
       run: poetry run pylint .
+    - name: Find Security Issues
+      run: poetry run bandit -r .
     - name: Run Type Checking
       run: poetry run mypy .
     - name: Running Tests

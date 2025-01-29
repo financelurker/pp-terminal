@@ -55,13 +55,13 @@ class PortfolioPerformanceService(PortfolioService):
         self._db.close()
 
     def _parse_securities(self) -> DataFrame[SecuritySchema]:
-        securities = (pd.read_sql_query(f"""
-select s.*, MAX(CASE WHEN at.name like '%{_ATTRIBUTE_EXEMPT_LABEL}%' THEN sa.value END) AS exempt_rate
+        securities = (pd.read_sql_query("""
+select s.*, MAX(CASE WHEN at.name like ? THEN sa.value END) AS exempt_rate
 from security as s
 left join security_attr as sa on sa."security" = s.uuid
 left join attribute_type as at on sa.attr_uuid = at.id
 group by s.uuid
-        """, self._db.connection, index_col=['uuid'])
+        """, self._db.connection, index_col=['uuid'], params=['%{_ATTRIBUTE_EXEMPT_LABEL}%'])
                       .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
 
         return cast(DataFrame[SecuritySchema], securities)

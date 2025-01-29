@@ -31,8 +31,13 @@ from .schemas import Money
 log = logging.getLogger(__name__)
 
 
-def format_money(value: Money, currency: str = '') -> str:
-    return format_currency(value, currency) if not pd.isna(value) and isinstance(value, Money) else ''
+def format_money(value: Money, currency: str = '', locale: str | None = None) -> str:
+    try:
+        return format_currency(value, currency, locale=locale) if not pd.isna(value) and isinstance(value, Money) else ''
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        # fallback e.g. if system locale is None/not set, or currency does not exist
+        log.error(e)
+        return f"{currency}\xa0{value:.2f}"
 
 
 def handle_nothing_found(console: Console) -> Exception:

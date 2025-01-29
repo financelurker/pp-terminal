@@ -111,8 +111,8 @@ class TableDecorator(Table):
         rows = []
         for index, row in df.iterrows():
             row_data = [str(index)] if self._options.show_index else []
-            currency = row['currency'] if 'currency' in row else ''
-            row_data.extend([self._options.money_formatter(float(value), currency) if isinstance(value, Money) else value for value in row.drop('currency', errors="ignore")])
+            row_data.extend([self._options.money_formatter(float(value), row['currency'] if 'currency' in row else index) if isinstance(value, Money) else value
+                             for index, value in row.drop('currency', errors='ignore').items()])
             rows.append(row_data)
 
         return rows

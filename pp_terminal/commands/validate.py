@@ -61,6 +61,7 @@ def catch_errors(func: CommandFunctionType) -> Callable[..., CommandFunctionType
 
     return wrapper
 
+
 @validate_app.command(name="security-prices")
 @catch_errors
 def validate_security_prices_uptodate(ctx: typer.Context, warning_after_days: int = 30, error_after_days: int = 90) -> None:

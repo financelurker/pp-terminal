@@ -116,10 +116,10 @@ class PortfolioSnapshot:
     def values(self) -> pd.Series:
         shares = self.shares
         if shares is None or shares.empty or self.latest_prices.empty:
-            return pd.Series([], name='Value', index=pd.MultiIndex.from_tuples([], names=['AccountId', 'SecurityId', 'currency']), dtype='float64')
+            return pd.Series([], name='Balance', index=pd.MultiIndex.from_tuples([], names=['AccountId', 'SecurityId', 'currency']), dtype='float64')
 
         values = self.latest_prices * shares
-        values.name = 'Value'
+        values.name = 'Balance'
 
         return values.groupby(['AccountId', 'SecurityId', 'currency']).sum()
 

@@ -59,6 +59,7 @@ def drop_empty_values(df: pd.DataFrame | pd.Series) -> pd.DataFrame:
 
 def unstack_column_by_currency(df: pd.DataFrame, column: str) -> pd.DataFrame:
     column_unstacked = df[column].unstack(level='currency')
-    df_modified = df.drop(columns=column).reset_index(level='currency', drop=True).drop_duplicates()
+    df_modified = df.drop(columns=column).reset_index(level='currency', drop=True)
+    df_modified = df_modified[~df_modified.index.get_level_values('AccountId').duplicated()]  # drop duplicates ignoring currency
 
     return df_modified.join(column_unstacked, how='outer')

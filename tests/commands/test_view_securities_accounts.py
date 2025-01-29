@@ -27,7 +27,7 @@ from pandas.testing import assert_frame_equal
 
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.pp_portfolio_service_adapter import PortfolioPerformanceService
-from pp_terminal.commands.view_securities_accounts import calculate_sum
+from pp_terminal.commands.view_deposit_accounts import calculate_securities_accounts_sum
 
 
 def test_kommer(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
@@ -35,15 +35,16 @@ def test_kommer(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
     portfolio = PortfolioPerformanceService(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
 
     expected_df = pd.DataFrame([
-        ['Kryptowährung', 72.07, None],
-        ['Depot', 14031.37, 3038.80],
-    ], columns=['Name', 'EUR', 'USD'], index=[
-        '57ede399-7ef8-4696-a874-1f425e25d1f5',
-        'dc6fac85-6c6e-47f1-a968-2b5b84d90997',
-    ])
-    expected_df.index.name = 'AccountId'
+        ['Kryptowährung', 72.07],
+        ['Depot', 3038.80],
+        ['Depot', 14031.37],
+    ], columns=['Name', 'Balance'], index=pd.MultiIndex.from_tuples([
+        ('57ede399-7ef8-4696-a874-1f425e25d1f5', 'EUR'),
+        ('dc6fac85-6c6e-47f1-a968-2b5b84d90997', 'USD'),
+        ('dc6fac85-6c6e-47f1-a968-2b5b84d90997', 'EUR'),
+    ], names=['AccountId', 'currency']))
 
-    result = calculate_sum(PortfolioSnapshot(portfolio, datetime(2024, 1, 1)))
+    result = calculate_securities_accounts_sum(PortfolioSnapshot(portfolio, datetime(2024, 1, 1)))[['Name', 'Balance']]
 
     assert_frame_equal(expected_df, result.round(2), check_names=False)
 
@@ -52,9 +53,9 @@ def test_empty_file(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))
     portfolio = PortfolioPerformanceService(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
 
-    expected_df = pd.DataFrame([], columns=['Name'], index=[])
+    expected_df = pd.DataFrame([], columns=['Name', 'Type', 'Balance'], index=pd.MultiIndex.from_tuples([], names=['AccountId', 'currency']))
     expected_df.index.name = 'AccountId'
 
-    result = calculate_sum(PortfolioSnapshot(portfolio))
+    result = calculate_securities_accounts_sum(PortfolioSnapshot(portfolio))
 
-    assert_frame_equal(expected_df, result)
+    assert_frame_equal(expected_df, result, check_dtype=False)

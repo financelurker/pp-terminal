@@ -23,10 +23,12 @@ from datetime import datetime
 import pandas as pd
 import typer
 
-from ..df_filter import filter_not_retired, unstack_column_by_currency
+from ..df_filter import unstack_column_by_currency
+from ..exceptions import InputError
 from ..output import OutputStrategy, Console
 from ..portfolio_service import PortfolioService
 from ..portfolio_snapshot import PortfolioSnapshot
+from ..schemas import AccountType
 from ..table_decorator import TableOptions
 
 app = typer.Typer()
@@ -34,20 +36,29 @@ console = Console()
 log = logging.getLogger(__name__)
 
 
-def calculate_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
+def calculate_deposit_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
     balances = (pd.merge(snapshot.portfolio.deposit_accounts, snapshot.balances, left_index=True, right_on='AccountId', how="right")
             .sort_values(by='Balance'))
-    balances = balances.pipe(filter_not_retired)[['Name', 'Balance', 'currency']]  # pylint: disable=singleton-comparison
 
-    balances = balances.pipe(unstack_column_by_currency, column='Balance')
-    if snapshot.portfolio.base_currency in balances:
-        balances.sort_values(by=snapshot.portfolio.base_currency, inplace=True)
-
-    return balances
+    return balances[balances['Balance'] >= 0.01][['Name', 'Type', 'Balance']]
 
 
-@app.command(name="deposit-accounts")
-def print_accounts(ctx: typer.Context, by: datetime = datetime.now()) -> None:
+def calculate_securities_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
+    values = (pd.merge(snapshot.portfolio.securities_accounts, snapshot.values.groupby(['AccountId', 'currency']).sum(), left_index=True, right_on='AccountId', how="right")
+            .sort_values(by='Balance'))
+
+    return values[values['Balance'] >= 0.01][['Name', 'Type', 'Balance']]
+
+
+def _stack_by_currency(df: pd.DataFrame, base_currency: str) -> pd.DataFrame:
+    df = df.pipe(unstack_column_by_currency, column='Balance')
+    if base_currency in df:
+        df.sort_values(by=base_currency, inplace=True)
+
+    return df
+
+@app.command(name="accounts")
+def print_accounts(ctx: typer.Context, type: AccountType | None = None, by: datetime = datetime.now()) -> None:  # pylint: disable=redefined-builtin
     """
     Show a detailed table with the current balance per deposit account.
     """
@@ -55,8 +66,23 @@ def print_accounts(ctx: typer.Context, by: datetime = datetime.now()) -> None:
     portfolio = ctx.obj.portfolio  # type: PortfolioService
     output = ctx.obj.output  # type: OutputStrategy
 
-    df = calculate_sum(PortfolioSnapshot(portfolio, by))
+    snapshot = PortfolioSnapshot(portfolio, by)
+
+    df1 = None
+    if type == AccountType.DEPOSIT or type is None:
+        df1 = calculate_deposit_accounts_sum(snapshot)
+
+    df2 = None
+    if type == AccountType.SECURITIES or type is None:
+        df2 = calculate_securities_accounts_sum(snapshot)
+
+    df = pd.concat([df1, df2]) if df1 is not None or df2 is not None else None
+
+    if df is None:
+        raise InputError('invalid account type')
+
+    df = _stack_by_currency(df, snapshot.portfolio.base_currency)
 
     console.print(*output.result_table(
-        df, TableOptions(title="Balances on Deposit Account", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False)
+        df, TableOptions(title="Balances on Accounts", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False)
     ))

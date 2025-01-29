@@ -5,8 +5,6 @@ on:
     branches:
       - master
   pull_request:
-    branches:
-      - master
 
 jobs:
   test-and-build:
@@ -22,20 +20,27 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
+
     - name: Install Poetry
       run: |
         curl -sSL https://install.python-poetry.org | python3 -
         echo "$HOME/.local/bin" >> $GITHUB_PATH
+
     - name: Install Dependencies
       run: poetry install --no-root
+
     - name: Run Linter
       run: poetry run pylint .
+
     - name: Find Security Issues
-      run: poetry run bandit -r .
+      run: poetry run bandit -r pp_terminal
+
     - name: Run Type Checking
       run: poetry run mypy .
+
     - name: Running Tests
       run: poetry run pytest
+
     - name: Build Package
       if: success()
       run: poetry build

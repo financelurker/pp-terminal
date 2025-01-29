@@ -28,6 +28,10 @@ You can choose between different output formats like JSON or CSV with the `--for
 In addition to the standard set, you can easily [create your own commands](#user-content-create-your-own-command-️) 
 and share them with the community.
 
+> [!IMPORTANT]
+> I am not a tax consultant. All results of this application are non-binding and without guarantee.
+> They may deviate from the actual values.
+
 ## Requirements
 
 - [pipx](https://pipx.pypa.io/latest/#install-pipx) to install the application (without having to worry about different Python runtimes)
@@ -102,10 +106,6 @@ If your command makes sense for a broader audience, I'm happy to accept a pull r
 ## Known Limitations 🚧
 
 - The script is still in beta version, so there might be Portfolio Performance files that are not compatible with and also public APIs can change
-
-## Important Note
-I am not a tax consultant. All results of this application are non-binding and without guarantee.
-They may deviate from the actual values.
 
 ## License
 

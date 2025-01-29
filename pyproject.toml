@@ -15,7 +15,7 @@ dependencies = [
     "babel (>=2.16.0,<3.0.0)",
 ]
 scripts = { pp-terminal = "pp_terminal.main:app" }
-entry-points = { "pp_terminal.commands" = { "view.deposit_accounts" = "pp_terminal.commands.view_deposit_accounts:app", "simulate.vorabpauschale" = "pp_terminal.commands.simulate_vorabpauschale:app", "validate" = "pp_terminal.commands.validate:app" } }
+entry-points = { "pp_terminal.commands" = { "list.accounts" = "pp_terminal.commands.list_accounts:app", "simulate.vorabpauschale" = "pp_terminal.commands.simulate_vorabpauschale:app", "validate" = "pp_terminal.commands.validate:app" } }
 
 
 [build-system]

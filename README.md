@@ -15,12 +15,11 @@ too many edge-cases, etc.
 
 By default, `pp-terminal` provides the following commands:
 
-| Command                    | Description                                                                                        |
-|----------------------------|----------------------------------------------------------------------------------------------------|
-| `view deposit-accounts`    | Get detailed information about the balances per each deposit account                               |
-| `view securities-accounts` | Get detailed information about the current values per each securities account                      |
-| `simulate vorabpauschale`  | Run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
-| `validate`                 | Run a number of different validation checks on the portfolio data, e.g. security prices up-to-date |
+| Command                   | Description                                                                                        |
+|---------------------------|----------------------------------------------------------------------------------------------------|
+| `list accounts`           | Get detailed information about the balances per each deposit and/or securities account             |
+| `simulate vorabpauschale` | Run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
+| `validate`                | Run a number of different validation checks on the portfolio data, e.g. security prices up-to-date |
 
 Code completion for commands and options is available.  
 The application **does not modify** the original Portfolio Performance file.  
@@ -46,12 +45,12 @@ pipx install git+https://github.com/ma4nn/pp-terminal
 The commands mentioned above all require the Portfolio Performance XML file as input.  
 You can either provide that file as first option to the command
 ```
-pp-terminal --file=depot.xml view securities-accounts
+pp-terminal --file=depot.xml list accounts
 ```
 or by setting an environment variable you can omit the option
 ```
 export PP_TERMINAL_INPUT_FILE=depot.xml
-pp-terminal view securities-accounts
+pp-terminal list accounts
 ```
 
 To view all available arguments you can always use the `--help` option.

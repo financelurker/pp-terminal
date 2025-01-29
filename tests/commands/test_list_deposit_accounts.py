@@ -26,7 +26,7 @@ from pandas.testing import assert_frame_equal
 
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.pp_portfolio_service_adapter import PortfolioPerformanceService
-from pp_terminal.commands.view_deposit_accounts import calculate_deposit_accounts_sum
+from pp_terminal.commands.list_accounts import calculate_deposit_accounts_sum
 
 
 def test_calculate_sum(request: TopRequest, monkeypatch: MonkeyPatch) -> None:

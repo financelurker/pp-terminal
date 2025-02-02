@@ -49,8 +49,8 @@ jobs:
     - name: Running Tests
       run: make test
 
-  build-and-upload:
-    name: Build and Upload Package
+  build:
+    name: Build Package
     needs: test
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
@@ -93,7 +93,7 @@ jobs:
 
   publish-to-testpypi:
     name: Publish to TestPyPI
-    needs: build-and-upload
+    needs: build
     runs-on: ubuntu-latest
     environment: testing
 

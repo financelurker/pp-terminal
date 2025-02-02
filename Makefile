@@ -3,8 +3,9 @@ CHECK_DIRS = pp_terminal tests
 
 clean:
 	rm -rf dist __pycache__ *.pyc *.pyo
+	git submodule foreach --recursive git reset --hard
 
-install:
+install: clean
 	poetry install $(ARGS)
 	patch -p1 < ./patch_ppxml2db.diff
 
@@ -16,5 +17,5 @@ check:
 test:
 	poetry run pytest
 
-build:
+build: install
 	poetry build

@@ -95,7 +95,7 @@ jobs:
     name: Publish to TestPyPI
     needs: build
     runs-on: ubuntu-latest
-    environment: testing
+    environment: test-pypi
 
     permissions:
       id-token: write
@@ -116,7 +116,7 @@ jobs:
     name: Publish to PyPI
     needs: publish-to-testpypi
     runs-on: ubuntu-latest
-    environment: production
+    environment: pypi
 
     permissions:
       id-token: write

@@ -12,7 +12,7 @@ install: clean
 check:
 	poetry run pylint $(CHECK_DIRS)
 	poetry run bandit -c bandit.yaml -r $(CHECK_DIRS)
-	poetry run mypy .
+	poetry run mypy . --config-file mypy.ini --verbose
 
 test:
 	poetry run pytest

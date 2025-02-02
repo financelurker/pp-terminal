@@ -50,7 +50,7 @@ jobs:
 
   build-and-upload:
     name: Build and Upload Package
-    needs: build-and-test
+    needs: test
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'release' }}
 

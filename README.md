@@ -41,7 +41,7 @@ and share them with the community.
 ## Installing
 
 ```
-pipx install git+https://github.com/ma4nn/pp-terminal
+pipx install pp-terminal
 ```
 
 ## Usage 💡

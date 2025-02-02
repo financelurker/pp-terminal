@@ -652,25 +652,6 @@ dev = ["pre-commit", "tox"]
 testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
-name = "ppxml2db"
-version = "1.7.0"
-description = "Import Portfolio Performance XML into an SQLite database and vice versa"
-optional = false
-python-versions = ">=3.12"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-lxml = ">=5.3.0,<6.0.0"
-
-[package.source]
-type = "git"
-url = "https://github.com/ma4nn/ppxml2db"
-reference = "HEAD"
-resolved_reference = "1ed86d7fd72c8ed4782138653dbcd58a085284f3"
-
-[[package]]
 name = "pydantic"
 version = "2.10.6"
 description = "Data validation using Python type hints"
@@ -1105,4 +1086,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "dfaa292fff12afbb938ca7413f8e647efcf43f9e84638132fa00f284a3262133"
+content-hash = "ba06a789c7ed265ec6c7f3fe569856bec30d23151d3d3a421ef3bb5b2d8c8896"

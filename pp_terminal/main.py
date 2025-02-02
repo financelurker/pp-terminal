@@ -20,7 +20,6 @@
 import locale
 from pathlib import Path
 from types import SimpleNamespace
-import importlib.metadata
 import logging
 from typing import Optional
 
@@ -33,6 +32,7 @@ from .exceptions import InputError
 from .output import create_strategy, OutputFormat
 from .plugins import load_command_plugins
 from .pp_portfolio_service_adapter import PortfolioPerformanceService
+from . import __version__
 
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich")
 app.add_typer(typer.Typer(no_args_is_help=True), name="simulate")
@@ -43,11 +43,6 @@ logging.basicConfig(level=logging.WARN, format="%(message)s", datefmt="[%X]", ha
 log = logging.getLogger(__name__)
 
 locale.setlocale(locale.LC_ALL, '')
-
-try:
-    __version__ = importlib.metadata.version("pp-terminal")
-except importlib.metadata.PackageNotFoundError:
-    __version__ = "dev"
 
 # Load external plugins dynamically
 load_command_plugins(app)

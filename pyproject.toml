@@ -1,6 +1,5 @@
 [project]
 name = "pp-terminal"
-version = "0.4.0-dev"
 description = "The Analytic Companion for Portfolio Performance"
 authors = [{ name = "Christoph Massmann", email = "chris@dev-investor.de" }]
 readme = "README.md"
@@ -11,19 +10,24 @@ dependencies = [
     "pandas (>=2.2.3,<3.0.0)",
     "rich (>=13.9.4,<14.0.0)",
     "pandera (>=0.22.1,<0.23.0)",
-    "ppxml2db @ git+https://github.com/ma4nn/ppxml2db",
     "babel (>=2.16.0,<3.0.0)",
+    "lxml (>=5.3.0,<6.0.0)",
 ]
 scripts = { pp-terminal = "pp_terminal.main:app" }
 entry-points = { "pp_terminal.commands" = { "list.accounts" = "pp_terminal.commands.list_accounts:app", "simulate.vorabpauschale" = "pp_terminal.commands.simulate_vorabpauschale:app", "validate" = "pp_terminal.commands.validate:app" } }
+dynamic = ["version"]
 
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
 
-[tool.poetry.dependencies]
-ppxml2db = {develop = true}
+[tool.poetry]
+packages = [
+    { include = "pp_terminal" },
+    { include = "ppxml2db" },
+]
+version = "0.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^3.3.3"
@@ -31,3 +35,9 @@ pytest = "^8.3.4"
 mypy = "^1.14.1"
 bandit = "^1.8.2"
 
+[tool.poetry.requires-plugins]
+poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
+
+[tool.poetry-dynamic-versioning]
+enable = true
+bump = true

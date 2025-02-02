@@ -22,14 +22,13 @@ import os
 import logging
 from pathlib import Path
 
-import ppxml2db
 from ppxml2db.ppxml2db import PortfolioPerformanceXML2DB
 from ppxml2db import dbhelper
 
 from .exceptions import InputError
 
 log = logging.getLogger(__name__)
-logging.getLogger('ppxml2db.dbhelper').setLevel(logging.INFO)  # reducing some noise
+logging.getLogger('ppxml2db.dbhelper').setLevel(logging.INFO)  # reducing some "noise"
 
 
 class PortfolioPerformanceDbWrapper:
@@ -38,10 +37,13 @@ class PortfolioPerformanceDbWrapper:
     _cursor: sqlite3.Cursor
 
     def __init__(self, dbname: str = ':memory:') -> None:
-        self._setup_scripts_path = os.path.dirname(ppxml2db.__file__) + '/setup_scripts/'
+        self._setup_scripts_path = os.path.dirname(dbhelper.__file__) + '/'
 
         try:
-            dbhelper.init(dbname)
+            dbhelper.init(dbname)  # type: ignore
+            if dbhelper.db is None:
+                raise RuntimeError('could not establish database connection')
+
             self._db = dbhelper.db  # @todo db connection is global state!
             self._cursor = self._db.cursor()
             self._install()
@@ -50,8 +52,8 @@ class PortfolioPerformanceDbWrapper:
 
     def import_file(self, file: Path) -> None:
         try:
-            conv = PortfolioPerformanceXML2DB(file.open(mode='rb'))
-            conv.iterparse()
+            conv = PortfolioPerformanceXML2DB(file.open(mode='rb'))  # type: ignore
+            conv.iterparse()  # type: ignore
 
             self._db.commit()
 

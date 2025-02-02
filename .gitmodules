@@ -1,0 +1,3 @@
+[submodule "ppxml2db"]
+	path = ppxml2db
+	url = https://github.com/pfalcon/ppxml2db

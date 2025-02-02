@@ -85,7 +85,9 @@ group by s.uuid
 
     def _parse_transactions(self) -> DataFrame[TransactionSchema]:
         transactions = (pd.read_sql_query("""
-select datetime(date) as Date, currency, amount-fees as amount_wo_fees, fees, uuid, account, type, security, shares, acctype from xact
+select datetime(x.date) as Date, ifnull(xu.forex_currency, x.currency) as currency, ifnull(xu.forex_amount, x.amount)-x.fees as amount_wo_fees, x.fees, x.uuid, x.account, x.type, x.security, x.shares, x.acctype
+from xact as x
+left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
         """, self._db.connection, index_col=['Date', 'account', 'security'], parse_dates={"Date": "%Y-%m-%d %H:%M:%S"}, dtype={'amount_wo_fees': np.float64, 'shares': np.float64})
                           .rename(columns={'uuid': 'TransactionId', 'account': 'AccountId', 'type': 'Type', 'security': 'SecurityId', 'shares': 'Shares', 'acctype': 'account_type', 'amount_wo_fees': 'amount'}))
         transactions['amount'] = transactions['amount'] / _CENTS_PER_EURO

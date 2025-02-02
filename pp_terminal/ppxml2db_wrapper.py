@@ -34,7 +34,7 @@ logging.getLogger('ppxml2db.dbhelper').setLevel(logging.INFO)  # reducing some "
 DB_NAME_IN_MEMORY = ':memory:'
 
 
-class PortfolioPerformanceDbWrapper:  # @todo rename to PpXml2DbWrapper
+class Ppxml2dbWrapper:
     _connection: sqlite3.Connection
     _setup_scripts_path: str
     _cursor: sqlite3.Cursor

@@ -28,7 +28,7 @@ from pandera.typing import DataFrame
 
 from .portfolio import Portfolio
 from .schemas import TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema
-from .ppxml2db_wrapper import PortfolioPerformanceDbWrapper, DB_NAME_IN_MEMORY
+from .ppxml2db_wrapper import Ppxml2dbWrapper, DB_NAME_IN_MEMORY
 
 log = logging.getLogger(__name__)
 
@@ -37,17 +37,17 @@ _CENTS_PER_EURO = 100
 _ATTRIBUTE_EXEMPT_LABEL = 'Teilfreistellung'
 
 
-class PortfolioPerformanceService():  # pylint: disable=too-few-public-methods
-    _db: PortfolioPerformanceDbWrapper
+class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
+    _db: Ppxml2dbWrapper
 
     def __init__(self, cache_file: str | None = None):
         if cache_file is not None and os.path.exists(cache_file):
             log.debug('erasing old database "%s"', cache_file)
             os.remove(cache_file)
 
-        self._db = PortfolioPerformanceDbWrapper(dbname=cache_file if cache_file is not None else DB_NAME_IN_MEMORY)
+        self._db = Ppxml2dbWrapper(dbname=cache_file if cache_file is not None else DB_NAME_IN_MEMORY)
 
-    def parse(self, file: Path) -> Portfolio:
+    def construct(self, file: Path) -> Portfolio:
         self._db.open(file)
 
         portfolio = Portfolio(

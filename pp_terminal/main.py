@@ -31,7 +31,7 @@ from typing_extensions import Annotated
 from .exceptions import InputError
 from .output import create_strategy, OutputFormat
 from .plugins import load_command_plugins
-from .pp_portfolio_service_adapter import PortfolioPerformanceService
+from .pp_portfolio_builder import PpPortfolioBuilder
 from . import __version__
 
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich")
@@ -75,7 +75,7 @@ def main(
 
     try:
         ctx.obj = SimpleNamespace(
-            portfolio=PortfolioPerformanceService(cache_file='.cache.sql' if debug else None).parse(file),
+            portfolio=PpPortfolioBuilder(cache_file='.cache.sql' if debug else None).construct(file),
             output=create_strategy(format))
 
     except (RuntimeError, InputError) as e:

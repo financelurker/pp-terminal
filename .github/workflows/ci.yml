@@ -33,7 +33,7 @@ jobs:
       run: poetry run pylint .
 
     - name: Find Security Issues
-      run: poetry run bandit -r pp_terminal
+      run: poetry run bandit -c bandit.yaml -r .
 
     - name: Run Type Checking
       run: poetry run mypy .

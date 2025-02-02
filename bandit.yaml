@@ -1,0 +1,3 @@
+exclude_dirs: ['ppxml2db']
+assert_used:
+  skips: ['*_test.py', '*test_*.py']

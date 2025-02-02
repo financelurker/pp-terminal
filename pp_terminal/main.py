@@ -62,19 +62,22 @@ def version_callback(value: bool) -> None:
 def main(
         ctx: typer.Context,
         file: Annotated[Path, typer.Option(envvar="PP_TERMINAL_INPUT_FILE", help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)],
-        debug: Optional[bool] = typer.Option(False, help="Enable verbose debug logging"),
+        format: OutputFormat = OutputFormat.TABLE,  # pylint: disable=redefined-builtin
         version: Annotated[  # pylint: disable=unused-argument
             Optional[bool],
             typer.Option("--version", callback=version_callback, is_eager=True),  # declared the option name to avoid --no-version
         ] = None,
-        format: OutputFormat = OutputFormat.TABLE  # pylint: disable=redefined-builtin
+        debug: Annotated[Optional[bool], typer.Option('--debug', help='Enable verbose debug logging')] = None,
 ) -> None:
 
     if debug:
         logging.basicConfig(force=True, level=logging.DEBUG, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=True, show_time=False)])
 
     try:
-        ctx.obj = SimpleNamespace(portfolio=PortfolioPerformanceService(file), output=create_strategy(format))
+        ctx.obj = SimpleNamespace(
+            portfolio=PortfolioPerformanceService(cache_file='.cache.sql' if debug else None).parse(file),
+            output=create_strategy(format))
+
     except (RuntimeError, InputError) as e:
         if debug:
             raise e

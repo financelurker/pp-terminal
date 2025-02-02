@@ -28,7 +28,7 @@ from .schemas import AccountType, TransactionSchema, AccountSchema, SecuritySche
 log = logging.getLogger(__name__)
 
 
-class PortfolioService:
+class Portfolio:
     _accounts: DataFrame[AccountSchema] | None = None
     _securities: DataFrame[SecuritySchema] | None = None
     _transactions: DataFrame[TransactionSchema] | None = None

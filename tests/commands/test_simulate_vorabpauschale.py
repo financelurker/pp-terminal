@@ -26,7 +26,7 @@ from _pytest.monkeypatch import MonkeyPatch
 from pandas.testing import assert_frame_equal
 import pytest
 
-from pp_terminal.portfolio_service import PortfolioService
+from pp_terminal.portfolio import Portfolio
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.schemas import TransactionType, AccountType
 from pp_terminal.commands.simulate_vorabpauschale import calculate
@@ -78,7 +78,7 @@ def test_calculate_empty_if_no_securities_accounts(sample_accounts: pd.DataFrame
     sample_prices = sample_prices.drop(sample_prices.index)
     transactions = transactions.drop(transactions.index)
 
-    portfolio = PortfolioService(sample_accounts, transactions, sample_securities, sample_prices)
+    portfolio = Portfolio(sample_accounts, transactions, sample_securities, sample_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2022, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2022, 12, 31))
 
@@ -91,7 +91,7 @@ def test_calculate_empty_if_no_security_prices(sample_accounts: pd.DataFrame, sa
     sample_prices = sample_prices.drop(sample_prices.index)
     sample_transactions = sample_transactions.drop(sample_transactions.index)
 
-    portfolio = PortfolioService(sample_accounts, sample_transactions, sample_securities, sample_prices)
+    portfolio = Portfolio(sample_accounts, sample_transactions, sample_securities, sample_prices)
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2022, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2022, 12, 31))
@@ -102,7 +102,7 @@ def test_calculate_empty_if_no_security_prices(sample_accounts: pd.DataFrame, sa
 
 
 def test_inyear_buy(sample_accounts: pd.DataFrame, sample_transactions: pd.DataFrame, sample_securities: pd.DataFrame, sample_prices: pd.DataFrame) -> None:
-    portfolio = PortfolioService(sample_accounts, sample_transactions, sample_securities, sample_prices)
+    portfolio = Portfolio(sample_accounts, sample_transactions, sample_securities, sample_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2018, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2018, 12, 31))
 
@@ -150,7 +150,7 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
         [datetime(2024, 6, 4), TransactionType.DIVIDENDS.value, float(payout), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR'],
     ], columns=['Date', 'Type', 'amount', 'Shares', 'SecurityId', 'AccountId', 'account_type', 'currency']).set_index(['Date', 'SecurityId', 'AccountId'])
 
-    portfolio = PortfolioService(sample_accounts, transactions, sample_securities, prices)
+    portfolio = Portfolio(sample_accounts, transactions, sample_securities, prices)
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))
@@ -169,7 +169,7 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
 
 def test_kommer(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))
-    portfolio = PortfolioPerformanceService(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+    portfolio = PortfolioPerformanceService().parse(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
 
@@ -197,7 +197,7 @@ def test_kommer(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
 
 def test_empty_file(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))
-    portfolio = PortfolioPerformanceService(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
+    portfolio = PortfolioPerformanceService().parse(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))

@@ -19,8 +19,8 @@
 
 import pandas as pd
 
-from pp_terminal.portfolio_service import PortfolioService
+from pp_terminal.portfolio import Portfolio
 
 
 def test_empty_df_is_valid() -> None:
-    PortfolioService(pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
+    Portfolio(pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame())

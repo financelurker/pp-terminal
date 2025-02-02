@@ -30,7 +30,7 @@ from ..df_filter import filter_by_date, filter_not_retired
 from ..exceptions import ValidationError
 from ..helper import run_all_group_cmds
 from ..output import Console
-from ..portfolio_service import PortfolioService
+from ..portfolio import Portfolio
 
 app = typer.Typer()
 console = Console()
@@ -69,7 +69,7 @@ def validate_security_prices_uptodate(ctx: typer.Context, warning_after_days: in
     Validate the timeliness of the security prices
     """
 
-    portfolio = ctx.obj.portfolio  # type: PortfolioService
+    portfolio = ctx.obj.portfolio  # type: Portfolio
 
     latest_prices = portfolio.prices.groupby(['SecurityId']).tail(1)
 

@@ -26,7 +26,7 @@ import typer
 from ..df_filter import unstack_column_by_currency
 from ..exceptions import InputError
 from ..output import OutputStrategy, Console
-from ..portfolio_service import PortfolioService
+from ..portfolio import Portfolio
 from ..portfolio_snapshot import PortfolioSnapshot
 from ..schemas import AccountType
 from ..table_decorator import TableOptions
@@ -63,7 +63,7 @@ def print_accounts(ctx: typer.Context, type: AccountType | None = None, by: date
     Show a detailed table with the current balance per deposit account.
     """
 
-    portfolio = ctx.obj.portfolio  # type: PortfolioService
+    portfolio = ctx.obj.portfolio  # type: Portfolio
     output = ctx.obj.output  # type: OutputStrategy
 
     snapshot = PortfolioSnapshot(portfolio, by)

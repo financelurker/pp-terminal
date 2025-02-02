@@ -26,7 +26,7 @@ from pandera.typing import DataFrame
 
 from .df_filter import filter_by_date, filter_by_type
 from .helper import enum_list_to_values
-from .portfolio_service import PortfolioService
+from .portfolio import Portfolio
 from .schemas import TransactionType, TransactionSchema
 
 _NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES = [
@@ -46,9 +46,9 @@ _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES = [
 
 class PortfolioSnapshot:
     _per_date: datetime
-    _portfolio: PortfolioService
+    _portfolio: Portfolio
 
-    def __init__(self, portfolio: PortfolioService, per_date: datetime = datetime.now()):
+    def __init__(self, portfolio: Portfolio, per_date: datetime = datetime.now()):
         self._portfolio = portfolio
         self._per_date = per_date
 
@@ -57,7 +57,7 @@ class PortfolioSnapshot:
         return self._per_date
 
     @property
-    def portfolio(self) -> PortfolioService:
+    def portfolio(self) -> Portfolio:
         return self._portfolio
 
     @property
@@ -74,19 +74,20 @@ class PortfolioSnapshot:
     @property
     @pa.check_types()
     def transactions(self) -> DataFrame[TransactionSchema] | None:  # @todo rename
-        if self._portfolio.securities_account_transactions is None:
+        transactions = self._portfolio.securities_account_transactions
+        if transactions is None:
             return None
 
-        return cast(DataFrame[TransactionSchema], self._portfolio.securities_account_transactions.pipe(filter_by_date, target_date=self._per_date))
+        return cast(DataFrame[TransactionSchema], transactions.pipe(filter_by_date, target_date=self._per_date))
 
     @property
     @pa.check_types()
-    def account_transactions(self) -> pd.DataFrame | None:
+    def account_transactions(self) -> DataFrame[TransactionSchema] | None:
         transactions = self.portfolio.deposit_account_transactions
         if transactions is None:
             return None
 
-        return transactions.pipe(filter_by_date, target_date=self._per_date)
+        return cast(DataFrame[TransactionSchema], transactions.pipe(filter_by_date, target_date=self._per_date))
 
     @property
     @pa.check_types()

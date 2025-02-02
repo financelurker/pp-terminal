@@ -32,7 +32,7 @@ from pp_terminal.commands.list_accounts import calculate_securities_accounts_sum
 
 def test_kommer(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))
-    portfolio = PortfolioPerformanceService(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+    portfolio = PortfolioPerformanceService().parse(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
 
     expected_df = pd.DataFrame([
         ['Kryptowährung', 72.07],
@@ -51,7 +51,7 @@ def test_kommer(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
 
 def test_empty_file(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))
-    portfolio = PortfolioPerformanceService(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
+    portfolio = PortfolioPerformanceService().parse(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
 
     expected_df = pd.DataFrame([], columns=['Name', 'Type', 'Balance'], index=pd.MultiIndex.from_tuples([], names=['AccountId', 'currency']))
     expected_df.index.name = 'AccountId'

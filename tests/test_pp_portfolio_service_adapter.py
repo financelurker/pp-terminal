@@ -28,14 +28,14 @@ from pp_terminal.pp_portfolio_service_adapter import PortfolioPerformanceService
 
 def test_import_non_existent_file() -> None:
     with pytest.raises(FileNotFoundError):
-        PortfolioPerformanceService(Path('non-existing.xml'))
+        PortfolioPerformanceService().parse(Path('non-existing.xml'))
 
 
 @pytest.mark.parametrize("xml_file", ['kommer.xml', 'invalid.xml', 'other.xml'])
 def test_import_invalid_xml(request: TopRequest, xml_file: str) -> None:
     with pytest.raises(InputError):
-        PortfolioPerformanceService(request.path.parent / 'fixtures' / xml_file)
+        PortfolioPerformanceService().parse(request.path.parent / 'fixtures' / xml_file)
 
 
 def test_import_pp_empty_xml(request: TopRequest) -> None:
-    PortfolioPerformanceService(request.path.parent / 'fixtures' / 'empty.ids.xml')
+    PortfolioPerformanceService().parse(request.path.parent / 'fixtures' / 'empty.ids.xml')

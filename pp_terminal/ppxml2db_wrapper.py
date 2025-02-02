@@ -31,12 +31,15 @@ log = logging.getLogger(__name__)
 logging.getLogger('ppxml2db.dbhelper').setLevel(logging.INFO)  # reducing some "noise"
 
 
-class PortfolioPerformanceDbWrapper:
-    _db: sqlite3.Connection
+DB_NAME_IN_MEMORY = ':memory:'
+
+
+class PortfolioPerformanceDbWrapper:  # @todo rename to PpXml2DbWrapper
+    _connection: sqlite3.Connection
     _setup_scripts_path: str
     _cursor: sqlite3.Cursor
 
-    def __init__(self, dbname: str = ':memory:') -> None:
+    def __init__(self, dbname: str = DB_NAME_IN_MEMORY) -> None:
         self._setup_scripts_path = os.path.dirname(dbhelper.__file__) + '/'
 
         try:
@@ -44,18 +47,18 @@ class PortfolioPerformanceDbWrapper:
             if dbhelper.db is None:
                 raise RuntimeError('could not establish database connection')
 
-            self._db = dbhelper.db  # @todo db connection is global state!
-            self._cursor = self._db.cursor()
+            self._connection = dbhelper.db  # @todo db connection is global state!
+            self._cursor = self._connection.cursor()
             self._install()
         except Exception as e:
             raise RuntimeError('error during database initialization for ' + dbname) from e
 
-    def import_file(self, file: Path) -> None:
+    def open(self, file: Path) -> None:
         try:
             conv = PortfolioPerformanceXML2DB(file.open(mode='rb'))  # type: ignore
             conv.iterparse()  # type: ignore
 
-            self._db.commit()
+            self._connection.commit()
 
             self._validate()
         except FileNotFoundError as e:
@@ -64,11 +67,11 @@ class PortfolioPerformanceDbWrapper:
             raise InputError('unable to import the Portfolio Performance xml file "' + file.name + '" (is it saved as "XML with ids"?)') from e
 
     def close(self) -> None:
-        self._db.close()  # database is deleted
+        self._connection.close()  # database is deleted
 
     @property
     def connection(self) -> sqlite3.Connection:
-        return self._db
+        return self._connection
 
     def _install(self) -> None:
         self._create_tables(os.listdir(self._setup_scripts_path))

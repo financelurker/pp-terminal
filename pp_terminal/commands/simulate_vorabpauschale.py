@@ -27,7 +27,7 @@ import numpy as np
 from ..df_filter import filter_by_type, drop_empty_values
 from ..output import OutputStrategy, Console
 from ..portfolio_snapshot import PortfolioSnapshot
-from ..portfolio_service import PortfolioService
+from ..portfolio import Portfolio
 from ..schemas import TransactionType
 from ..table_decorator import TableOptions
 
@@ -189,7 +189,7 @@ def print_tax_table(
     Print a detailed table with calculated German preliminary tax values ("Vorabpauschale") for a specified year, per each security and account.
     """
 
-    portfolio = ctx.obj.portfolio  # type: PortfolioService
+    portfolio = ctx.obj.portfolio  # type: Portfolio
     output = ctx.obj.output  # type: OutputStrategy
 
     console.print(output.hint('You can define the exemption rate for each security individually by creating a custom security attribute with a name like "Teilfreistellung" of type "Percent Number" in Portfolio Performance.'))

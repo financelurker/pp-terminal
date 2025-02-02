@@ -7,5 +7,5 @@ updates:
 
   - package-ecosystem: "gitsubmodule"
     schedule:
-        interval: "weekly"
+        interval: "daily"
     directory: "/"

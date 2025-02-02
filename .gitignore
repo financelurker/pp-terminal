@@ -8,3 +8,4 @@ build/
 *.egg-info/
 tests/.coverage
 tests/coverage.xml
+.cache.sql

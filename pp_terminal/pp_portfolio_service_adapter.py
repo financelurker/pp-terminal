@@ -18,6 +18,7 @@
 """
 
 import logging
+import os
 from pathlib import Path
 from typing import cast
 
@@ -25,9 +26,9 @@ import numpy as np
 import pandas as pd
 from pandera.typing import DataFrame
 
-from .portfolio_service import PortfolioService
+from .portfolio import Portfolio
 from .schemas import TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema
-from .ppxml2db_wrapper import PortfolioPerformanceDbWrapper
+from .ppxml2db_wrapper import PortfolioPerformanceDbWrapper, DB_NAME_IN_MEMORY
 
 log = logging.getLogger(__name__)
 
@@ -36,23 +37,31 @@ _CENTS_PER_EURO = 100
 _ATTRIBUTE_EXEMPT_LABEL = 'Teilfreistellung'
 
 
-class PortfolioPerformanceService(PortfolioService):
+class PortfolioPerformanceService():  # pylint: disable=too-few-public-methods
     _db: PortfolioPerformanceDbWrapper
 
-    def __init__(self, file: Path):
-        self._db = PortfolioPerformanceDbWrapper()
-        self._db.import_file(file)
+    def __init__(self, cache_file: str | None = None):
+        if cache_file is not None and os.path.exists(cache_file):
+            log.debug('erasing old database "%s"', cache_file)
+            os.remove(cache_file)
 
-        super().__init__(
-            accounts=self._parse_accounts(),
-            transactions=self._parse_transactions(),
-            securities=self._parse_securities(),
-            prices=self._parse_prices()
+        self._db = PortfolioPerformanceDbWrapper(dbname=cache_file if cache_file is not None else DB_NAME_IN_MEMORY)
+
+    def parse(self, file: Path) -> Portfolio:
+        self._db.open(file)
+
+        portfolio = Portfolio(
+            accounts = self._parse_accounts(),
+            transactions = self._parse_transactions(),
+            securities = self._parse_securities(),
+            prices = self._parse_prices()
         )
 
-        self.base_currency = str(self._get_property('baseCurrency'))
+        portfolio.base_currency = str(self._get_property('baseCurrency'))
 
         self._db.close()
+
+        return portfolio
 
     def _parse_securities(self) -> DataFrame[SecuritySchema]:
         securities = (pd.read_sql_query("""

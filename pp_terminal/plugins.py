@@ -31,6 +31,7 @@ def load_command_plugins(app: typer.Typer) -> None:
     """
     Dynamically load external plugins and add them as subcommands.
     """
+
     # Discover plugins via entry points defined in pyproject.toml
     for entry_point in importlib.metadata.entry_points(group="pp_terminal.commands"):
         try:

@@ -3,7 +3,7 @@ name = "pp-terminal"
 description = "The Analytic Companion for Portfolio Performance"
 authors = [{ name = "Christoph Massmann", email = "chris@dev-investor.de" }]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 license = "GPL-3.0-or-later"
 dependencies = [
     "typer (>=0.15.1,<0.16.0)",

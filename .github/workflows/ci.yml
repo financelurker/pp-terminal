@@ -16,22 +16,23 @@ permissions:
   contents: read
 
 jobs:
-  build-and-test:
-    name: Test & Build
+  test:
+    name: Test
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.12" ]
+        python-version: [ ">=3.13" ]
 
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
+
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        cache: 'pip'
+        cache: 'poetry'
 
     - name: Install Poetry
       run: |
@@ -47,11 +48,34 @@ jobs:
     - name: Running Tests
       run: make test
 
+  build-and-upload:
+    name: Build and Upload Package
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'release' }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+        cache: 'poetry'
+
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Install Dependencies
+      run: make install ARGS="--no-root"
+
     - name: Build Package
       run: make build
 
     - name: Upload Package
-      if: ${{ github.event_name == 'release' }}
       uses: actions/upload-artifact@v4
       with:
         name: python-package-distributions
@@ -59,7 +83,7 @@ jobs:
 
   publish-to-testpypi:
     name: Publish to TestPyPI
-    needs: build-and-test
+    needs: build-and-upload
     runs-on: ubuntu-latest
     environment: testing
 

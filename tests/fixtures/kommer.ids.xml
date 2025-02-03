@@ -21876,7 +21876,12 @@
         <volume>-1</volume>
       </latest>
       <attributes>
-        <map/>
+        <map>
+          <entry>
+            <string>2baac2d0-459b-4b41-a0ef-d7dad0866892</string>
+            <double>1.0</double>
+          </entry>
+        </map>
       </attributes>
       <events/>
       <isRetired>false</isRetired>
@@ -24415,7 +24420,12 @@
         <volume>-1</volume>
       </latest>
       <attributes>
-        <map/>
+        <map>
+          <entry>
+            <string>2baac2d0-459b-4b41-a0ef-d7dad0866892</string>
+            <double>1.0</double>
+          </entry>
+        </map>
       </attributes>
       <events>
         <event>
@@ -26764,7 +26774,12 @@
         <volume>-1</volume>
       </latest>
       <attributes>
-        <map/>
+        <map>
+          <entry>
+            <string>2baac2d0-459b-4b41-a0ef-d7dad0866892</string>
+            <double>1.0</double>
+          </entry>
+        </map>
       </attributes>
       <events/>
       <isRetired>false</isRetired>
@@ -38628,7 +38643,7 @@
       </attribute-type>
       <attribute-type>
         <id>2baac2d0-459b-4b41-a0ef-d7dad0866892</id>
-        <name>exemption_rate</name>
+        <name>Teilfreistellung</name>
         <columnLabel>Teilfreistellung</columnLabel>
         <source></source>
         <target>name.abuchen.portfolio.model.Security</target>

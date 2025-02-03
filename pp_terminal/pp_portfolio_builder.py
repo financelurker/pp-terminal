@@ -79,7 +79,7 @@ from security as s
 left join security_attr as sa on sa."security" = s.uuid
 left join attribute_type as at on sa.attr_uuid = at.id
 group by s.uuid
-        """, self._db.connection, index_col=['uuid'], params=['%{_ATTRIBUTE_EXEMPT_LABEL}%'])
+        """, self._db.connection, index_col=['uuid'], params=[f"%{_ATTRIBUTE_EXEMPT_LABEL}%"])
                       .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
 
         return cast(DataFrame[SecuritySchema], securities)

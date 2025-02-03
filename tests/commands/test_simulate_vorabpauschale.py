@@ -165,7 +165,7 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
         assert_frame_equal(expected_df, result.round(2))
 
 
-def test_kommer(request: TopRequest) -> None:
+def test_kommer_2021(request: TopRequest) -> None:
     portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
@@ -190,6 +190,34 @@ def test_kommer(request: TopRequest) -> None:
     result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375)
 
     assert_frame_equal(expected_df, result)
+
+
+def test_kommer_2023(request: TopRequest) -> None:
+    portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(2023, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(2023, 12, 31))
+
+    expected_df = pd.DataFrame([
+        ['ETF013', 'Lyxor MSCI Pacific UCITS ETF', 'EUR', 1.42471],
+        ['A0RL83', 'iShares Core Euro Government Bond UCITS ETF (Dist)', 'EUR', 8.05472],
+        ['A0MZWQ', 'iShares Core MSCI Europe UCITS ETF EUR (Dist)', 'EUR', 4.24526],
+        ['A0HGWC', 'iShares MSCI EM UCITS ETF (Dist)', 'EUR', 5.75229],
+        ['A0J201', 'iShares MSCI North America UCITS ETF', 'EUR', 6.83661],
+        [None, 'Related Account Balance', 'EUR', 533.38]
+    ], columns=['Wkn', 'Name', 'currency', 'Depot'], index=[
+        'ff0a2b77-9749-45b0-8333-cb1d9787812c',
+        '99b9419f-8c70-422e-8e8e-05eadb4507ec',
+        'c770a389-0a84-442c-ad85-2a58c3066924',
+        '47094920-535c-4508-9a92-80c01933f567',
+        'daab10fd-c3fb-4430-a368-0ce0cdf551c8',
+        5,
+    ])
+    expected_df.index.name = 'SecurityId'
+
+    result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375)
+
+    assert result is not None
+    assert_frame_equal(expected_df, result.round(5))
 
 
 def test_empty_file(request: TopRequest) -> None:

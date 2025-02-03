@@ -53,7 +53,7 @@ def calculate_interest(snapshot_begin: PortfolioSnapshot, snapshot_end: Portfoli
     df['days_diff'] = df.groupby(['account_id', 'currency'])['date'].diff().dt.days.fillna(0).astype(int)
     df['balance'] = df.groupby(['account_id', 'currency'])['amount'].cumsum()
     df['weighted_balance'] = df['balance'] * df['days_diff']
-    df['interest_rate'] = np.power(1 + interest_rate / _DAYS_PER_YEAR, df['days_diff']) - 1
+    df['interest_rate'] = np.power(1 + interest_rate / 100 / _DAYS_PER_YEAR, df['days_diff']) - 1
     df['interest'] = df['balance'] * df['interest_rate']
 
     df = df.pipe(filter_later_than, target_date=snapshot_begin.date)
@@ -99,7 +99,7 @@ def simulate_interest_rate(
     df = calculate_interest(snapshot_begin, snapshot_end, interest_rate)
     if df is not None:
         df = df.rename(columns={'mean_balance': '⌀ Balance', 'interest': 'Simulated Interest', 'actual_interest': 'Actual Interest'})
-        df.insert(3, 'Interest Rate', f"{interest_rate * 100}%")
+        df.insert(3, 'Interest Rate', f"{interest_rate}%")
 
     console.print(*output.result_table(
         df, TableOptions(title='Simulated Interest on Accounts', caption=f"for {year.strftime("%Y")}, excl. taxes", show_index=False, show_total=False, value_formatter=_format_value_wrapper)

@@ -58,7 +58,7 @@ class OutputStrategy(ABC):
 class RichOutputStrategy(OutputStrategy):
     def result_table(self, df: pd.DataFrame | None, options: TableOptions) -> Any:
         if df is None or df.empty:
-            return self.empty_result()
+            return self.empty_result(), NewLine()
 
         table = TableDecorator(options)
         table.add_df(df)

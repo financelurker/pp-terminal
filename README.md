@@ -18,7 +18,7 @@ By default, `pp-terminal` provides the following commands:
 | Command                   | Description                                                                                        |
 |---------------------------|----------------------------------------------------------------------------------------------------|
 | `list accounts`           | Get detailed information about the balances per each deposit and/or securities account             |
-| `simulate interest`       | Calculate how much interest you should have been earned per account and compare with actual        |
+| `simulate interest`       | Calculate how much interest you should have been earned per account and compare with actual values |
 | `simulate vorabpauschale` | Run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
 | `validate`                | Run a number of different validation checks on the portfolio data, e.g. security prices up-to-date |
 
@@ -77,7 +77,7 @@ export NO_COLOR=1
 
 Developers can easily extend the default _pp-terminal_ functionality by implementing their own commands. Therefore, the Python
 [entry point](https://packaging.python.org/en/latest/specifications/entry-points/) `pp_terminal.commands` is provided.
-To hook into a sub-command, e.g. `view`, you have to prefix the entry point name with `view.`.
+To hook into a sub-command, e.g. `list`, you have to prefix the entry point name with `list.`.
 
 The most basic _pp-terminal_ command looks like this:
 
@@ -96,7 +96,7 @@ def hello_world() -> None:
 This will result in the command `pp-terminal hello-world` being available.
 
 For more sophisticated samples take a look at the packaged commands in the `pp_terminal/commands` directory, 
-e.g. a good starting point is [view_accounts.py](https://github.com/ma4nn/pp-terminal/blob/master/pp_terminal/commands/view_accounts.py).
+e.g. a good starting point is [list_accounts.py](https://github.com/ma4nn/pp-terminal/blob/master/pp_terminal/commands/list_accounts.py).
 
 The app uses [Typer](https://typer.tiangolo.com/) for composing the commands and [Rich](https://github.com/Textualize/rich)
 for nice console outputs. The Portfolio Performance XML file is read with [ppxml2db](https://github.com/pfalcon/ppxml2db) 

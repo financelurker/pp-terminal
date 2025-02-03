@@ -85,7 +85,7 @@ class TableDecorator(Table):
                 continue
 
             footer_value = self._options.value_formatter(summary_row[column], str(column), summary_row) if self._options.show_total and column in summary_row.index else ''
-            justify = 'right' if footer_value != '' else 'left'  # type: Literal["right", "left"]
+            justify = 'right' if column in summary_row.index and isinstance(summary_row[column], float) else 'left'  # type: Literal["right", "left"]
 
             if not self._options.show_index and footer_value == '' and i == 0:  # column is non-numeric
                 footer_value = 'Total'

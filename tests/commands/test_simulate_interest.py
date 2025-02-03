@@ -39,7 +39,7 @@ def test_calculate_interest(request: TopRequest) -> None:
         ('e068fb14-2554-427e-b2d0-30dcc6e15717', 'EUR')
     ], names=['account_id', 'currency']))
 
-    result = calculate_interest(snapshot_begin, snapshot_end, 0.0375)
+    result = calculate_interest(snapshot_begin, snapshot_end, 3.75)
 
     assert_frame_equal(expected_df, result, check_dtype=False)
 

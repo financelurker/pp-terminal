@@ -45,6 +45,8 @@ and share them with the community.
 pipx install pp-terminal
 ```
 
+Once installed, the latest updates can be obtained with `pipx upgrade pp-terminal`.
+
 ## Usage 💡
 
 The commands mentioned above all require the Portfolio Performance XML file as input.  

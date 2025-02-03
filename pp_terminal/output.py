@@ -92,13 +92,12 @@ class JsonOutputStrategy(OutputStrategy):
 
 
 def create_strategy(output_format: OutputFormat) -> OutputStrategy:
-    if output_format == OutputFormat.TABLE:
-        return RichOutputStrategy()
-
-    if output_format == OutputFormat.CSV:
-        return CsvOutputStrategy()
-
-    if output_format == OutputFormat.JSON:
-        return JsonOutputStrategy()
+    match output_format:
+        case OutputFormat.TABLE:
+            return RichOutputStrategy()
+        case OutputFormat.CSV:
+            return CsvOutputStrategy()
+        case OutputFormat.JSON:
+            return JsonOutputStrategy()
 
     raise NotImplementedError('output format "' + output_format + '" not supported yet')

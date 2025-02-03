@@ -23,7 +23,7 @@ import pandas as pd
 from _pytest.fixtures import TopRequest
 from pandas.testing import assert_frame_equal
 
-from pp_terminal.commands.simulate_interest_rate import calculate_interest
+from pp_terminal.commands.simulate_interest import calculate_interest
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
 

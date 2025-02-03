@@ -14,7 +14,7 @@ dependencies = [
     "lxml (>=5.3.0,<6.0.0)",
 ]
 scripts = { pp-terminal = "pp_terminal.main:app" }
-entry-points = { "pp_terminal.commands" = { "list.accounts" = "pp_terminal.commands.list_accounts:app", "simulate.vorabpauschale" = "pp_terminal.commands.simulate_vorabpauschale:app", "simulate.interest_rate" = "pp_terminal.commands.simulate_interest_rate:app", "validate" = "pp_terminal.commands.validate:app" } }
+entry-points = { "pp_terminal.commands" = { "list.accounts" = "pp_terminal.commands.list_accounts:app", "simulate.vorabpauschale" = "pp_terminal.commands.simulate_vorabpauschale:app", "simulate.interest" = "pp_terminal.commands.simulate_interest:app", "validate" = "pp_terminal.commands.validate:app" } }
 dynamic = ["version"]
 
 

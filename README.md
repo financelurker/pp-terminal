@@ -45,7 +45,11 @@ and share them with the community.
 pipx install pp-terminal
 ```
 
-Once installed, the latest updates can be obtained with `pipx upgrade pp-terminal`.
+Once installed, update to the latest with:
+
+```
+pipx upgrade pp-terminal
+```
 
 ## Usage 💡
 

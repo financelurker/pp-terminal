@@ -19,6 +19,7 @@
 
 from datetime import datetime
 import logging
+
 import pandas as pd
 import typer
 from typing_extensions import Annotated
@@ -29,7 +30,7 @@ from ..helper import get_last_year
 from ..output import OutputStrategy, Console
 from ..portfolio_snapshot import PortfolioSnapshot
 from ..portfolio import Portfolio
-from ..schemas import TransactionType
+from ..schemas import TransactionType, Percent
 from ..table_decorator import TableOptions
 
 app = typer.Typer()
@@ -43,9 +44,9 @@ begin = None  # pylint: disable=invalid-name
 def calculate(  # pylint: disable=too-many-locals
         snapshot_period_begin: PortfolioSnapshot,
         snapshot_period_end: PortfolioSnapshot,
-        base_rate_percent: float,
-        tax_rate_percent: float,
-        default_exemption_rate_percent: float = 30.0
+        base_rate_percent: Percent,
+        tax_rate_percent: Percent,
+        default_exemption_rate_percent: Percent = 30.0
 ) -> pd.DataFrame | None:
     base_rate = max(base_rate_percent, 0) / 100
 
@@ -145,7 +146,7 @@ def set_begin(value: datetime | None) -> datetime | None:
     return value
 
 
-def get_base_rate_percent_by_year() -> float | None:
+def get_base_rate_percent_by_year() -> Percent | None:
     if begin is None:
         return None
 
@@ -178,9 +179,9 @@ def get_base_rate_percent_by_year() -> float | None:
 def print_tax_table(
         ctx: typer.Context,
         year: Annotated[datetime, typer.Option(formats=["%Y"], help="The year to calculate the preliminary tax for", prompt=True, callback=set_begin, default_factory=get_last_year)],
-        base_rate: Annotated[float, typer.Option(help="The base rate (Basiszinssatz)", min=-100, max=100, prompt="Base Rate (%)", prompt_required=True, default_factory=get_base_rate_percent_by_year)],
-        tax_rate: Annotated[float, typer.Option(help="Your personal tax rate", min=0, max=100, prompt="Tax Rate (%)", prompt_required=True)] = 0.25 * (1 + 0.055) * 100,
-        exemption_rate: Annotated[float, typer.Option(help="The default exemption rate (Teilfreistellung), can be overwritten for each security.", min=0, max=100, prompt="Default Exemption Rate (%)", prompt_required=True)] = 30
+        base_rate: Annotated[Percent, typer.Option(help="The base rate (Basiszinssatz)", min=-100, max=100, prompt="Base Rate (%)", prompt_required=True, default_factory=get_base_rate_percent_by_year)],
+        tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, prompt="Tax Rate (%)", prompt_required=True)] = 0.25 * (1 + 0.055) * 100,
+        exemption_rate: Annotated[Percent, typer.Option(help="The default exemption rate (Teilfreistellung), can be overwritten for each security.", min=0, max=100, prompt="Default Exemption Rate (%)", prompt_required=True)] = 30
 ) -> None:
     """
     Print a detailed table with calculated German preliminary tax values ("Vorabpauschale") for a specified year, per each security and account.

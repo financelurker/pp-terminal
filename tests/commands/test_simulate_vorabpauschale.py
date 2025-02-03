@@ -26,7 +26,7 @@ import pytest
 
 from pp_terminal.portfolio import Portfolio
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.schemas import TransactionType, AccountType
+from pp_terminal.schemas import TransactionType, AccountType, Percent, Money
 from pp_terminal.commands.simulate_vorabpauschale import calculate
 from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
 
@@ -130,7 +130,7 @@ samples = [
 
 
 @pytest.mark.parametrize("expected_tax_value, payout, value_begin, value_end, base_rate_percent", samples)
-def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securities: pd.DataFrame, expected_tax_value: float, payout: float, value_begin: float, value_end: float, base_rate_percent: float) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securities: pd.DataFrame, expected_tax_value: Money, payout: Money, value_begin: Money, value_end: Money, base_rate_percent: Percent) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
     share_price_begin = 50
     shares = value_begin/share_price_begin
 

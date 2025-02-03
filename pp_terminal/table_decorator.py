@@ -56,7 +56,7 @@ class TableDecorator(Table):
 
     @property
     def show_default_footer(self) -> bool:
-        return self._options.footer_lines == 0  # multiple footer lines are not supported in rich by default
+        return self._options.show_total and self._options.footer_lines == 0  # multiple footer lines are not supported in rich by default
 
     def add_df(self, df: pd.DataFrame) -> Table:
         df = df.pipe(drop_empty_values)

@@ -26,8 +26,9 @@ import numpy as np
 import pandas as pd
 from pandera.typing import DataFrame
 
+from .helper import enum_list_to_values
 from .portfolio import Portfolio
-from .schemas import TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema
+from .schemas import TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema, TransactionType
 from .ppxml2db_wrapper import Ppxml2dbWrapper, DB_NAME_IN_MEMORY
 
 log = logging.getLogger(__name__)
@@ -35,6 +36,14 @@ log = logging.getLogger(__name__)
 _SCALE = 100000000
 _CENTS_PER_EURO = 100
 _ATTRIBUTE_EXEMPT_LABEL = 'Teilfreistellung'
+_NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES = [
+    TransactionType.TRANSFER_OUT,
+    TransactionType.REMOVAL,
+    TransactionType.INTEREST_CHARGE,
+    TransactionType.FEES,
+    TransactionType.TAXES,
+    TransactionType.BUY,
+]
 
 
 class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
@@ -76,30 +85,34 @@ group by s.uuid
         return cast(DataFrame[SecuritySchema], securities)
 
     def _parse_prices(self) -> DataFrame[SecurityPriceSchema]:
-        prices = (pd.read_sql_query('select datetime(tstamp) as Date, * from price', self._db.connection, index_col=['Date', 'security'], parse_dates={"Date": "%Y-%m-%d %H:%M:%S"}, dtype={'value': np.float64})
-                          .rename(columns={'security': 'SecurityId', 'tstamp': 'Date', 'value': 'Price'}))[['Price']]
+        prices = (pd.read_sql_query('select datetime(tstamp) as date, * from price', self._db.connection, index_col=['date', 'security'], parse_dates={"date": "%Y-%m-%d %H:%M:%S"}, dtype={'value': np.float64})
+                          .rename(columns={'security': 'SecurityId', 'tstamp': 'date', 'value': 'Price'}))[['Price']]
         prices['Price'] = prices['Price'] / _SCALE
-        prices.index.set_names(['Date', 'SecurityId'], inplace=True)
+        prices.index.set_names(['date', 'SecurityId'], inplace=True)
 
         return cast(DataFrame[SecurityPriceSchema], prices)
 
     def _parse_transactions(self) -> DataFrame[TransactionSchema]:
         transactions = (pd.read_sql_query("""
-select datetime(x.date) as Date, ifnull(xu.forex_currency, x.currency) as currency, ifnull(xu.forex_amount, x.amount)-x.fees as amount_wo_fees, x.fees, x.uuid, x.account, x.type, x.security, x.shares, x.acctype
+select datetime(x.date) as date, ifnull(xu.forex_currency, x.currency) as currency, ifnull(xu.forex_amount, x.amount)-x.fees as amount_wo_fees, x.fees, x.taxes, x.uuid, x.account, x.type, x.security, x.shares, x.acctype
 from xact as x
 left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
-        """, self._db.connection, index_col=['Date', 'account', 'security'], parse_dates={"Date": "%Y-%m-%d %H:%M:%S"}, dtype={'amount_wo_fees': np.float64, 'shares': np.float64})
-                          .rename(columns={'uuid': 'TransactionId', 'account': 'AccountId', 'type': 'Type', 'security': 'SecurityId', 'shares': 'Shares', 'acctype': 'account_type', 'amount_wo_fees': 'amount'}))
-        transactions['amount'] = transactions['amount'] / _CENTS_PER_EURO
+        """, self._db.connection, index_col=['date', 'account', 'security'], parse_dates={"date": "%Y-%m-%d %H:%M:%S"}, dtype={'amount_wo_fees': np.float64, 'shares': np.float64})
+                          .rename(columns={'uuid': 'TransactionId', 'account': 'account_id', 'type': 'Type', 'security': 'SecurityId', 'shares': 'Shares', 'acctype': 'account_type', 'amount_wo_fees': 'amount'}))
         transactions['Shares'] = transactions['Shares'] / _SCALE
         transactions['Type'] = pd.Categorical(transactions['Type'])
-        transactions.index.set_names(['Date', 'AccountId', 'SecurityId'], inplace=True)
+        transactions['amount'] = transactions.apply(
+            lambda row: -1 if row['Type'] in enum_list_to_values(_NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES) else 1,
+            axis=1
+        ) * transactions['amount'] / _CENTS_PER_EURO
+        transactions['taxes'] = transactions['taxes'] / _CENTS_PER_EURO
+        transactions.index.set_names(['date', 'account_id', 'SecurityId'], inplace=True)
 
         return cast(DataFrame[TransactionSchema], transactions)
 
     def _parse_accounts(self) -> DataFrame[AccountSchema]:
         accounts = (pd.read_sql_query('select * from account', self._db.connection, index_col='uuid')
-                          .rename(columns={'uuid': 'AccountId', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'ReferenceAccountId', 'isRetired': 'is_retired'}))
+                          .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
 
         return cast(DataFrame[AccountSchema], accounts)
 

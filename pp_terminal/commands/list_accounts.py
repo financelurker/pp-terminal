@@ -37,25 +37,18 @@ log = logging.getLogger(__name__)
 
 
 def calculate_deposit_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
-    balances = (pd.merge(snapshot.portfolio.deposit_accounts, snapshot.balances, left_index=True, right_on='AccountId', how="right")
+    balances = (pd.merge(snapshot.portfolio.deposit_accounts, snapshot.balances, left_index=True, right_on='account_id', how="right")
             .sort_values(by='Balance'))
 
     return balances[balances['Balance'] >= 0.01][['Name', 'Type', 'Balance']]
 
 
 def calculate_securities_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
-    values = (pd.merge(snapshot.portfolio.securities_accounts, snapshot.values.groupby(['AccountId', 'currency']).sum(), left_index=True, right_on='AccountId', how="right")
+    values = (pd.merge(snapshot.portfolio.securities_accounts, snapshot.values.groupby(['account_id', 'currency']).sum(), left_index=True, right_on='account_id', how="right")
             .sort_values(by='Balance'))
 
     return values[values['Balance'] >= 0.01][['Name', 'Type', 'Balance']]
 
-
-def _stack_by_currency(df: pd.DataFrame, base_currency: str) -> pd.DataFrame:
-    df = df.pipe(unstack_column_by_currency, column='Balance')
-    if base_currency in df:
-        df.sort_values(by=base_currency, inplace=True)
-
-    return df
 
 @app.command(name="accounts")
 def print_accounts(ctx: typer.Context, type: AccountType | None = None, by: datetime = datetime.now()) -> None:  # pylint: disable=redefined-builtin
@@ -81,7 +74,7 @@ def print_accounts(ctx: typer.Context, type: AccountType | None = None, by: date
     if df is None:
         raise InputError('invalid account type')
 
-    df = _stack_by_currency(df, snapshot.portfolio.base_currency)
+    df = df.pipe(unstack_column_by_currency, column='Balance', base_currency=snapshot.portfolio.base_currency)
 
     console.print(*output.result_table(
         df, TableOptions(title="Balances on Accounts", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=False)

@@ -17,7 +17,7 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from datetime import datetime,date
+from datetime import datetime
 import logging
 import pandas as pd
 import typer
@@ -25,6 +25,7 @@ from typing_extensions import Annotated
 import numpy as np
 
 from ..df_filter import filter_by_type, drop_empty_values
+from ..helper import get_last_year
 from ..output import OutputStrategy, Console
 from ..portfolio_snapshot import PortfolioSnapshot
 from ..portfolio import Portfolio
@@ -52,8 +53,8 @@ def calculate(  # pylint: disable=too-many-locals
     logging.debug(payouts)
 
     # @todo convert all values to EUR with rates from ECB, for the moment we simply remove currency
-    begin_values_in_eur = snapshot_period_begin.values.groupby(['AccountId', 'SecurityId']).sum()
-    end_values_in_eur = snapshot_period_end.values.groupby(['AccountId', 'SecurityId']).sum()
+    begin_values_in_eur = snapshot_period_begin.values.groupby(['account_id', 'SecurityId']).sum()
+    end_values_in_eur = snapshot_period_end.values.groupby(['account_id', 'SecurityId']).sum()
 
     # use df.subtract to align both matrices
     outcome = end_values_in_eur.subtract(begin_values_in_eur, fill_value=0)
@@ -82,7 +83,7 @@ def calculate(  # pylint: disable=too-many-locals
         vorabpauschale = exempt_rate_per_security.mul(vorabpauschale.to_frame(), level='SecurityId')
 
     if not vorabpauschale.empty:
-        vorabpauschale = vorabpauschale.unstack(level='AccountId')
+        vorabpauschale = vorabpauschale.unstack(level='account_id')
         vorabpauschale.columns = [col[1] if len(col) > 1 else col[0] for col in vorabpauschale.columns]
 
     vorabpauschale = vorabpauschale.pipe(drop_empty_values)
@@ -92,9 +93,9 @@ def calculate(  # pylint: disable=too-many-locals
     vorabpauschale = pd.merge(snapshot_period_end.portfolio.securities[['Wkn', 'Name', 'currency']], vorabpauschale, left_index=True, right_index=True, how='right').sort_values(by='Name')
 
     securities_accounts = snapshot_period_end.portfolio.securities_accounts
-    if securities_accounts is not None and 'ReferenceAccountId' in securities_accounts and snapshot_period_end.balances is not None:
+    if securities_accounts is not None and 'Referenceaccount_id' in securities_accounts and snapshot_period_end.balances is not None:
         # add the reference account balance
-        vorabpauschale.loc[len(vorabpauschale)] = (pd.merge(securities_accounts, snapshot_period_end.balances.groupby(['AccountId']).sum(), left_on='ReferenceAccountId', right_index=True, how='left')['Balance'].dropna().to_dict()
+        vorabpauschale.loc[len(vorabpauschale)] = (pd.merge(securities_accounts, snapshot_period_end.balances.groupby(['account_id']).sum(), left_on='Referenceaccount_id', right_index=True, how='left')['Balance'].dropna().to_dict()
                                                    | {'Name': 'Related Account Balance', 'currency': snapshot_period_end.portfolio.base_currency})
 
     return vorabpauschale.rename(columns=securities_accounts['Name'])
@@ -105,9 +106,9 @@ def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
     if transactions is None:
         return None
 
-    transactions = transactions[transactions.index.get_level_values('Date').year == snapshot_end.date.year] if not transactions.index.get_level_values('Date').empty else transactions
+    transactions = transactions[transactions.index.get_level_values('date').year == snapshot_end.date.year] if not transactions.index.get_level_values('date').empty else transactions
 
-    payouts = transactions.pipe(filter_by_type, transaction_types=TransactionType.DIVIDENDS).groupby(['AccountId', 'SecurityId'])['amount'].sum()
+    payouts = transactions.pipe(filter_by_type, transaction_types=TransactionType.DIVIDENDS).groupby(['account_id', 'SecurityId'])['amount'].sum()
     payouts.name = 'Payouts'
 
     return payouts
@@ -118,17 +119,17 @@ def _calculate_prorata_shares_for_inyear_buys(snapshot_end: PortfolioSnapshot) -
     if transactions is None:
         return None
 
-    transactions_inyear = transactions[transactions.index.get_level_values('Date').year == snapshot_end.date.year] if not transactions.index.get_level_values('Date').empty else None
+    transactions_inyear = transactions[transactions.index.get_level_values('date').year == snapshot_end.date.year] if not transactions.index.get_level_values('date').empty else None
     if transactions_inyear is None:
-        return pd.Series([], name='amount', index=pd.MultiIndex.from_tuples([], names=['AccountId', 'SecurityId']), dtype='float64')
+        return pd.Series([], name='amount', index=pd.MultiIndex.from_tuples([], names=['account_id', 'SecurityId']), dtype='float64')
 
     transactions_inyear = transactions_inyear.pipe(filter_by_type, transaction_types=[TransactionType.BUY, TransactionType.DELIVERY_INBOUND])
-    transactions_inyear['months_held'] = snapshot_end.date.month - transactions_inyear.index.get_level_values('Date').month + 1
+    transactions_inyear['months_held'] = snapshot_end.date.month - transactions_inyear.index.get_level_values('date').month + 1
     transactions_inyear['shares_original'] = transactions_inyear['Shares']
     transactions_inyear['Shares'] = transactions_inyear['Shares'] * transactions_inyear['months_held']/12
-    log.debug(transactions_inyear[['shares_original', 'months_held', 'Shares']].reset_index(level='Date', drop=True).sort_values(by=['AccountId', 'SecurityId', 'months_held']))
+    log.debug(transactions_inyear[['shares_original', 'months_held', 'Shares']].reset_index(level='date', drop=True).sort_values(by=['account_id', 'SecurityId', 'months_held']))
 
-    return transactions_inyear.groupby(['AccountId', 'SecurityId'])['Shares'].sum().abs()
+    return transactions_inyear.groupby(['account_id', 'SecurityId'])['Shares'].sum().abs()
 
 
 def set_begin(value: datetime | None) -> datetime | None:
@@ -142,10 +143,6 @@ def set_begin(value: datetime | None) -> datetime | None:
         begin = value
 
     return value
-
-
-def get_last_year() -> str:
-    return str(date.today().year - 1)
 
 
 def get_base_rate_percent_by_year() -> float | None:

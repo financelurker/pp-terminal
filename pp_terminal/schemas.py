@@ -25,6 +25,7 @@ from pandera.typing import Index, Series
 
 
 Money: TypeAlias = float
+Percent: TypeAlias = float
 
 
 class TransactionType(Enum):
@@ -53,8 +54,8 @@ class AccountType(Enum):
 # @todo make all lowercase
 
 class TransactionSchema(pa.DataFrameModel):
-    Date: Index[pa.DateTime]
-    AccountId: Index[str]
+    date: Index[pa.DateTime]
+    account_id: Index[str]
     SecurityId: Optional[str]
     Type: Series[str]  # @todo use pandera preprocessing?
     amount: Series[Money]
@@ -63,10 +64,10 @@ class TransactionSchema(pa.DataFrameModel):
 
 
 class AccountSchema(pa.DataFrameModel):
-    AccountId: Index[str]
+    account_id: Index[str]
     Name: Series[str]
     Type: Series[str]  # @todo use pandera preprocessing?
-    ReferenceAccountId: Optional[Series[str]] = pa.Field(nullable=True)
+    Referenceaccount_id: Optional[Series[str]] = pa.Field(nullable=True)
     is_retired: Optional[Series[bool]] = pa.Field(coerce=True)
 
 
@@ -78,6 +79,6 @@ class SecuritySchema(pa.DataFrameModel):
 
 
 class SecurityPriceSchema(pa.DataFrameModel):
-    Date: Index[pa.DateTime]
+    date: Index[pa.DateTime]
     SecurityId: Index[str]
     Price: Series[Money]

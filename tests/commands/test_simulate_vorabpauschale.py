@@ -17,12 +17,10 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import sqlite3
 from datetime import datetime
 
 import pandas as pd
 from _pytest.fixtures import TopRequest
-from _pytest.monkeypatch import MonkeyPatch
 from pandas.testing import assert_frame_equal
 import pytest
 
@@ -36,7 +34,7 @@ from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
 @pytest.fixture(name='sample_accounts')
 def provide_sample_accounts() -> pd.DataFrame:
     securities_accounts = pd.DataFrame([['Testdepot', AccountType.SECURITIES.value]], columns=['Name', 'Type'], index=['1'])
-    securities_accounts.index.name = 'AccountId'
+    securities_accounts.index.name = 'account_id'
 
     return securities_accounts
 
@@ -54,23 +52,23 @@ def provide_sample_prices() -> pd.DataFrame:
     return (pd.DataFrame([
         [datetime(2017, 12, 30), '1234567890', 200.0],
         [datetime(2018, 1, 10), '1234567890', 246.66],
-    ], columns=['Date', 'SecurityId', 'Price'])
-            .set_index(['Date', 'SecurityId']))
+    ], columns=['date', 'SecurityId', 'Price'])
+            .set_index(['date', 'SecurityId']))
 
 
 @pytest.fixture(name='sample_transactions')
 def provide_sample_transactions() -> pd.DataFrame:
     return (pd.DataFrame([
             [datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.SECURITIES.value, 'EUR']
-    ], columns=['Date', 'Type', 'amount', 'Shares', 'SecurityId', 'AccountId', 'account_type', 'currency'])
-            .set_index(['Date', 'SecurityId', 'AccountId']))
+    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency'])
+            .set_index(['date', 'SecurityId', 'account_id']))
 
 
 def test_calculate_empty_if_no_securities_accounts(sample_accounts: pd.DataFrame, sample_securities: pd.DataFrame, sample_prices: pd.DataFrame) -> None:
     transactions = (pd.DataFrame([
         [datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.SECURITIES.value, 'EUR']
-    ], columns=['Date', 'Type', 'amount', 'Shares', 'SecurityId', 'AccountId', 'account_type', 'currency'])
-                    .set_index(['Date', 'SecurityId', 'AccountId']))
+    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency'])
+                    .set_index(['date', 'SecurityId', 'account_id']))
 
     # drop all rows but keep structure
     sample_accounts = sample_accounts.drop(sample_accounts.index)
@@ -144,11 +142,11 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
         [datetime(2024, 12, 31), '1234567890', value_end / shares],
         [datetime(2023, 12, 1), '1234567890', 46.54],
         [datetime(2025, 1, 2), '1234567890', 45.302],
-    ], columns=['Date', 'SecurityId', 'Price']).set_index(['Date', 'SecurityId'])
+    ], columns=['date', 'SecurityId', 'Price']).set_index(['date', 'SecurityId'])
     transactions = pd.DataFrame([
         [datetime(2023, 12, 6), TransactionType.BUY.value, float(value_begin), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR'],
         [datetime(2024, 6, 4), TransactionType.DIVIDENDS.value, float(payout), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR'],
-    ], columns=['Date', 'Type', 'amount', 'Shares', 'SecurityId', 'AccountId', 'account_type', 'currency']).set_index(['Date', 'SecurityId', 'AccountId'])
+    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency']).set_index(['date', 'SecurityId', 'account_id'])
 
     portfolio = Portfolio(sample_accounts, transactions, sample_securities, prices)
 
@@ -167,8 +165,7 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
         assert_frame_equal(expected_df, result.round(2))
 
 
-def test_kommer(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))
+def test_kommer(request: TopRequest) -> None:
     portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
@@ -195,8 +192,7 @@ def test_kommer(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
     assert_frame_equal(expected_df, result)
 
 
-def test_empty_file(request: TopRequest, monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))
+def test_empty_file(request: TopRequest) -> None:
     portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))

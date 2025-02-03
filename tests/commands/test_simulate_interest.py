@@ -17,40 +17,40 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
+from datetime import datetime
+
 import pandas as pd
 from _pytest.fixtures import TopRequest
 from pandas.testing import assert_frame_equal
 
+from pp_terminal.commands.simulate_interest_rate import calculate_interest
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
-from pp_terminal.commands.list_accounts import calculate_deposit_accounts_sum
 
 
-def test_calculate_sum(request: TopRequest) -> None:
+def test_calculate_interest(request: TopRequest) -> None:
     portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
 
     expected_df = pd.DataFrame([
-        ['Fremdwährungskonto USD', 324.0],
-        ['Tagesgeld', 500.0],
-        ['Wertpapierkonto', 593.87],
-        ['Fremdwährungskonto GBP', 2000.0],
-    ], columns=['Name', 'Balance'], index=pd.MultiIndex.from_tuples([
-        ('789294db-0aa4-4673-9d91-ad083c9d6916', 'USD'),
-        ('ea9414e0-1787-46c0-92b3-8e2370eb892e', 'EUR'),
-        ('e068fb14-2554-427e-b2d0-30dcc6e15717', 'EUR'),
-        ('db94317b-26ed-4a8b-bf6c-2f535a217138', 'GBP')
+        ['Wertpapierkonto', 'EUR', 339.54724, 13.46723, None],
+    ], columns=['Name', 'currency', 'mean_balance', 'interest', 'actual_interest'], index=pd.MultiIndex.from_tuples([
+        ('e068fb14-2554-427e-b2d0-30dcc6e15717', 'EUR')
     ], names=['account_id', 'currency']))
 
-    result = calculate_deposit_accounts_sum(PortfolioSnapshot(portfolio))[['Name', 'Balance']]
+    result = calculate_interest(snapshot_begin, snapshot_end, 0.0375)
 
-    assert_frame_equal(expected_df, result)
+    assert_frame_equal(expected_df, result, check_dtype=False)
 
 
 def test_empty_file(request: TopRequest) -> None:
     portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
 
-    expected_df = pd.DataFrame([], columns=['Name', 'Type', 'Balance'], index=pd.MultiIndex.from_tuples([], names=['account_id', 'currency']))
+    expected_df = pd.DataFrame([], columns=['Name', 'currency', 'mean_balance', 'interest', 'actual_interest'], index=pd.MultiIndex.from_tuples([], names=['account_id', 'currency']))
 
-    result = calculate_deposit_accounts_sum(PortfolioSnapshot(portfolio))
+    result = calculate_interest(snapshot_begin, snapshot_end, 0.03)
 
     assert_frame_equal(expected_df, result, check_dtype=False)

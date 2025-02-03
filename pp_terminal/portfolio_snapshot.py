@@ -24,19 +24,11 @@ import pandas as pd
 import pandera as pa
 from pandera.typing import DataFrame
 
-from .df_filter import filter_by_date, filter_by_type
+from .df_filter import filter_earlier_than, filter_by_type
 from .helper import enum_list_to_values
 from .portfolio import Portfolio
 from .schemas import TransactionType, TransactionSchema
 
-_NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES = [
-    TransactionType.TRANSFER_OUT,
-    TransactionType.REMOVAL,
-    TransactionType.INTEREST_CHARGE,
-    TransactionType.FEES,
-    TransactionType.TAXES,
-    TransactionType.BUY,
-]
 
 _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES = [
     TransactionType.SELL,
@@ -62,11 +54,11 @@ class PortfolioSnapshot:
 
     @property
     def prices(self) -> pd.DataFrame:
-        return self._portfolio.prices.pipe(filter_by_date, target_date=self._per_date).sort_index(level='Date', ascending=False)
+        return self._portfolio.prices.pipe(filter_earlier_than, target_date=self._per_date).sort_index(level='date', ascending=False)
 
     @property
     def latest_prices(self) -> pd.Series:
-        prices = self.prices.groupby('SecurityId').head(1).reset_index('Date')['Price']
+        prices = self.prices.groupby('SecurityId').head(1).reset_index('date')['Price']
         prices.name = 'Prices'
 
         return prices
@@ -78,16 +70,16 @@ class PortfolioSnapshot:
         if transactions is None:
             return None
 
-        return cast(DataFrame[TransactionSchema], transactions.pipe(filter_by_date, target_date=self._per_date))
+        return cast(DataFrame[TransactionSchema], transactions.pipe(filter_earlier_than, target_date=self._per_date))
 
     @property
     @pa.check_types()
-    def account_transactions(self) -> DataFrame[TransactionSchema] | None:
+    def deposit_account_transactions(self) -> DataFrame[TransactionSchema] | None:
         transactions = self.portfolio.deposit_account_transactions
         if transactions is None:
             return None
 
-        return cast(DataFrame[TransactionSchema], transactions.pipe(filter_by_date, target_date=self._per_date))
+        return cast(DataFrame[TransactionSchema], transactions.pipe(filter_earlier_than, target_date=self._per_date))
 
     @property
     @pa.check_types()
@@ -108,7 +100,7 @@ class PortfolioSnapshot:
             TransactionType.TRANSFER_OUT,
             TransactionType.DELIVERY_INBOUND,
             TransactionType.DELIVERY_OUTBOUND
-        ]).groupby(['AccountId', 'SecurityId', 'currency'])['Shares'].sum()
+        ]).groupby(['account_id', 'SecurityId', 'currency'])['Shares'].sum()
         shares.name = 'Shares'
 
         return shares
@@ -117,25 +109,20 @@ class PortfolioSnapshot:
     def values(self) -> pd.Series:
         shares = self.shares
         if shares is None or shares.empty or self.latest_prices.empty:
-            return pd.Series([], name='Balance', index=pd.MultiIndex.from_tuples([], names=['AccountId', 'SecurityId', 'currency']), dtype='float64')
+            return pd.Series([], name='Balance', index=pd.MultiIndex.from_tuples([], names=['account_id', 'SecurityId', 'currency']), dtype='float64')
 
         values = self.latest_prices * shares
         values.name = 'Balance'
 
-        return values.groupby(['AccountId', 'SecurityId', 'currency']).sum()
+        return values.groupby(['account_id', 'SecurityId', 'currency']).sum()
 
     @property
     def balances(self) -> pd.Series | None:
-        transactions = self.account_transactions
+        transactions = self.deposit_account_transactions
         if transactions is None:
             return None
 
-        transactions['amount'] = transactions.apply(
-            lambda row : -1 if row['Type'] in enum_list_to_values(_NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES) else 1,
-            axis=1
-        ) * transactions['amount']
-
-        balances = transactions.groupby(['AccountId', 'currency'])['amount'].sum()
+        balances = transactions.groupby(['account_id', 'currency'])['amount'].sum()
         balances.name = 'Balance'
 
         return balances

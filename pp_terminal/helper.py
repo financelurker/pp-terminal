@@ -18,6 +18,7 @@
 """
 
 import logging
+from datetime import date
 from typing import List, Any, Callable
 
 import babel.numbers
@@ -73,3 +74,7 @@ def run_all_group_cmds(app: typer.Typer) -> Callable[[CommandFunctionType], Call
             return func(ctx)
         return wrapper
     return decorator
+
+
+def get_last_year() -> str:
+    return str(date.today().year - 1)

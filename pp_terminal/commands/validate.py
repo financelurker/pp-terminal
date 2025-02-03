@@ -26,7 +26,7 @@ import pandas as pd
 import typer
 from typer.models import CommandFunctionType
 
-from ..df_filter import filter_by_date, filter_not_retired
+from ..df_filter import filter_earlier_than, filter_not_retired
 from ..exceptions import ValidationError
 from ..helper import run_all_group_cmds
 from ..output import Console
@@ -77,17 +77,17 @@ def validate_security_prices_uptodate(ctx: typer.Context, warning_after_days: in
     error_cutoff_date = datetime.now() - timedelta(days=error_after_days)
 
     latest_prices = pd.merge(latest_prices, portfolio.securities, left_on='SecurityId', right_index=True, how='left')
-    latest_prices = latest_prices.pipe(filter_by_date, target_date=warning_cutoff_date).pipe(filter_not_retired)
-    latest_prices = latest_prices.reset_index()[['Wkn', 'Name', 'Date']].to_dict(orient='records')
+    latest_prices = latest_prices.pipe(filter_earlier_than, target_date=warning_cutoff_date).pipe(filter_not_retired)
+    latest_prices = latest_prices.reset_index()[['Wkn', 'Name', 'date']].to_dict(orient='records')
 
     has_errors = False
     for latest_price in latest_prices:
         log_level = logging.WARNING
-        if latest_price['Date'] < error_cutoff_date:
+        if latest_price['date'] < error_cutoff_date:
             log_level = logging.ERROR
             has_errors = True
 
-        log.log(log_level, 'Latest price for security "%s" is from %s', latest_price['Name'], latest_price['Date'])
+        log.log(log_level, 'Latest price for security "%s" is from %s', latest_price['Name'], latest_price['date'])
 
     if has_errors:
         raise ValidationError

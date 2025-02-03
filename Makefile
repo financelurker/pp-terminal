@@ -2,7 +2,7 @@
 CHECK_DIRS = pp_terminal tests
 
 clean:
-	rm -rf dist __pycache__ *.pyc *.pyo
+	rm -rf dist __pycache__ *.pyc *.pyo .poetry
 	git submodule foreach --recursive git reset --hard
 
 install: clean

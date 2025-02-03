@@ -18,6 +18,7 @@ By default, `pp-terminal` provides the following commands:
 | Command                   | Description                                                                                        |
 |---------------------------|----------------------------------------------------------------------------------------------------|
 | `list accounts`           | Get detailed information about the balances per each deposit and/or securities account             |
+| `simulate interest`       | Calculate how much interest you should have been earned per account and compare with actual        |
 | `simulate vorabpauschale` | Run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
 | `validate`                | Run a number of different validation checks on the portfolio data, e.g. security prices up-to-date |
 

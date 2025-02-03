@@ -17,7 +17,7 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from typing import Literal, Callable
+from typing import Literal, Callable, Any
 
 import pandas as pd
 from rich.table import Table
@@ -28,6 +28,10 @@ from .helper import format_money
 from .schemas import Money
 
 
+def format_value(value: Any, index: str, row: pd.Series) -> str:
+    return format_money(float(value), row['currency'] if 'currency' in row else index) if isinstance(value, Money) else str(value)
+
+
 class TableOptions:  # pylint: disable=too-few-public-methods
     def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             self,
@@ -36,14 +40,14 @@ class TableOptions:  # pylint: disable=too-few-public-methods
             show_index: bool = True,
             show_total: bool = True,
             footer_lines: int = 0,
-            money_formatter: Callable[[float, str], str] = format_money
+            value_formatter: Callable[[Any, str, pd.Series], str] = format_value
     ) -> None:
         self.title = title
         self.caption = caption
         self.show_index = show_index
         self.show_total = show_total
         self.footer_lines = footer_lines
-        self.money_formatter = money_formatter
+        self.value_formatter = value_formatter
 
 
 class TableDecorator(Table):
@@ -75,12 +79,12 @@ class TableDecorator(Table):
             df = df.iloc[:-self._options.footer_lines, :]
             df_bottom = pd.concat([df, summary_row.to_frame().T, df_bottom], ignore_index=True)
 
-        # Add DataFrame columns to the table
+        # add DataFrame columns to the table
         for i, column in enumerate(df.columns):
             if str(column) == 'currency':
                 continue
 
-            footer_value = self._options.money_formatter(summary_row[column], str(column)) if self._options.show_total and column in summary_row.index else ''
+            footer_value = self._options.value_formatter(summary_row[column], str(column), summary_row) if self._options.show_total and column in summary_row.index else ''
             justify = 'right' if footer_value != '' else 'left'  # type: Literal["right", "left"]
 
             if not self._options.show_index and footer_value == '' and i == 0:  # column is non-numeric
@@ -113,8 +117,7 @@ class TableDecorator(Table):
         rows = []
         for index, row in df.iterrows():
             row_data = [str(index)] if self._options.show_index else []
-            row_data.extend([self._options.money_formatter(float(value), row['currency'] if 'currency' in row else index) if isinstance(value, Money) else value
-                             for index, value in row.drop('currency', errors='ignore').items()])
+            row_data.extend([self._options.value_formatter(value, str(index), row) for index, value in row.drop('currency', errors='ignore').items()])
             rows.append(row_data)
 
         return rows

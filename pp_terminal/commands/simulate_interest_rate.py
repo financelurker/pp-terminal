@@ -19,7 +19,7 @@
 
 import logging
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 import numpy as np
 import pandas as pd
@@ -31,8 +31,8 @@ from pp_terminal.helper import get_last_year
 from pp_terminal.output import OutputStrategy
 from pp_terminal.portfolio import Portfolio
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.schemas import Percent, TransactionType
-from pp_terminal.table_decorator import TableOptions
+from pp_terminal.schemas import Percent, TransactionType, Money
+from pp_terminal.table_decorator import TableOptions, format_value
 
 app = typer.Typer()
 console = Console()
@@ -72,6 +72,14 @@ def calculate_interest(snapshot_begin: PortfolioSnapshot, snapshot_end: Portfoli
     return interest_per_account[interest_per_account['interest'] > 0][['Name', 'currency', 'mean_balance', 'interest', 'actual_interest']]
 
 
+def _format_value_wrapper(value: Any, index: str, row: pd.Series) -> str:
+    if index == 'Actual Interest' and isinstance(value, Money):
+        color = 'red' if value < row['Simulated Interest'] else 'green'
+        return f"[{color}]{format_value(value, index, row)}[/{color}]"
+
+    return format_value(value, index, row)
+
+
 @app.command(name="interest")
 def simulate_interest_rate(
         ctx: typer.Context,
@@ -94,5 +102,5 @@ def simulate_interest_rate(
         df.insert(3, 'Interest Rate', f"{interest_rate * 100}%")
 
     console.print(*output.result_table(
-        df, TableOptions(title='Simulated Interest on Accounts', caption=f"for {year.strftime("%Y")}, excl. taxes", show_index=False, show_total=False)
+        df, TableOptions(title='Simulated Interest on Accounts', caption=f"for {year.strftime("%Y")}, excl. taxes", show_index=False, show_total=False, value_formatter=_format_value_wrapper)
     ))

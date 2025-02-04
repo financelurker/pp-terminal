@@ -106,7 +106,7 @@ e.g. a good starting point is [list_accounts.py](https://github.com/ma4nn/pp-ter
 
 The app uses [Typer](https://typer.tiangolo.com/) for composing the commands and [Rich](https://github.com/Textualize/rich)
 for nice console outputs. The Portfolio Performance XML file is read with [ppxml2db](https://github.com/pfalcon/ppxml2db) 
-and efficiently held in [panda dataframes](https://pandas.pydata.org/).
+and efficiently held in [pandas dataframes](https://pandas.pydata.org/).
 
 If your command makes sense for a broader audience, I'm happy to accept a pull request.
 

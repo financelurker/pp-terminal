@@ -38,13 +38,16 @@ def currency_exists(currency_code: str, locale: str | None = None) -> bool:
 
 
 def format_money(value: Money, currency: str = '', locale: str | None = babel.numbers.LC_NUMERIC) -> str:
+    if pd.isna(value) or not isinstance(value, Money):
+        return ''
+
     try:
         currency = currency if not pd.isna(currency) and currency_exists(currency, locale) else ''
 
-        return format_currency(value, currency, locale=locale) if not pd.isna(value) and isinstance(value, Money) else ''
+        return format_currency(value, currency, locale=locale)
     except Exception:  # pylint: disable=broad-exception-caught
         # fallback e.g. if system locale is None/not set, or currency does not exist
-        return f"{value:.2f}" if isinstance(value, Money) else ''
+        return f"{value:.2f}"
 
 
 def enum_types_to_name(enum_list: List[Any]) -> List[Any]:

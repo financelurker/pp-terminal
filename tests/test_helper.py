@@ -37,6 +37,7 @@ from pp_terminal.schemas import Money
     ('', None, 'EUR', 'en_US'),
     ('', 9, 'EUR', 'fr_FR'),
     ('', object(), 'EUR', 'fr_FR'),
+    ('', float('nan'), 'EUR', None),
 ])
 def test_format_money(expected: str, money: Money, currency: str, locale_value: str) -> None:
     assert format_money(money, currency, locale_value) == expected

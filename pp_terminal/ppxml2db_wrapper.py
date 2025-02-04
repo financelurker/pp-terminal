@@ -86,7 +86,7 @@ class Ppxml2dbWrapper:
             sql_script = sql_file.read()
 
         self._cursor.executescript(sql_script)
-        log.debug('sql script "%s" successfully executed', filename)
+        log.debug('ppxml2db setup script "%s" successfully executed', filename)
 
     def _validate(self) -> None:
         self._cursor.execute("select value as client_version from property where name = 'version'")

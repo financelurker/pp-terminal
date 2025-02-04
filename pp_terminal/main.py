@@ -47,6 +47,8 @@ locale.setlocale(locale.LC_ALL, '')
 # Load external plugins dynamically
 load_command_plugins(app)
 
+_DB_FILE = '.cache.db'
+
 
 def version_callback(value: bool) -> None:
     if value:
@@ -75,7 +77,7 @@ def main(
 
     try:
         ctx.obj = SimpleNamespace(
-            portfolio=PpPortfolioBuilder(cache_file='.cache.sql' if debug else None).construct(file),
+            portfolio=PpPortfolioBuilder(cache_file=_DB_FILE if debug else None).construct(file),
             output=create_strategy(format))
 
     except (RuntimeError, InputError) as e:

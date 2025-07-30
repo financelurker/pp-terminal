@@ -20,7 +20,7 @@
 from enum import Enum
 from typing import Optional, TypeAlias
 
-import pandera as pa
+import pandera.pandas as pa
 from pandera.typing import Index, Series
 
 

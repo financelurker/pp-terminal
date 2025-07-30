@@ -44,25 +44,25 @@ class Portfolio:
     ):
         if accounts is not None:
             try:
-                self._accounts = AccountSchema.validate(accounts)  # type: ignore
+                self._accounts = AccountSchema.validate(accounts)
             except SchemaError as e:
                 log.error('accounts schema invalid: %s', e)
 
         if securities is not None:
             try:
-                self._securities = SecuritySchema.validate(securities)  # type: ignore
+                self._securities = SecuritySchema.validate(securities)
             except SchemaError as e:
                 log.error('securities schema invalid: %s', e)
 
         if transactions is not None:
             try:
-                self._transactions = TransactionSchema.validate(transactions)  # type: ignore
+                self._transactions = TransactionSchema.validate(transactions)
             except SchemaError as e:
                 log.error('transactions schema invalid: %s', e)
 
         if prices is not None:
             try:
-                self._prices = SecurityPriceSchema.validate(prices)  # type: ignore
+                self._prices = SecurityPriceSchema.validate(prices)
             except SchemaError as e:
                 log.error('security prices schema invalid: %s', e)
 

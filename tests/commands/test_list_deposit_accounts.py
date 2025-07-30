@@ -43,6 +43,7 @@ def test_calculate_sum(request: TopRequest) -> None:
 
     result = calculate_deposit_accounts_sum(PortfolioSnapshot(portfolio))[['Name', 'Balance']]
 
+    assert result is not None
     assert_frame_equal(expected_df, result)
 
 
@@ -53,4 +54,5 @@ def test_empty_file(request: TopRequest) -> None:
 
     result = calculate_deposit_accounts_sum(PortfolioSnapshot(portfolio))
 
+    assert result is not None
     assert_frame_equal(expected_df, result, check_dtype=False)

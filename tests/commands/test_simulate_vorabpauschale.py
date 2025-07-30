@@ -31,14 +31,6 @@ from pp_terminal.commands.simulate_vorabpauschale import calculate
 from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
 
 
-@pytest.fixture(name='sample_accounts')
-def provide_sample_accounts() -> pd.DataFrame:
-    securities_accounts = pd.DataFrame([['Testdepot', AccountType.SECURITIES.value]], columns=['Name', 'Type'], index=['1'])
-    securities_accounts.index.name = 'account_id'
-
-    return securities_accounts
-
-
 @pytest.fixture(name='sample_securities')
 def provide_sample_securities() -> pd.DataFrame:
     securities = pd.DataFrame([['Some Share', 'A23432', 'EUR']], columns=['Name', 'Wkn', 'currency'], index=['1234567890'])
@@ -54,14 +46,6 @@ def provide_sample_prices() -> pd.DataFrame:
         [datetime(2018, 1, 10), '1234567890', 246.66],
     ], columns=['date', 'SecurityId', 'Price'])
             .set_index(['date', 'SecurityId']))
-
-
-@pytest.fixture(name='sample_transactions')
-def provide_sample_transactions() -> pd.DataFrame:
-    return (pd.DataFrame([
-            [datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.SECURITIES.value, 'EUR']
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency'])
-            .set_index(['date', 'SecurityId', 'account_id']))
 
 
 def test_calculate_empty_if_no_securities_accounts(sample_accounts: pd.DataFrame, sample_securities: pd.DataFrame, sample_prices: pd.DataFrame) -> None:
@@ -144,9 +128,9 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
         [datetime(2025, 1, 2), '1234567890', 45.302],
     ], columns=['date', 'SecurityId', 'Price']).set_index(['date', 'SecurityId'])
     transactions = pd.DataFrame([
-        [datetime(2023, 12, 6), TransactionType.BUY.value, float(value_begin), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR'],
-        [datetime(2024, 6, 4), TransactionType.DIVIDENDS.value, float(payout), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR'],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency']).set_index(['date', 'SecurityId', 'account_id'])
+        [datetime(2023, 12, 6), TransactionType.BUY.value, float(value_begin), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
+        [datetime(2024, 6, 4), TransactionType.DIVIDENDS.value, float(payout), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
+    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'SecurityId', 'account_id'])
 
     portfolio = Portfolio(sample_accounts, transactions, sample_securities, prices)
 

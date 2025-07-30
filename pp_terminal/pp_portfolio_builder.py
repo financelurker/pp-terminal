@@ -97,7 +97,7 @@ group by s.uuid
 select datetime(x.date) as date, ifnull(xu.forex_currency, x.currency) as currency, ifnull(xu.forex_amount, x.amount)-x.fees as amount_wo_fees, x.fees, x.taxes, x.uuid, x.account, x.type, x.security, x.shares, x.acctype
 from xact as x
 left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
-        """, self._db.connection, index_col=['date', 'account', 'security'], parse_dates={"date": "%Y-%m-%d %H:%M:%S"}, dtype={'amount_wo_fees': np.float64, 'shares': np.float64})
+        """, self._db.connection, index_col=['date', 'account', 'security'], parse_dates={"date": "%Y-%m-%d %H:%M:%S"}, dtype={'amount_wo_fees': np.float64, 'shares': np.float64, 'taxes': np.float64})
                           .rename(columns={'uuid': 'TransactionId', 'account': 'account_id', 'type': 'Type', 'security': 'SecurityId', 'shares': 'Shares', 'acctype': 'account_type', 'amount_wo_fees': 'amount'}))
         transactions['Shares'] = transactions['Shares'] / _SCALE
         transactions['Type'] = pd.Categorical(transactions['Type'])

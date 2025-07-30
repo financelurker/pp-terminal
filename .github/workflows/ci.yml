@@ -3,10 +3,10 @@ name: Build
 on:
   push:
     branches:
-      - master
+      - $default-branch
   pull_request:
     branches:
-      - master
+      - $default-branch
   release:
     types:
       - created

@@ -42,7 +42,7 @@ app.add_typer(typer.Typer(no_args_is_help=True), name="list")
 logging.basicConfig(level=logging.WARN, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=False, show_time=False, show_path=False)])
 log = logging.getLogger(__name__)
 
-locale.setlocale(locale.LC_ALL, '')
+locale.setlocale(category=locale.LC_ALL, locale='')
 
 # Load external plugins dynamically
 load_command_plugins(app)

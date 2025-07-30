@@ -24,11 +24,53 @@ from _pytest.fixtures import TopRequest
 from pandas.testing import assert_frame_equal
 
 from pp_terminal.commands.simulate_interest import calculate_interest
+from pp_terminal.portfolio import Portfolio
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
 
 
-def test_calculate_interest(request: TopRequest) -> None:
+def test_empty_portfolio() -> None:
+    portfolio = Portfolio()
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(2022, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(2022, 12, 31))
+
+    result = calculate_interest(snapshot_begin, snapshot_end, 2.3)
+
+    assert result is None
+
+
+def test_no_deposit_accounts(sample_accounts: pd.DataFrame, sample_transactions: pd.DataFrame) -> None:
+    portfolio = Portfolio(accounts=sample_accounts, transactions=sample_transactions)
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(2022, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(2022, 12, 31))
+
+    result = calculate_interest(snapshot_begin, snapshot_end, 2.3)
+
+    expected_df = pd.DataFrame([
+    ], columns=['Name', 'currency', 'mean_balance', 'interest', 'actual_interest'], index=pd.MultiIndex.from_tuples([
+    ], names=['account_id', 'currency']))
+
+    assert result is not None
+    assert_frame_equal(expected_df, result, check_dtype=False)
+
+
+def test_calculate_interest(sample_accounts: pd.DataFrame, sample_transactions: pd.DataFrame) -> None:
+    portfolio = Portfolio(accounts=sample_accounts, transactions=sample_transactions)
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(2022, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(2022, 12, 31))
+
+    result = calculate_interest(snapshot_begin, snapshot_end, 2.3)
+
+    expected_df = pd.DataFrame([
+    ], columns=['Name', 'currency', 'mean_balance', 'interest', 'actual_interest'], index=pd.MultiIndex.from_tuples([
+
+    ], names=['account_id', 'currency']))
+
+    assert result is not None
+    assert_frame_equal(expected_df, result, check_dtype=False)
+
+
+def test_kommer(request: TopRequest) -> None:
     portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
@@ -41,6 +83,7 @@ def test_calculate_interest(request: TopRequest) -> None:
 
     result = calculate_interest(snapshot_begin, snapshot_end, 3.75)
 
+    assert result is not None
     assert_frame_equal(expected_df, result, check_dtype=False)
 
 
@@ -53,4 +96,5 @@ def test_empty_file(request: TopRequest) -> None:
 
     result = calculate_interest(snapshot_begin, snapshot_end, 0.03)
 
+    assert result is not None
     assert_frame_equal(expected_df, result, check_dtype=False)

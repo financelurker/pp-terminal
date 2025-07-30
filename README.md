@@ -1,6 +1,6 @@
 # pp-terminal - The Analytic Companion for Portfolio Performance
 
-![build status](https://github.com/ma4nn/pp-terminal/actions/workflows/ci.yml/badge.svg)
+![build status](https://github.com/ma4nn/pp-terminal/actions/workflows/ci.yml/badge.svg) [![Join My Discord](https://dev-investor.de/wp-content/uploads/join-discord.svg)](https://dev-investor.de/chat)
 
 A powerful command-line tool that uses the openness of [Portfolio Performance](https://www.portfolio-performance.info/) data 
 and the convenient access of [ppxml2db](https://github.com/pfalcon/ppxml2db) to offer a whole new level of insights into your portfolio.  
@@ -58,28 +58,35 @@ You can either provide that file as first option to the command
 ```
 pp-terminal --file=depot.xml list accounts
 ```
-or by setting an environment variable you can omit the option
+or by setting an environment variable `PP_TERMINAL_INPUT_FILE=depot.xml` you can omit the option
 ```
-export PP_TERMINAL_INPUT_FILE=depot.xml
 pp-terminal list accounts
 ```
 
 To view all available arguments you can always use the `--help` option.
 
 ### Customize Number Formats
-If you want another formatting for numbers, assure that the terminal has the correct language settings, e.g. for Germany:
-```
-export LANG=de_DE.UTF-8
-```
+If you want another formatting for numbers, assure that the terminal has the correct language settings, e.g. for Germany 
+set environment variable `LANG=de_DE.UTF-8`.
 
 ### Disable Colored Output
-To disable all colors in the console output for a better readability, you can set the `NO_COLOR` [environment variable](https://no-color.org/)
-to any value like this
-```
-export NO_COLOR=1
-```
+To disable all colors in the console output for a better readability, you can set the `NO_COLOR=1` [environment variable](https://no-color.org/).
 
-## Create Your Own Command ⚒️
+## Contributing
+
+### Propose Changes
+
+To contribute improvements to _pp-terminal_ just follow these steps:
+
+1. Fork and clone this repository
+2. Run `make`
+3. Verify build with `poetry run pp-terminal --version`
+4. Create a new branch based on `master`: `git checkout master && git pull && git checkout -b your-patch`
+5. Implement your changes in this new branch
+6. Run `make` to verify everything is fine
+7. Submit a [Pull Request](https://docs.github.com/de/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests)
+
+### Create Your Own Command ⚒️
 
 Developers can easily extend the default _pp-terminal_ functionality by implementing their own commands. Therefore, the Python
 [entry point](https://packaging.python.org/en/latest/specifications/entry-points/) `pp_terminal.commands` is provided.
@@ -108,7 +115,7 @@ The app uses [Typer](https://typer.tiangolo.com/) for composing the commands and
 for nice console outputs. The Portfolio Performance XML file is read with [ppxml2db](https://github.com/pfalcon/ppxml2db) 
 and efficiently held in [pandas dataframes](https://pandas.pydata.org/).
 
-If your command makes sense for a broader audience, I'm happy to accept a pull request.
+If your command makes sense for a broader audience, I'm happy to accept a [pull request](#propose-changes).
 
 ## Known Limitations 🚧
 

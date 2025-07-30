@@ -37,30 +37,34 @@ class Portfolio:
 
     def __init__(
             self,
-            accounts: DataFrame[AccountSchema],
-            transactions: DataFrame[TransactionSchema],
-            securities: DataFrame[SecuritySchema],
-            prices: DataFrame[SecurityPriceSchema]
+            accounts: DataFrame[AccountSchema] | None = None,
+            transactions: DataFrame[TransactionSchema] | None = None,
+            securities: DataFrame[SecuritySchema] | None = None,
+            prices: DataFrame[SecurityPriceSchema] | None = None
     ):
-        try:
-            self._accounts = AccountSchema.validate(accounts)  # type: ignore
-        except SchemaError as e:
-            log.error('accounts schema invalid: %s', e)
+        if accounts is not None:
+            try:
+                self._accounts = AccountSchema.validate(accounts)  # type: ignore
+            except SchemaError as e:
+                log.error('accounts schema invalid: %s', e)
 
-        try:
-            self._securities = SecuritySchema.validate(securities)  # type: ignore
-        except SchemaError as e:
-            log.error('securities schema invalid: %s', e)
+        if securities is not None:
+            try:
+                self._securities = SecuritySchema.validate(securities)  # type: ignore
+            except SchemaError as e:
+                log.error('securities schema invalid: %s', e)
 
-        try:
-            self._transactions = TransactionSchema.validate(transactions)  # type: ignore
-        except SchemaError as e:
-            log.error('transactions schema invalid: %s', e)
+        if transactions is not None:
+            try:
+                self._transactions = TransactionSchema.validate(transactions)  # type: ignore
+            except SchemaError as e:
+                log.error('transactions schema invalid: %s', e)
 
-        try:
-            self._prices = SecurityPriceSchema.validate(prices)  # type: ignore
-        except SchemaError as e:
-            log.error('security prices schema invalid: %s', e)
+        if prices is not None:
+            try:
+                self._prices = SecurityPriceSchema.validate(prices)  # type: ignore
+            except SchemaError as e:
+                log.error('security prices schema invalid: %s', e)
 
     @property
     def securities_accounts(self) -> DataFrame[AccountSchema] | None:

@@ -18,11 +18,35 @@
 """
 
 import sqlite3
+from datetime import datetime
 
+import pandas as pd
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
+
+from pp_terminal.schemas import AccountType, TransactionType
 
 
 @pytest.fixture(autouse=True)
 def patch_db(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))
+
+
+@pytest.fixture(name='sample_accounts')
+def provide_sample_accounts() -> pd.DataFrame:
+    securities_accounts = pd.DataFrame([
+        ['Testdepot', AccountType.SECURITIES.value, 'EUR'],
+        ['Testkonto', AccountType.DEPOSIT.value, 'EUR'],
+    ], columns=['Name', 'Type', 'currency'], index=['1', '2'])
+    securities_accounts.index.name = 'account_id'
+
+    return securities_accounts
+
+
+@pytest.fixture(name='sample_transactions')
+def provide_sample_transactions() -> pd.DataFrame:
+    return (pd.DataFrame([
+            [datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
+            [datetime(2018, 1, 30), TransactionType.TRANSFER_IN.value, 100000.0, 0, None, '2', AccountType.DEPOSIT.value, 'EUR', 0.0],
+    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes'])
+            .set_index(['date', 'SecurityId', 'account_id']))

@@ -61,6 +61,7 @@ class TransactionSchema(pa.DataFrameModel):
     amount: Series[Money]
     Shares: Series[float]
     account_type: Series[str]
+    taxes: Series[Money]
 
 
 class AccountSchema(pa.DataFrameModel):
@@ -69,6 +70,7 @@ class AccountSchema(pa.DataFrameModel):
     Type: Series[str]  # @todo use pandera preprocessing?
     Referenceaccount_id: Optional[Series[str]] = pa.Field(nullable=True)
     is_retired: Optional[Series[bool]] = pa.Field(coerce=True)
+    currency: Series[str] = pa.Field(nullable=True)
 
 
 class SecuritySchema(pa.DataFrameModel):

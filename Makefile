@@ -10,6 +10,7 @@ install: clean
 	patch -p1 < ./patch_ppxml2db.diff
 
 check:
+	poetry check
 	poetry run pylint $(CHECK_DIRS)
 	poetry run bandit -c bandit.yaml -r $(CHECK_DIRS)
 	poetry run mypy .

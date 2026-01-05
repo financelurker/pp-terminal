@@ -20,6 +20,7 @@
 from datetime import datetime
 
 import pandas as pd
+from _pytest.fixtures import TopRequest
 from pandas.testing import assert_frame_equal
 import pytest
 
@@ -27,6 +28,7 @@ from pp_terminal.portfolio import Portfolio
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.schemas import TransactionType, AccountType
 from pp_terminal.commands.simulate_vorabpauschale import calculate
+from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
 
 
 @pytest.fixture(name='sell_test_accounts')
@@ -222,6 +224,62 @@ def test_no_sells_baseline(sell_test_accounts: pd.DataFrame, sell_test_securitie
     expected_df = pd.DataFrame([
         ['A1234', 'Test ETF', 'EUR', 21.14]
     ], columns=['Wkn', 'Name', 'currency', 'Depot'], index=['sec1'])
+    expected_df.index.name = 'SecurityId'
+
+    assert_frame_equal(expected_df, result_security.round(2))
+
+
+def test_partial_sell_from_xml_fixture(request: TopRequest) -> None:
+    """
+    Integration test: Verify SELL transactions from XML are correctly parsed and handled
+
+    Scenario from partial_sell.ids.xml:
+    - 2023-12-30: BUY 100 shares at 50 EUR = 5000 EUR
+    - 2024-01-02: Price = 50 EUR (year start)
+    - 2024-08-15: SELL 40 shares at 55 EUR
+    - 2024-12-31: Price = 60 EUR, holding 60 shares = 3600 EUR
+
+    Expected calculation (for 60 remaining shares):
+    - Begin value: 60 * 50 = 3000 EUR (only continuously held shares)
+    - End value: 60 * 60 = 3600 EUR
+    - Outcome: 600 EUR
+    - Base yield: 3000 * 0.0229 * 0.7 = 48.09 EUR
+    - Vorabpauschale: min(600, 48.09) = 48.09 EUR
+    - After tax (26.375%): 48.09 * 0.26375 = 12.68 EUR
+    - After exemption (30% default): 12.68 * 0.70 = 8.88 EUR
+    """
+    portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'partial_sell.ids.xml')
+
+    # Verify transactions are parsed correctly
+    txns = portfolio.securities_account_transactions
+    assert txns is not None
+    assert len(txns) == 2
+
+    # Verify BUY transaction
+    buy_txn = txns[txns['Type'] == 'BUY']
+    assert len(buy_txn) == 1
+    assert float(buy_txn.iloc[0]['Shares']) == 100.0
+
+    # Verify SELL transaction is correctly parsed
+    sell_txn = txns[txns['Type'] == 'SELL']
+    assert len(sell_txn) == 1
+    assert float(sell_txn.iloc[0]['Shares']) == 40.0
+    assert sell_txn.index.get_level_values('date')[0].year == 2024
+
+    # Calculate vorabpauschale
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))
+
+    result = calculate(snapshot_begin, snapshot_end, 2.29, 26.375, 30)
+
+    assert result is not None
+
+    # Filter to just the security row (exclude "Related Account Balance")
+    result_security = result[result['Name'] == 'Test World ETF']
+
+    expected_df = pd.DataFrame([
+        ['TEST01', 'Test World ETF', 'EUR', 8.88]
+    ], columns=['Wkn', 'Name', 'currency', 'Test Depot'], index=['test-security-uuid-001'])
     expected_df.index.name = 'SecurityId'
 
     assert_frame_equal(expected_df, result_security.round(2))

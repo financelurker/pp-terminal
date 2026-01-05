@@ -1,0 +1,130 @@
+<client id="1">
+  <version>66</version>
+  <baseCurrency>EUR</baseCurrency>
+  <securities>
+    <security id="2">
+      <uuid>test-security-uuid-001</uuid>
+      <name>Test World ETF</name>
+      <currencyCode>EUR</currencyCode>
+      <tickerSymbol>XWLD</tickerSymbol>
+      <feed>MANUAL</feed>
+      <prices>
+        <price t="2023-12-29" v="5000000000"/>
+        <price t="2024-01-02" v="5000000000"/>
+        <price t="2024-08-15" v="5500000000"/>
+        <price t="2024-12-31" v="6000000000"/>
+      </prices>
+      <wkn>TEST01</wkn>
+      <isin>DE0000000001</isin>
+      <attributes>
+        <map/>
+      </attributes>
+      <events/>
+      <isRetired>false</isRetired>
+      <updatedAt>2024-01-05T00:00:00.000000Z</updatedAt>
+    </security>
+  </securities>
+  <watchlists/>
+  <accounts>
+    <account id="7">
+      <uuid>test-account-uuid-001</uuid>
+      <name>Test Cash Account</name>
+      <currencyCode>EUR</currencyCode>
+      <isRetired>false</isRetired>
+      <transactions>
+        <account-transaction id="8">
+          <uuid>test-txn-deposit-001</uuid>
+          <date>2023-12-01T00:00</date>
+          <currencyCode>EUR</currencyCode>
+          <amount>1000000</amount>
+          <shares>0</shares>
+          <updatedAt>2024-01-05T00:00:00.000000Z</updatedAt>
+          <type>DEPOSIT</type>
+        </account-transaction>
+        <account-transaction id="9">
+          <uuid>test-txn-buy-account-001</uuid>
+          <date>2023-12-30T00:00</date>
+          <currencyCode>EUR</currencyCode>
+          <amount>50000</amount>
+          <security reference="2"/>
+          <crossEntry class="buysell" id="10">
+            <portfolio id="11">
+              <uuid>test-portfolio-uuid-001</uuid>
+              <name>Test Depot</name>
+              <isRetired>false</isRetired>
+              <referenceAccount reference="7"/>
+              <transactions>
+                <portfolio-transaction id="12">
+                  <uuid>test-txn-buy-portfolio-001</uuid>
+                  <date>2023-12-30T00:00</date>
+                  <currencyCode>EUR</currencyCode>
+                  <amount>50000</amount>
+                  <security reference="2"/>
+                  <crossEntry class="buysell" reference="10"/>
+                  <shares>10000000000</shares>
+                  <units/>
+                  <updatedAt>2024-01-05T00:00:00.000001Z</updatedAt>
+                  <type>BUY</type>
+                </portfolio-transaction>
+                <portfolio-transaction reference="15"/>
+              </transactions>
+              <attributes>
+                <map/>
+              </attributes>
+              <updatedAt>2024-01-05T00:00:00.000000Z</updatedAt>
+            </portfolio>
+            <portfolioTransaction reference="12"/>
+            <account reference="7"/>
+            <accountTransaction reference="9"/>
+          </crossEntry>
+          <shares>0</shares>
+          <updatedAt>2024-01-05T00:00:00.000001Z</updatedAt>
+          <type>BUY</type>
+        </account-transaction>
+        <account-transaction id="13">
+          <uuid>test-txn-sell-account-001</uuid>
+          <date>2024-08-15T00:00</date>
+          <currencyCode>EUR</currencyCode>
+          <amount>22000</amount>
+          <security reference="2"/>
+          <crossEntry class="buysell" id="14">
+            <portfolio reference="11"/>
+            <portfolioTransaction id="15">
+              <uuid>test-txn-sell-portfolio-001</uuid>
+              <date>2024-08-15T00:00</date>
+              <currencyCode>EUR</currencyCode>
+              <amount>22000</amount>
+              <security reference="2"/>
+              <crossEntry class="buysell" reference="14"/>
+              <shares>4000000000</shares>
+              <units/>
+              <updatedAt>2024-01-05T00:00:00.000002Z</updatedAt>
+              <type>SELL</type>
+            </portfolioTransaction>
+            <account reference="7"/>
+            <accountTransaction reference="13"/>
+          </crossEntry>
+          <shares>0</shares>
+          <updatedAt>2024-01-05T00:00:00.000002Z</updatedAt>
+          <type>SELL</type>
+        </account-transaction>
+      </transactions>
+      <attributes>
+        <map/>
+      </attributes>
+      <updatedAt>2024-01-05T00:00:00.000000Z</updatedAt>
+    </account>
+  </accounts>
+  <portfolios>
+    <portfolio reference="11"/>
+  </portfolios>
+  <plans/>
+  <taxonomies/>
+  <dashboards/>
+  <properties/>
+  <settings>
+    <bookmarks/>
+    <attributeTypes/>
+    <configurationSets/>
+  </settings>
+</client>

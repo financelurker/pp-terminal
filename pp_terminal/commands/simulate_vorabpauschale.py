@@ -19,6 +19,7 @@
 
 from datetime import datetime
 import logging
+from typing import Any
 
 import pandas as pd
 import typer
@@ -28,10 +29,10 @@ import numpy as np
 from ..df_filter import filter_by_type, drop_empty_values
 from ..helper import get_last_year
 from ..output import OutputStrategy, Console
-from ..portfolio_snapshot import PortfolioSnapshot
+from ..portfolio_snapshot import PortfolioSnapshot, _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES
 from ..portfolio import Portfolio
-from ..schemas import TransactionType, Percent
-from ..table_decorator import TableOptions
+from ..schemas import TransactionType, Percent, Money
+from ..table_decorator import TableOptions, format_value
 
 app = typer.Typer()
 console = Console()
@@ -54,7 +55,28 @@ def calculate(  # pylint: disable=too-many-locals
     logging.debug(payouts)
 
     # @todo convert all values to EUR with rates from ECB, for the moment we simply remove currency
-    begin_values_in_eur = snapshot_period_begin.values.groupby(['account_id', 'SecurityId']).sum()
+    # Calculate begin values only for shares held continuously from year start to year end
+    shares_begin = snapshot_period_begin.shares
+    shares_end = snapshot_period_end.shares
+
+    if shares_begin is not None and shares_end is not None and not shares_begin.empty and not shares_end.empty:
+        # Calculate minimum position during the year to detect complete sells
+        min_shares_during_year = _calculate_minimum_shares_during_year(snapshot_period_end)
+
+        if min_shares_during_year is not None:
+            # Only count shares held continuously (never went to zero)
+            effective_begin_shares = shares_begin.combine(min_shares_during_year, min, fill_value=0).clip(lower=0)
+        else:
+            # Fallback: cap by end shares (assumes continuous holding)
+            effective_begin_shares = shares_begin.combine(shares_end, min, fill_value=0).clip(lower=0)
+
+        effective_begin_shares.name = 'Shares'
+
+        # Calculate begin values using continuously held shares
+        begin_values_in_eur = (snapshot_period_begin.latest_prices * effective_begin_shares).groupby(['account_id', 'SecurityId']).sum()
+    else:
+        begin_values_in_eur = snapshot_period_begin.values.groupby(['account_id', 'SecurityId']).sum()
+
     end_values_in_eur = snapshot_period_end.values.groupby(['account_id', 'SecurityId']).sum()
 
     # use df.subtract to align both matrices
@@ -115,6 +137,67 @@ def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
     return payouts
 
 
+def _calculate_minimum_shares_during_year(snapshot_end: PortfolioSnapshot) -> pd.Series | None:  # pylint: disable=too-many-locals
+    """
+    Calculate the minimum share position during the tax year for each security.
+    This detects if a position went to zero (complete sell) and was then rebought.
+    Returns minimum shares held at any point during the year.
+    """
+    transactions = snapshot_end.transactions
+    if transactions is None:
+        return None
+
+    # Get year-start position
+    year_start = datetime(snapshot_end.date.year, 1, 2)
+    snapshot_begin = PortfolioSnapshot(snapshot_end.portfolio, year_start)
+    begin_shares = snapshot_begin.shares
+
+    if begin_shares is None or begin_shares.empty:
+        # No position at year start, minimum is 0 for all
+        return None
+
+    # Get only in-year transactions
+    transactions_inyear = transactions[
+        transactions.index.get_level_values('date').year == snapshot_end.date.year
+    ] if not transactions.index.get_level_values('date').empty else pd.DataFrame()
+
+    if transactions_inyear.empty:
+        # No transactions during year, minimum = begin shares
+        return begin_shares
+
+    # Calculate cumulative changes during the year
+    def sign_shares(row: pd.Series) -> float:
+        return float(-row['Shares'] if row['Type'] in [t.value for t in _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES] else row['Shares'])
+
+    # Group by account/security and calculate minimum cumulative position
+    result_dict = {}
+
+    for (account_id, security_id, currency), begin_count in begin_shares.items():
+        # Get transactions for this specific account/security
+        mask = (
+            (transactions_inyear.index.get_level_values('account_id') == account_id) &
+            (transactions_inyear.index.get_level_values('SecurityId') == security_id)
+        )
+        security_txns = transactions_inyear[mask].copy() if mask.any() else pd.DataFrame()
+
+        if security_txns.empty:
+            # No transactions, min = begin
+            result_dict[(account_id, security_id, currency)] = begin_count
+        else:
+            # Calculate cumulative position starting from begin_count
+            security_txns = security_txns.reset_index().sort_values('date')
+            security_txns['signed_shares'] = security_txns.apply(sign_shares, axis=1)
+            cumulative = begin_count + security_txns['signed_shares'].cumsum()
+            min_position = min(begin_count, cumulative.min())
+            result_dict[(account_id, security_id, currency)] = max(0, min_position)
+
+    if not result_dict:
+        return None
+
+    index = pd.MultiIndex.from_tuples(result_dict.keys(), names=['account_id', 'SecurityId', 'currency'])
+    return pd.Series(list(result_dict.values()), index=index, name='MinShares')
+
+
 def _calculate_prorata_shares_for_inyear_buys(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
     transactions = snapshot_end.transactions
     if transactions is None:
@@ -173,6 +256,14 @@ def get_base_rate_percent_by_year() -> Percent | None:
             rate = 2.53
 
     return rate
+
+
+def _format_value_wrapper(value: Any, index: str, row: pd.Series) -> str:
+    if row['Name'] == 'Related Account Balance' and isinstance(value, Money):
+        color = 'red' if value < row['Balance'] else 'green'
+        return f"[{color}]{format_value(value, index, row)}[/{color}]"
+
+    return format_value(value, index, row)
 
 
 @app.command(name="vorabpauschale")

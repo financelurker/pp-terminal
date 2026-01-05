@@ -182,7 +182,7 @@ def test_sell_and_rebuy_during_year(sell_test_accounts: pd.DataFrame, sell_test_
     result_security = result[result['Name'] == 'Test ETF']
 
     expected_df = pd.DataFrame([
-        ['A1234', 'Test ETF', 'EUR', 4.39]
+        ['A1234', 'Test ETF', 'EUR', 4.40]
     ], columns=['Wkn', 'Name', 'currency', 'Depot'], index=['sec1'])
     expected_df.index.name = 'SecurityId'
 

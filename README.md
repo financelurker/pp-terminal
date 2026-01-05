@@ -23,7 +23,6 @@ By default, `pp-terminal` provides the following commands:
 | `validate`                | Run a number of different validation checks on the portfolio data, e.g. security prices up-to-date |
 
 Code completion for commands and options is available.  
-The application **does not modify** the original Portfolio Performance file.  
 You can choose between different output formats like JSON or CSV with the `--format` option.
 
 In addition to the standard set, you can easily [create your own commands](#user-content-create-your-own-command-️) 
@@ -54,6 +53,7 @@ pipx upgrade pp-terminal
 ## Usage 💡
 
 The commands mentioned above all require the Portfolio Performance XML file as input.  
+The application **does not modify** the original Portfolio Performance file.  
 You can either provide that file as first option to the command
 ```
 pp-terminal --file=depot.xml list accounts

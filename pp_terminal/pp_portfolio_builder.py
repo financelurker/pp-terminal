@@ -36,6 +36,8 @@ log = logging.getLogger(__name__)
 _SCALE = 100000000
 _CENTS_PER_EURO = 100
 _ATTRIBUTE_EXEMPT_LABEL = 'Teilfreistellung'
+_EXEMPT_RATE_MIN = 0.00
+_EXEMPT_RATE_MAX = 1.0
 _NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES = [
     TransactionType.TRANSFER_OUT,
     TransactionType.REMOVAL,
@@ -74,15 +76,77 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
 
     def _parse_securities(self) -> DataFrame[SecuritySchema]:
         securities = (pd.read_sql_query("""
-select s.*, MAX(CASE WHEN at.name like ? THEN sa.value END) AS exempt_rate
+select s.*,
+       MAX(CASE WHEN at.name like ? THEN sa.value END) AS exempt_rate,
+       MAX(CASE WHEN at.name like ? THEN at.converterClass END) AS exempt_rate_converter
 from security as s
 left join security_attr as sa on sa."security" = s.uuid
 left join attribute_type as at on sa.attr_uuid = at.id
 group by s.uuid
-        """, self._db.connection, index_col=['uuid'], params=[f"%{_ATTRIBUTE_EXEMPT_LABEL}%"])
+        """, self._db.connection, index_col=['uuid'], params=[f"%{_ATTRIBUTE_EXEMPT_LABEL}%", f"%{_ATTRIBUTE_EXEMPT_LABEL}%"])
                       .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
 
+        # Normalize and validate exempt_rate
+        if 'exempt_rate' in securities.columns and 'exempt_rate_converter' in securities.columns:
+            securities = self._normalize_exempt_rate(securities)
+
         return cast(DataFrame[SecuritySchema], securities)
+
+    def _normalize_exempt_rate(self, securities: pd.DataFrame) -> pd.DataFrame:
+        """Normalize and validate exempt_rate values based on converter type."""
+        for idx, row in securities.iterrows():
+            if pd.notna(row['exempt_rate']):
+                # If exempt_rate exists but converter is missing, we can't normalize
+                if pd.isna(row['exempt_rate_converter']):
+                    log.warning(
+                        "Missing converter type for exempt_rate of security '%s' (WKN: %s). Ignoring value.",
+                        row['Name'], row.get('Wkn', 'N/A')
+                    )
+                    securities.at[idx, 'exempt_rate'] = np.nan
+                    continue
+
+                try:
+                    value = float(row['exempt_rate'])
+                    converter = str(row['exempt_rate_converter'])
+
+                    # Normalize based on converter type
+                    if 'PercentPlainConverter' in converter:
+                        # PercentPlainConverter: 10 means 10%, so divide by 100
+                        normalized_value = value / 100
+                    elif 'PercentConverter' in converter:
+                        # PercentConverter: 0.1 means 10%, use as-is
+                        normalized_value = value
+                    else:
+                        log.warning(
+                            "Unknown exempt_rate converter type '%s' for security '%s' (WKN: %s). Ignoring value.",
+                            converter, row['Name'], row.get('Wkn', 'N/A')
+                        )
+                        securities.at[idx, 'exempt_rate'] = np.nan
+                        continue
+
+                    # Validate range: 1% to 100%
+                    if normalized_value < _EXEMPT_RATE_MIN or normalized_value > _EXEMPT_RATE_MAX:
+                        log.warning(
+                            "Invalid exempt_rate for security '%s' (WKN: %s): %.4f (%.2f%%) is outside valid range [%.0f%%, %.0f%%]. Ignoring value.",
+                            row['Name'], row.get('Wkn', 'N/A'),
+                            normalized_value, normalized_value * 100,
+                            _EXEMPT_RATE_MIN * 100, _EXEMPT_RATE_MAX * 100
+                        )
+                        securities.at[idx, 'exempt_rate'] = np.nan
+                    else:
+                        securities.at[idx, 'exempt_rate'] = normalized_value
+
+                except (ValueError, TypeError) as e:
+                    log.warning(
+                        "Failed to parse exempt_rate '%s' for security '%s' (WKN: %s): %s. Ignoring value.",
+                        row['exempt_rate'], row['Name'], row.get('Wkn', 'N/A'), str(e)
+                    )
+                    securities.at[idx, 'exempt_rate'] = np.nan
+
+        # Drop the converter column as it's no longer needed
+        securities = securities.drop(columns=['exempt_rate_converter'])
+
+        return securities
 
     def _parse_prices(self) -> DataFrame[SecurityPriceSchema]:
         prices = (pd.read_sql_query('select datetime(tstamp) as date, * from price', self._db.connection, index_col=['date', 'security'], parse_dates={"date": "%Y-%m-%d %H:%M:%S"}, dtype={'value': np.float64})

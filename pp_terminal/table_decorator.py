@@ -70,7 +70,8 @@ class TableDecorator(Table):
         summary_row = (df.iloc[:-self._options.footer_lines] if self._options.footer_lines > 0 else df).select_dtypes(include='number').sum()  # only sum up numeric values
         if 'currency' in df:
             summary_row['currency'] = df['currency'].mode()[0]
-        summary_row = pd.concat([summary_row, pd.Series(['Total'], index=['Name'])])
+        if not self._options.show_index:
+            summary_row = pd.concat([summary_row, pd.Series(['Total'], index=['Name'])])
 
         # in case we have multiple footer lines, insert the total value into the right position in the dataframe
         df_bottom = None
@@ -78,6 +79,11 @@ class TableDecorator(Table):
             df_bottom = df.iloc[-self._options.footer_lines:, :]
             df = df.iloc[:-self._options.footer_lines, :]
             df_bottom = pd.concat([df, summary_row.to_frame().T, df_bottom], ignore_index=True)
+
+        # add index column if show_index is enabled
+        if self._options.show_index:
+            footer_value = 'Total' if self._options.show_total else ''
+            self.add_column('ID', footer=footer_value if self.show_default_footer else '', justify='left')
 
         # add DataFrame columns to the table
         for i, column in enumerate(df.columns):

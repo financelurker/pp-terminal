@@ -27,7 +27,7 @@ import typer
 from rich.console import Console
 
 from pp_terminal.df_filter import filter_later_than, filter_by_type
-from pp_terminal.helper import get_last_year
+from pp_terminal.helper import get_last_year, footer
 from pp_terminal.output import OutputStrategy
 from pp_terminal.portfolio import Portfolio
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
@@ -104,3 +104,4 @@ def simulate_interest_rate(
     console.print(*output.result_table(
         df, TableOptions(title='Simulated Interest on Accounts', caption=f"for {year.strftime("%Y")}, excl. taxes", show_index=False, show_total=False, value_formatter=_format_value_wrapper)
     ))
+    console.print(output.text(footer()), style="dim")

@@ -71,7 +71,10 @@ class TableDecorator(Table):
         if 'currency' in df:
             summary_row['currency'] = df['currency'].mode()[0]
         if not self._options.show_index:
-            summary_row = pd.concat([summary_row, pd.Series(['Total'], index=['Name'])])
+            # Find first non-currency column to put 'Total' label
+            first_col = next((col for col in df.columns if col != 'currency'), None)
+            if first_col:
+                summary_row = pd.concat([summary_row, pd.Series(['Total'], index=[first_col])])
 
         # in case we have multiple footer lines, insert the total value into the right position in the dataframe
         df_bottom = None

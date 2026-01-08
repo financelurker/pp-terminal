@@ -27,7 +27,7 @@ from typing_extensions import Annotated
 import numpy as np
 
 from ..df_filter import filter_by_type, drop_empty_values
-from ..helper import get_last_year
+from ..helper import get_last_year, footer
 from ..output import OutputStrategy, Console
 from ..portfolio_snapshot import PortfolioSnapshot, _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES
 from ..portfolio import Portfolio
@@ -292,7 +292,7 @@ def print_tax_table(
             vorabpauschale_totals = vorabpauschale_data[account_columns].sum().to_dict()
 
     def format_value_with_balance_check(value: Any, index: str, row: pd.Series) -> str:
-        if row['Name'] == 'Related Account Balance' and isinstance(value, Money) and index in vorabpauschale_totals:
+        if 'Name' in row.index and row['Name'] == 'Related Account Balance' and isinstance(value, Money) and index in vorabpauschale_totals:
             color = 'red' if value < vorabpauschale_totals[index] else 'green'
             return f"[{color}]{format_value(value, index, row)}[/{color}]"
         return format_value(value, index, row)
@@ -301,11 +301,11 @@ def print_tax_table(
         result,
         TableOptions(
             title=f"Estimated Taxes on Vorabpauschale {year.year} (§18 InvStG)",
-            caption='Actual values will deviate (different security prices), excl. Sparerpauschbetrag',
             show_index=False,
             footer_lines=1,
             value_formatter=format_value_with_balance_check
         )
     ))
 
-    console.print(output.warning('For the current version this simulation assumes that all prices are in EUR.'))
+    console.print(output.warning('This simulation assumes that all amounts are in EUR excl. Sparerpauschbetrag.'))
+    console.print(output.text(footer()), style="dim")

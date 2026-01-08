@@ -54,6 +54,9 @@ class OutputStrategy(ABC):
     def empty_result(self) -> str:
         return ''
 
+    def text(self, message: str) -> str:  # pylint: disable=unused-argument
+        return ''
+
 
 class RichOutputStrategy(OutputStrategy):
     def result_table(self, df: pd.DataFrame | None, options: TableOptions) -> Any:
@@ -66,10 +69,13 @@ class RichOutputStrategy(OutputStrategy):
         return NewLine(), table, NewLine()
 
     def hint(self, message: str) -> str:
-        return ':bulb: [bold]Hint:[/bold] ' + message + "\n"
+        return ':bulb: [bold]Hint:[/bold] ' + self.text(message)
 
     def warning(self, message: str) -> str:
-        return ':backhand_index_pointing_right: [bold]Warning:[/bold] ' + message + "\n"
+        return ':backhand_index_pointing_right: [bold]Warning:[/bold] ' + self.text(message)
+
+    def text(self, message: str) -> str:
+        return message + "\n"
 
     def empty_result(self) -> str:
         return 'Nothing here..:sleeping: '

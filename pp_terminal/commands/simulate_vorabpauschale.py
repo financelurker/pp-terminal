@@ -258,12 +258,6 @@ def get_base_rate_percent_by_year() -> Percent | None:
     return rate
 
 
-def _format_value_wrapper(value: Any, index: str, row: pd.Series) -> str:
-    if row['Name'] == 'Related Account Balance' and isinstance(value, Money):
-        color = 'red' if value < row['Balance'] else 'green'
-        return f"[{color}]{format_value(value, index, row)}[/{color}]"
-
-    return format_value(value, index, row)
 
 
 @app.command(name="vorabpauschale")
@@ -289,13 +283,28 @@ def print_tax_table(
     result = calculate(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate)
     result = result.round(2) if result is not None else result
 
+    vorabpauschale_totals = {}
+    if result is not None and not result.empty:
+        balance_row_index = result[result['Name'] == 'Related Account Balance'].index
+        if len(balance_row_index) > 0:
+            vorabpauschale_data = result.drop(balance_row_index)
+            account_columns = [col for col in result.columns if col not in ['Wkn', 'Name', 'currency']]
+            vorabpauschale_totals = vorabpauschale_data[account_columns].sum().to_dict()
+
+    def format_value_with_balance_check(value: Any, index: str, row: pd.Series) -> str:
+        if row['Name'] == 'Related Account Balance' and isinstance(value, Money) and index in vorabpauschale_totals:
+            color = 'red' if value < vorabpauschale_totals[index] else 'green'
+            return f"[{color}]{format_value(value, index, row)}[/{color}]"
+        return format_value(value, index, row)
+
     console.print(*output.result_table(
         result,
         TableOptions(
             title=f"Estimated Taxes on Vorabpauschale {year.year} (§18 InvStG)",
             caption='Actual values will deviate (different security prices), excl. Sparerpauschbetrag',
             show_index=False,
-            footer_lines=1
+            footer_lines=1,
+            value_formatter=format_value_with_balance_check
         )
     ))
 

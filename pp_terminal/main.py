@@ -27,9 +27,9 @@ from rich import print # pylint: disable=redefined-builtin
 from rich.logging import RichHandler
 import typer
 from typing_extensions import Annotated
+from typer_config.decorators import use_json_config
 
-from .config import load_config
-from .exceptions import InputError, ValidationError
+from .exceptions import InputError
 from .output import create_strategy, OutputFormat
 from .plugins import load_command_plugins
 from .pp_portfolio_builder import PpPortfolioBuilder
@@ -62,11 +62,11 @@ def version_callback(value: bool) -> None:
     epilog="Small insights today, bigger returns tomorrow.",
     help=f"[bold]pp-terminal[/bold] version {__version__} by [link=https://dev-investor.de]dev-investor[/link]\n\nThe Analytic Companion for Portfolio Performance"
 )
+@use_json_config(default_value=".pp-terminal.json")
 def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         ctx: typer.Context,
         file: Annotated[Optional[Path], typer.Option(help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)] = None,
         format: Optional[OutputFormat] = None,  # pylint: disable=redefined-builtin
-        config: Annotated[Optional[Path], typer.Option(help="Path to config file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)] = None,
         version: Annotated[  # pylint: disable=unused-argument
             Optional[bool],
             typer.Option("--version", callback=version_callback, is_eager=True),  # declared the option name to avoid --no-version
@@ -78,19 +78,17 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         logging.basicConfig(force=True, level=logging.DEBUG, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=True, show_time=False)])
 
     try:
-        config_data = load_config(config)
-
-        final_file = file if file is not None else (Path(config_data['file']) if 'file' in config_data else None)
-        if final_file is None:
+        if file is None:
             raise InputError("Portfolio Performance XML file must be provided via --file option or config file")
 
-        final_format = format if format is not None else OutputFormat(config_data.get('format', 'table'))
+        if format is None:
+            format = OutputFormat.TABLE  # pylint: disable=redefined-builtin
 
         ctx.obj = SimpleNamespace(
-            portfolio=PpPortfolioBuilder(cache_file=_DB_FILE if debug else None).construct(final_file),
-            output=create_strategy(final_format))
+            portfolio=PpPortfolioBuilder(cache_file=_DB_FILE if debug else None).construct(file),
+            output=create_strategy(format))
 
-    except (RuntimeError, InputError, ValidationError) as e:
+    except (RuntimeError, InputError) as e:
         if debug:
             raise e
 

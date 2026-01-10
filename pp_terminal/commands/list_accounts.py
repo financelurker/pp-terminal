@@ -78,6 +78,6 @@ def print_accounts(ctx: typer.Context, type: AccountType | None = None, by: date
     df = df.pipe(unstack_column_by_currency, column='Balance', base_currency=snapshot.portfolio.base_currency)
 
     console.print(*output.result_table(
-        df, TableOptions(title="Balances on Accounts", caption=f"per {by.strftime("%Y-%m-%d")}", show_index=True)
+        df, TableOptions(title="Balances on Accounts", caption=f"in total {len(df)} entries, per {by.strftime("%Y-%m-%d")}", show_index=True)
     ))
     console.print(output.text(footer()), style="dim")

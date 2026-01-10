@@ -13,6 +13,7 @@ dependencies = [
     "babel (>=2.16.0,<3.0.0)",
     "lxml (>=5.3.0,<7.0.0)",
     "typer-config (>=1.4.0,<2.0.0)",
+    "jsonschema (>=4.23.0,<5.0.0)",
 ]
 scripts = { pp-terminal = "pp_terminal.main:app" }
 entry-points = { "pp_terminal.commands" = { "list.accounts" = "pp_terminal.commands.list_accounts:app", "list.securities" = "pp_terminal.commands.list_securities:app", "simulate.vorabpauschale" = "pp_terminal.commands.simulate_vorabpauschale:app", "simulate.interest" = "pp_terminal.commands.simulate_interest:app", "simulate.share-sell" = "pp_terminal.commands.simulate_share_sell:app", "validate" = "pp_terminal.commands.validate:app" } }

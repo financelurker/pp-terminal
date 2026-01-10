@@ -27,8 +27,9 @@ from rich import print # pylint: disable=redefined-builtin
 from rich.logging import RichHandler
 import typer
 from typing_extensions import Annotated
-from typer_config.decorators import use_json_config
+from typer_config import conf_callback_factory, use_config
 
+from .config import validated_json_loader
 from .exceptions import InputError
 from .output import create_strategy, OutputFormat
 from .plugins import load_command_plugins
@@ -57,12 +58,15 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+validated_config_callback = conf_callback_factory(validated_json_loader)
+
+
 @app.callback(
     invoke_without_command=True,
     epilog="Small insights today, bigger returns tomorrow.",
     help=f"[bold]pp-terminal[/bold] version {__version__} by [link=https://dev-investor.de]dev-investor[/link]\n\nThe Analytic Companion for Portfolio Performance"
 )
-@use_json_config(default_value=".pp-terminal.json")
+@use_config(validated_config_callback)
 def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         ctx: typer.Context,
         file: Annotated[Optional[Path], typer.Option(help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)] = None,

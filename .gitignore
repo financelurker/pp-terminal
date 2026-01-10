@@ -9,4 +9,3 @@ build/
 tests/.coverage
 tests/coverage.xml
 .cache.db
-.pp-terminal.json

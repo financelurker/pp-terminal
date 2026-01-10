@@ -1,0 +1,89 @@
+{
+  "$id": "https://dev-investor.de/pp-terminal/config.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Configuration",
+  "description": "pp-terminal Configuration File",
+  "type": "object",
+  "properties": {
+    "file": {
+      "description": "The Portfolio Performance XML file location",
+      "type": "string"
+    },
+    "format": {
+      "description": "Output format for commands",
+      "type": "string",
+      "enum": ["table", "json", "csv"]
+    },
+    "precision": {
+      "description": "Decimal precision for calculations",
+      "type": "integer",
+      "minimum": 0
+    },
+    "tax": {
+      "description": "Tax-related configuration",
+      "type": "object",
+      "properties": {
+        "rate": {
+          "description": "Tax rate (e.g., 0.26375 for 26.375%)",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "file": {
+          "description": "Path to tax calculation file",
+          "type": "string"
+        },
+        "exemption-rate": {
+          "description": "Tax exemption rate",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "attributes": {
+      "description": "Mapping of Portfolio Performance attributes",
+      "type": "object",
+      "properties": {
+        "exemption_rate": {
+          "description": "UUID of the exemption rate attribute",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "limits": {
+      "description": "Various limits and thresholds",
+      "type": "object",
+      "properties": {
+        "accounts": {
+          "description": "Account-specific limits (UUID to amount mapping)",
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "security-prices": {
+          "description": "Security price validation limits",
+          "type": "object",
+          "properties": {
+            "uptodate-warning-after-days": {
+              "description": "Days after which to warn about stale prices",
+              "type": "integer",
+              "minimum": 0
+            },
+            "uptodate-error-after-days": {
+              "description": "Days after which to error on stale prices",
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -28,7 +28,8 @@ from rich.logging import RichHandler
 import typer
 from typing_extensions import Annotated
 
-from .exceptions import InputError
+from .config import load_config
+from .exceptions import InputError, ValidationError
 from .output import create_strategy, OutputFormat
 from .plugins import load_command_plugins
 from .pp_portfolio_builder import PpPortfolioBuilder
@@ -61,10 +62,11 @@ def version_callback(value: bool) -> None:
     epilog="Small insights today, bigger returns tomorrow.",
     help=f"[bold]pp-terminal[/bold] version {__version__} by [link=https://dev-investor.de]dev-investor[/link]\n\nThe Analytic Companion for Portfolio Performance"
 )
-def main(
+def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         ctx: typer.Context,
-        file: Annotated[Path, typer.Option(envvar="PP_TERMINAL_INPUT_FILE", help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)],
-        format: OutputFormat = OutputFormat.TABLE,  # pylint: disable=redefined-builtin
+        file: Annotated[Optional[Path], typer.Option(help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)] = None,
+        format: Optional[OutputFormat] = None,  # pylint: disable=redefined-builtin
+        config: Annotated[Optional[Path], typer.Option(help="Path to config file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)] = None,
         version: Annotated[  # pylint: disable=unused-argument
             Optional[bool],
             typer.Option("--version", callback=version_callback, is_eager=True),  # declared the option name to avoid --no-version
@@ -76,11 +78,19 @@ def main(
         logging.basicConfig(force=True, level=logging.DEBUG, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=True, show_time=False)])
 
     try:
-        ctx.obj = SimpleNamespace(
-            portfolio=PpPortfolioBuilder(cache_file=_DB_FILE if debug else None).construct(file),
-            output=create_strategy(format))
+        config_data = load_config(config)
 
-    except (RuntimeError, InputError) as e:
+        final_file = file if file is not None else (Path(config_data['file']) if 'file' in config_data else None)
+        if final_file is None:
+            raise InputError("Portfolio Performance XML file must be provided via --file option or config file")
+
+        final_format = format if format is not None else OutputFormat(config_data.get('format', 'table'))
+
+        ctx.obj = SimpleNamespace(
+            portfolio=PpPortfolioBuilder(cache_file=_DB_FILE if debug else None).construct(final_file),
+            output=create_strategy(final_format))
+
+    except (RuntimeError, InputError, ValidationError) as e:
         if debug:
             raise e
 

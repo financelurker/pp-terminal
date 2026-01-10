@@ -52,7 +52,7 @@ def calculate(  # pylint: disable=too-many-locals
     base_rate = max(base_rate_percent, 0) / 100
 
     payouts = _calculate_payouts(snapshot_period_end)
-    logging.debug(payouts)
+    log.debug(payouts)
 
     # @todo convert all values to EUR with rates from ECB, for the moment we simply remove currency
     # Calculate begin values only for shares held continuously from year start to year end
@@ -82,7 +82,7 @@ def calculate(  # pylint: disable=too-many-locals
     # use df.subtract to align both matrices
     outcome = end_values_in_eur.subtract(begin_values_in_eur, fill_value=0)
     outcome.name = 'Outcome'
-    logging.debug(outcome)
+    log.debug(outcome)
 
     # for securities that have been bought within the year we need to take the number of months held into account
     pro_rata_shares = _calculate_prorata_shares_for_inyear_buys(snapshot_period_end)
@@ -229,7 +229,7 @@ def set_begin(value: datetime | None) -> datetime | None:
     return value
 
 
-def get_base_rate_percent_by_year() -> Percent | None:
+def get_base_rate_percent_by_year() -> Percent | None:  # this has to be adapted every year
     if begin is None:
         return None
 

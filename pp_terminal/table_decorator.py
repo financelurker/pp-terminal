@@ -24,12 +24,16 @@ from rich.table import Table
 from rich.text import Text
 
 from .df_filter import drop_empty_values
-from .helper import format_money
+from .helper import format_money, format_shares
 from .schemas import Money
 
 
-def format_value(value: Any, index: str, row: pd.Series) -> str:
-    return format_money(float(value), row['currency'] if 'currency' in row else index) if isinstance(value, Money) else str(value)
+def format_value(value: Any, column_name: str, row: pd.Series) -> str:
+    if column_name == 'Shares' and isinstance(value, float):
+        return format_shares(value)
+    if isinstance(value, Money):
+        return format_money(float(value), row['currency'] if 'currency' in row else column_name)
+    return str(value)
 
 
 class TableOptions:  # pylint: disable=too-few-public-methods

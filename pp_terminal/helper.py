@@ -50,6 +50,13 @@ def format_money(value: Money, currency: str = '', locale: str | None = babel.nu
         return f"{value:.2f}"
 
 
+def format_shares(value: float) -> str:
+    if pd.isna(value) or not isinstance(value, float):
+        return ''
+
+    return f"{float(value):.4f}"
+
+
 def enum_types_to_name(enum_list: List[Any]) -> List[Any]:
     # prepare for enum storage in dataframe
     for element in enum_list:

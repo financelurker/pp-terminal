@@ -23,24 +23,15 @@ from datetime import datetime
 import typer
 
 from ..exceptions import InputError
-from ..helper import footer, format_money
+from ..helper import footer
 from ..output import OutputStrategy, Console
 from ..portfolio import Portfolio
 from ..portfolio_snapshot import PortfolioSnapshot
-from ..schemas import Money
 from ..table_decorator import TableOptions
 
 app = typer.Typer()
 console = Console()
 log = logging.getLogger(__name__)
-
-
-def format_securities_value(value, column_name: str, row) -> str:
-    if column_name == 'Shares' and isinstance(value, (int, float)):
-        return f"{float(value):.4f}"
-    if isinstance(value, Money):
-        return format_money(float(value), row['currency'] if 'currency' in row else column_name)
-    return str(value)
 
 
 @app.command(name="securities")
@@ -88,8 +79,7 @@ def print_securities(ctx: typer.Context, by: datetime = datetime.now(), active: 
             title="Securities",
             caption=f"in total {len(df)} entries, per {by.strftime("%Y-%m-%d")}",
             show_index=False,
-            show_total=False,
-            value_formatter=format_securities_value
+            show_total=False
         )
     ))
     console.print(output.text(footer()), style="dim")

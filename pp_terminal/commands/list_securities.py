@@ -23,9 +23,11 @@ from datetime import datetime
 import typer
 
 from ..exceptions import InputError
+from ..helper import footer, format_money
 from ..output import OutputStrategy, Console
 from ..portfolio import Portfolio
 from ..portfolio_snapshot import PortfolioSnapshot
+from ..schemas import Money
 from ..table_decorator import TableOptions
 
 app = typer.Typer()
@@ -33,8 +35,16 @@ console = Console()
 log = logging.getLogger(__name__)
 
 
+def format_securities_value(value, column_name: str, row) -> str:
+    if column_name == 'Shares' and isinstance(value, (int, float)):
+        return f"{float(value):.4f}"
+    if isinstance(value, Money):
+        return format_money(float(value), row['currency'] if 'currency' in row else column_name)
+    return str(value)
+
+
 @app.command(name="securities")
-def print_securities(ctx: typer.Context) -> None:
+def print_securities(ctx: typer.Context, by: datetime = datetime.now(), active: bool = False, in_stock: bool = False) -> None:
     """
     Show a detailed table with all securities and their IDs.
     """
@@ -46,10 +56,14 @@ def print_securities(ctx: typer.Context) -> None:
     if securities is None:
         raise InputError("No securities found in portfolio")
 
-    snapshot = PortfolioSnapshot(portfolio, datetime.now())
+    snapshot = PortfolioSnapshot(portfolio, by)
     shares = snapshot.shares
 
-    df = securities.reset_index()[['uuid', 'Name', 'Wkn', 'currency']].rename(columns={'uuid': 'SecurityId', 'currency': 'Currency'})
+    columns_to_select = ['uuid', 'Name', 'Wkn', 'currency']
+    if 'is_retired' in securities.columns:
+        columns_to_select.append('is_retired')
+
+    df = securities.reset_index()[columns_to_select].rename(columns={'uuid': 'SecurityId', 'currency': 'Currency'})
 
     if shares is not None and not shares.empty:
         shares_by_security = shares.groupby('SecurityId').sum()
@@ -58,8 +72,24 @@ def print_securities(ctx: typer.Context) -> None:
     else:
         df['Shares'] = 0.0
 
+    if active and 'is_retired' in df.columns:
+        df = df[~df['is_retired']]
+
+    if in_stock:
+        df = df[df['Shares'] > 0.001]
+
+    if 'is_retired' in df.columns:
+        df = df.drop(columns=['is_retired'])
+
     df = df.sort_values(by='Name')
 
     console.print(*output.result_table(
-        df, TableOptions(title="Securities", show_index=False, show_total=False)
+        df, TableOptions(
+            title="Securities",
+            caption=f"in total {len(df)} entries, per {by.strftime("%Y-%m-%d")}",
+            show_index=False,
+            show_total=False,
+            value_formatter=format_securities_value
+        )
     ))
+    console.print(output.text(footer()), style="dim")

@@ -78,6 +78,7 @@ class SecuritySchema(pa.DataFrameModel):
     Name: Series[str]
     Wkn: Series[str] = pa.Field(nullable=True)
     currency: Series[str] = pa.Field(nullable=True)
+    is_retired: Optional[Series[bool]] = pa.Field(coerce=True)
 
 
 class SecurityPriceSchema(pa.DataFrameModel):

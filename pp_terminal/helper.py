@@ -32,6 +32,13 @@ from .schemas import Money
 
 log = logging.getLogger(__name__)
 
+_precision: int = 4
+
+
+def set_precision(precision: int) -> None:
+    global _precision  # pylint: disable=global-statement
+    _precision = precision
+
 
 def currency_exists(currency_code: str, locale: str | None = None) -> bool:
     return currency_code in Locale(str(locale)).currencies
@@ -54,7 +61,7 @@ def format_shares(value: float) -> str:
     if pd.isna(value) or not isinstance(value, float):
         return ''
 
-    return f"{float(value):.4f}"
+    return f"{float(value):.{_precision}f}"
 
 
 def enum_types_to_name(enum_list: List[Any]) -> List[Any]:

@@ -9,11 +9,6 @@
       "description": "The Portfolio Performance XML file location",
       "type": "string"
     },
-    "format": {
-      "description": "Output format for commands",
-      "type": "string",
-      "enum": ["table", "json", "csv"]
-    },
     "precision": {
       "description": "Decimal precision for calculations",
       "type": "integer",

@@ -31,6 +31,7 @@ from typer_config import conf_callback_factory, use_config
 
 from .config import validated_json_loader
 from .exceptions import InputError
+from .helper import set_precision
 from .output import create_strategy, OutputFormat
 from .plugins import load_command_plugins
 from .pp_portfolio_builder import PpPortfolioBuilder
@@ -71,6 +72,7 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         ctx: typer.Context,
         file: Annotated[Optional[Path], typer.Option(help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)] = None,
         format: Optional[OutputFormat] = None,  # pylint: disable=redefined-builtin
+        precision: int = 4,
         version: Annotated[  # pylint: disable=unused-argument
             Optional[bool],
             typer.Option("--version", callback=version_callback, is_eager=True),  # declared the option name to avoid --no-version
@@ -80,6 +82,8 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
     if debug:
         logging.basicConfig(force=True, level=logging.DEBUG, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=True, show_time=False)])
+
+    set_precision(precision)
 
     try:
         if file is None:

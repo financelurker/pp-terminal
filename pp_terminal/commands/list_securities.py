@@ -18,11 +18,14 @@
 """
 
 import logging
+from datetime import datetime
 
 import typer
 
+from ..exceptions import InputError
 from ..output import OutputStrategy, Console
 from ..portfolio import Portfolio
+from ..portfolio_snapshot import PortfolioSnapshot
 from ..table_decorator import TableOptions
 
 app = typer.Typer()
@@ -40,9 +43,22 @@ def print_securities(ctx: typer.Context) -> None:
     output = ctx.obj.output  # type: OutputStrategy
 
     securities = portfolio.securities
-    assert securities is not None
+    if securities is None:
+        raise InputError("No securities found in portfolio")
 
-    df = securities.reset_index()[['uuid', 'Name', 'Wkn', 'currency']].rename(columns={'uuid': 'SecurityId', 'currency': 'Currency'}).sort_values(by='Name')
+    snapshot = PortfolioSnapshot(portfolio, datetime.now())
+    shares = snapshot.shares
+
+    df = securities.reset_index()[['uuid', 'Name', 'Wkn', 'currency']].rename(columns={'uuid': 'SecurityId', 'currency': 'Currency'})
+
+    if shares is not None and not shares.empty:
+        shares_by_security = shares.groupby('SecurityId').sum()
+        df = df.merge(shares_by_security, left_on='SecurityId', right_index=True, how='left')
+        df['Shares'] = df['Shares'].fillna(0.0)
+    else:
+        df['Shares'] = 0.0
+
+    df = df.sort_values(by='Name')
 
     console.print(*output.result_table(
         df, TableOptions(title="Securities", show_index=False, show_total=False)

@@ -258,8 +258,6 @@ def get_base_rate_percent_by_year() -> Percent | None:
     return rate
 
 
-
-
 @app.command(name="vorabpauschale")
 def print_tax_table(
         ctx: typer.Context,

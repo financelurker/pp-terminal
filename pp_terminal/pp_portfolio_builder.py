@@ -50,65 +50,14 @@ _NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES = [
 class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
     _db: Ppxml2dbWrapper
     _config: Dict[str, Any]
-    _use_cache: bool
 
-    def __init__(self, config: Dict[str, Any] | None = None, use_cache: bool = True):
+    def __init__(self, db: Ppxml2dbWrapper, config: Dict[str, Any] | None = None):
+        self._db = db
         self._config = config if config is not None else {}
-        self._use_cache = use_cache
 
     def construct(self, file: Path) -> Portfolio:
-        cache_path: Path | None = None
-        use_cache_file = False
+        self._db.open(file)
 
-        if self._use_cache:
-            try:
-                cache_path = get_cache_path(file)
-
-                # Check if cache file exists
-                if cache_path.exists():
-                    log.debug('Using cache from "%s"', cache_path)
-                    use_cache_file = True
-                else:
-                    log.debug('Cache not found, will create at "%s"', cache_path)
-
-            except (OSError, IOError) as e:
-                # Cache I/O error - fall back to in-memory
-                log.warning(
-                    'Cache unavailable due to I/O error (%s), using in-memory database',
-                    str(e)
-                )
-                cache_path = None
-
-        # Initialize database connection
-        try:
-            if cache_path is not None:
-                self._db = Ppxml2dbWrapper(dbname=str(cache_path))
-            else:
-                log.debug('Using in-memory database')
-                self._db = Ppxml2dbWrapper(dbname=DB_NAME_IN_MEMORY)
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            # DB initialization error - fall back to in-memory
-            log.warning(
-                'Failed to initialize cache database (%s), using in-memory database',
-                str(e)
-            )
-            self._db = Ppxml2dbWrapper(dbname=DB_NAME_IN_MEMORY)
-            cache_path = None
-            use_cache_file = False
-
-        # Parse XML if cache miss or in-memory mode
-        if not use_cache_file:
-            self._db.open(file)
-
-            # Cleanup old cache files after successful parse
-            if cache_path is not None:
-                try:
-                    cleanup_old_cache_files(file)
-                    log.debug('Cleaned up old cache files')
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    log.warning('Failed to cleanup old cache files: %s', str(e))
-
-        # Build portfolio from database (same for both cache hit and miss)
         portfolio = Portfolio(
             accounts = self._parse_accounts(),
             transactions = self._parse_transactions(),
@@ -246,3 +195,72 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
             return None
 
         return str(result[0])
+
+
+class CachedPpPortfolioBuilder:  # pylint: disable=too-few-public-methods
+    _config: Dict[str, Any]
+    _use_cache: bool
+
+    def __init__(self, config: Dict[str, Any] | None = None, use_cache: bool = True):
+        self._config = config if config is not None else {}
+        self._use_cache = use_cache
+
+    def construct(self, file: Path) -> Portfolio:
+        cache_path: Path | None = None
+        use_cache_file = False
+
+        # Determine cache strategy
+        if self._use_cache:
+            try:
+                cache_path = get_cache_path(file)
+
+                if cache_path.exists():
+                    log.debug('Using cache from "%s"', cache_path)
+                    use_cache_file = True
+                else:
+                    log.debug('Cache not found, will create at "%s"', cache_path)
+
+            except (OSError, IOError) as e:
+                log.warning(
+                    'Cache unavailable due to I/O error (%s), using in-memory database',
+                    str(e)
+                )
+                cache_path = None
+
+        try:
+            if cache_path is not None:
+                db = Ppxml2dbWrapper(dbname=str(cache_path))
+            else:
+                log.debug('Using in-memory database')
+                db = Ppxml2dbWrapper(dbname=DB_NAME_IN_MEMORY)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            log.warning(
+                'Failed to initialize cache database (%s), using in-memory database',
+                str(e)
+            )
+            db = Ppxml2dbWrapper(dbname=DB_NAME_IN_MEMORY)
+            cache_path = None
+            use_cache_file = False
+
+        # Delegate to core builder
+        builder = PpPortfolioBuilder(db, self._config)
+
+        # Override the open behavior for cache hits
+        if use_cache_file:
+            # Cache hit: skip XML parsing by replacing open with a no-op
+            original_open = db.open
+            db.open = lambda _: None  # type: ignore
+            portfolio = builder.construct(file)
+            db.open = original_open  # type: ignore
+        else:
+            # Cache miss: normal construction which will call db.open()
+            portfolio = builder.construct(file)
+
+            if cache_path is not None:
+                try:
+                    cleanup_old_cache_files(file)
+                    log.debug('Cleaned up old cache files')
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    log.warning('Failed to cleanup old cache files: %s', str(e))
+
+        return portfolio

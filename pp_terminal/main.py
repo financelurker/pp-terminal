@@ -34,7 +34,7 @@ from .exceptions import InputError
 from .helper import set_precision
 from .output import create_strategy, OutputFormat
 from .plugins import load_command_plugins
-from .pp_portfolio_builder import PpPortfolioBuilder
+from .pp_portfolio_builder import CachedPpPortfolioBuilder
 from . import __version__
 
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich")
@@ -83,7 +83,7 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
     try:
         ctx.obj = SimpleNamespace(
-            portfolio=PpPortfolioBuilder(config=get_config(), use_cache=not no_cache).construct(file),
+            portfolio=CachedPpPortfolioBuilder(config=get_config(), use_cache=not no_cache).construct(file),
             output=create_strategy(format),
             config=get_config())
 

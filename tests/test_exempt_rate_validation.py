@@ -18,6 +18,7 @@
 """
 # pylint: disable=protected-access
 
+from unittest.mock import Mock
 import pandas as pd
 import numpy as np
 from _pytest.logging import LogCaptureFixture
@@ -27,7 +28,7 @@ from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
 
 def test_normalize_exempt_rate_percent_plain_converter() -> None:
     """Test PercentPlainConverter normalization (10 -> 0.1)."""
-    builder = PpPortfolioBuilder()
+    builder = PpPortfolioBuilder(db=Mock())
 
     securities = pd.DataFrame({
         'Name': ['ETF A', 'ETF B', 'ETF C'],
@@ -50,7 +51,7 @@ def test_normalize_exempt_rate_percent_plain_converter() -> None:
 
 def test_normalize_exempt_rate_percent_converter() -> None:
     """Test PercentConverter normalization (0.3 -> 0.3)."""
-    builder = PpPortfolioBuilder()
+    builder = PpPortfolioBuilder(db=Mock())
 
     securities = pd.DataFrame({
         'Name': ['ETF A', 'ETF B', 'ETF C'],
@@ -73,7 +74,7 @@ def test_normalize_exempt_rate_percent_converter() -> None:
 
 def test_exempt_rate_validation_out_of_range(caplog: LogCaptureFixture) -> None:
     """Test validation rejects values outside [1%, 100%] range."""
-    builder = PpPortfolioBuilder()
+    builder = PpPortfolioBuilder(db=Mock())
 
     securities = pd.DataFrame({
         'Name': ['ETF Too Low', 'ETF Too High', 'ETF Valid'],
@@ -102,7 +103,7 @@ def test_exempt_rate_validation_out_of_range(caplog: LogCaptureFixture) -> None:
 
 def test_exempt_rate_edge_cases(caplog: LogCaptureFixture) -> None:
     """Test edge cases: exactly 1% and exactly 100%."""
-    builder = PpPortfolioBuilder()
+    builder = PpPortfolioBuilder(db=Mock())
 
     securities = pd.DataFrame({
         'Name': ['ETF Min', 'ETF Max'],
@@ -126,7 +127,7 @@ def test_exempt_rate_edge_cases(caplog: LogCaptureFixture) -> None:
 
 def test_exempt_rate_unknown_converter(caplog: LogCaptureFixture) -> None:
     """Test handling of unknown converter type."""
-    builder = PpPortfolioBuilder()
+    builder = PpPortfolioBuilder(db=Mock())
 
     securities = pd.DataFrame({
         'Name': ['ETF Unknown'],
@@ -144,7 +145,7 @@ def test_exempt_rate_unknown_converter(caplog: LogCaptureFixture) -> None:
 
 def test_exempt_rate_invalid_format(caplog: LogCaptureFixture) -> None:
     """Test handling of unparseable exempt_rate values."""
-    builder = PpPortfolioBuilder()
+    builder = PpPortfolioBuilder(db=Mock())
 
     securities = pd.DataFrame({
         'Name': ['ETF Invalid'],
@@ -162,7 +163,7 @@ def test_exempt_rate_invalid_format(caplog: LogCaptureFixture) -> None:
 
 def test_exempt_rate_missing_values(caplog: LogCaptureFixture) -> None:
     """Test handling of missing exempt_rate or converter values."""
-    builder = PpPortfolioBuilder()
+    builder = PpPortfolioBuilder(db=Mock())
 
     securities = pd.DataFrame({
         'Name': ['ETF No Rate', 'ETF No Converter', 'ETF Both Missing'],

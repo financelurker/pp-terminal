@@ -25,22 +25,22 @@ import pytest
 from _pytest.fixtures import TopRequest
 
 from pp_terminal.exceptions import InputError
-from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
+from pp_terminal.pp_portfolio_builder import CachedPpPortfolioBuilder
 
 
 def test_import_non_existent_file() -> None:
     with pytest.raises(FileNotFoundError):
-        PpPortfolioBuilder().construct(Path('non-existing.xml'))
+        CachedPpPortfolioBuilder().construct(Path('non-existing.xml'))
 
 
 @pytest.mark.parametrize("xml_file", ['kommer.xml', 'invalid.xml', 'other.xml'])
 def test_import_invalid_xml(request: TopRequest, xml_file: str) -> None:
     with pytest.raises(InputError):
-        PpPortfolioBuilder(use_cache=False).construct(request.path.parent / 'fixtures' / xml_file)
+        CachedPpPortfolioBuilder(use_cache=False).construct(request.path.parent / 'fixtures' / xml_file)
 
 
 def test_import_pp_empty_xml(request: TopRequest) -> None:
-    PpPortfolioBuilder().construct(request.path.parent / 'fixtures' / 'empty.ids.xml')
+    CachedPpPortfolioBuilder().construct(request.path.parent / 'fixtures' / 'empty.ids.xml')
 
 
 def test_xml_file_opened_readonly(request: TopRequest) -> None:
@@ -57,7 +57,7 @@ def test_xml_file_opened_readonly(request: TopRequest) -> None:
         return original_open(self, *args, **kwargs)
 
     with patch.object(Path, 'open', tracked_open):
-        PpPortfolioBuilder(use_cache=False).construct(xml_file_path)
+        CachedPpPortfolioBuilder(use_cache=False).construct(xml_file_path)
 
     assert 'mode' in open_call_args, "Path.open() was not called"
     assert open_call_args['mode'] == 'rb', \
@@ -75,7 +75,7 @@ def test_cache_disabled_uses_in_memory(request: TopRequest, tmp_path: Path) -> N
     temp_xml.write_bytes(xml_file.read_bytes())
 
     # Build portfolio with caching disabled
-    portfolio = PpPortfolioBuilder(use_cache=False).construct(temp_xml)
+    portfolio = CachedPpPortfolioBuilder(use_cache=False).construct(temp_xml)
 
     # Verify no cache file was created
     cache_files = list(tmp_path.glob('.test.xml.*.pp-terminal.db'))
@@ -91,7 +91,7 @@ def test_cache_filename_generation(request: TopRequest, tmp_path: Path) -> None:
     temp_xml.write_bytes(xml_file.read_bytes())
 
     # Build portfolio with caching enabled
-    PpPortfolioBuilder(use_cache=True).construct(temp_xml)
+    CachedPpPortfolioBuilder(use_cache=True).construct(temp_xml)
 
     # Verify cache file exists with expected pattern
     cache_files = list(tmp_path.glob('.test.xml.*.pp-terminal.db'))
@@ -117,7 +117,7 @@ def test_cache_hit_reuses_existing(request: TopRequest, tmp_path: Path) -> None:
     temp_xml.write_bytes(xml_file.read_bytes())
 
     # First build: creates cache
-    portfolio1 = PpPortfolioBuilder(use_cache=True).construct(temp_xml)
+    portfolio1 = CachedPpPortfolioBuilder(use_cache=True).construct(temp_xml)
 
     # Get cache file
     cache_files = list(tmp_path.glob('.test.xml.*.pp-terminal.db'))
@@ -127,7 +127,7 @@ def test_cache_hit_reuses_existing(request: TopRequest, tmp_path: Path) -> None:
 
     # Second build: should reuse cache (we can't easily verify open() wasn't called
     # without complex mocking, but we can verify the cache file wasn't recreated)
-    portfolio2 = PpPortfolioBuilder(use_cache=True).construct(temp_xml)
+    portfolio2 = CachedPpPortfolioBuilder(use_cache=True).construct(temp_xml)
 
     # Cache file should still exist and not be recreated
     assert cache_file.exists()
@@ -144,7 +144,7 @@ def test_cache_invalidation_on_xml_change(request: TopRequest, tmp_path: Path) -
     temp_xml.write_bytes(xml_file.read_bytes())
 
     # First build: creates cache
-    PpPortfolioBuilder(use_cache=True).construct(temp_xml)
+    CachedPpPortfolioBuilder(use_cache=True).construct(temp_xml)
 
     # Get original cache file
     old_cache_files = list(tmp_path.glob('.test.xml.*.pp-terminal.db'))
@@ -156,7 +156,7 @@ def test_cache_invalidation_on_xml_change(request: TopRequest, tmp_path: Path) -
     temp_xml.write_text(content + "<!-- modified -->")
 
     # Second build: should create new cache with different checksum
-    PpPortfolioBuilder(use_cache=True).construct(temp_xml)
+    CachedPpPortfolioBuilder(use_cache=True).construct(temp_xml)
 
     # New cache file should exist
     new_cache_files = list(tmp_path.glob('.test.xml.*.pp-terminal.db'))
@@ -180,7 +180,7 @@ def test_old_cache_cleanup(request: TopRequest, tmp_path: Path) -> None:
     (tmp_path / '.test.xml.def456.pp-terminal.db').write_text('old cache 2')
 
     # Build portfolio: should cleanup old caches
-    PpPortfolioBuilder(use_cache=True).construct(temp_xml)
+    CachedPpPortfolioBuilder(use_cache=True).construct(temp_xml)
 
     # Verify old caches deleted, only current cache exists
     cache_files = list(tmp_path.glob('.test.xml.*.pp-terminal.db'))
@@ -203,7 +203,7 @@ def test_cache_fallback_on_io_error(request: TopRequest, tmp_path: Path, caplog:
 
     try:
         # Should fall back to in-memory mode
-        portfolio = PpPortfolioBuilder(use_cache=True).construct(temp_xml)
+        portfolio = CachedPpPortfolioBuilder(use_cache=True).construct(temp_xml)
         assert portfolio is not None
 
         # Verify warning was logged

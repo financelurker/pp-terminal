@@ -27,7 +27,7 @@ from pandas.testing import assert_frame_equal
 from pp_terminal.commands.simulate_interest import calculate_interest
 from pp_terminal.portfolio import Portfolio
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
+from pp_terminal.pp_portfolio_builder import CachedPpPortfolioBuilder
 
 
 def test_empty_portfolio() -> None:
@@ -72,7 +72,7 @@ def test_calculate_interest(sample_accounts: pd.DataFrame, sample_transactions: 
 
 
 def test_kommer(request: TopRequest) -> None:
-    portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+    portfolio = CachedPpPortfolioBuilder(use_cache=False).construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
 
@@ -89,7 +89,7 @@ def test_kommer(request: TopRequest) -> None:
 
 
 def test_empty_file(request: TopRequest) -> None:
-    portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
+    portfolio = CachedPpPortfolioBuilder(use_cache=False).construct(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
 

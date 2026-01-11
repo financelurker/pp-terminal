@@ -29,9 +29,9 @@ def tax_rate_callback(ctx: typer.Context, param: typer.CallbackParam, value: Per
 
     # 2. Try config file
     config = get_config()
-    config_rate = config.get('tax')
-    if config_rate is not None and 'rate' in config_rate:
-        return Percent(config_rate['rate'])
+    config_tax = config.get('tax')
+    if config_tax is not None and 'rate' in config_tax:
+        return Percent(config_tax['rate'])
 
     # 3. Prompt user with 4. hard-coded default
     return Percent(typer.prompt(
@@ -39,3 +39,36 @@ def tax_rate_callback(ctx: typer.Context, param: typer.CallbackParam, value: Per
         type=float,
         default=0.25 * (1 + 0.055) * 100
     ))
+
+
+def exemption_rate_callback(ctx: typer.Context, param: typer.CallbackParam, value: Percent | None) -> Percent:  # pylint: disable=unused-argument
+    # 1. If provided via CLI, use it
+    if value is not None:
+        return value
+
+    # 2. Try config file
+    config = get_config()
+    config_tax = config.get('tax')
+    if config_tax is not None and 'exemption-rate' in config_tax:
+        return Percent(config_tax['exemption-rate'])
+
+    # 3. Prompt user with 4. hard-coded default
+    return Percent(typer.prompt(
+        "Default Exemption Rate (%)",
+        type=float,
+        default=30
+    ))
+
+
+def tax_csv_callback(ctx: typer.Context, param: typer.CallbackParam, value: str | None) -> str | None:  # pylint: disable=unused-argument
+    # 1. If provided via CLI, use it
+    if value is not None:
+        return value
+
+    # 2. Try config file
+    config = get_config()
+    config_tax = config.get('tax')
+    if config_tax is not None and 'file' in config_tax:
+        return str(config_tax['file'])
+
+    return None

@@ -29,7 +29,7 @@ from typing_extensions import Annotated
 from ..df_filter import filter_by_type
 from ..exceptions import InputError
 from ..helper import format_money, footer
-from ..options import tax_rate_callback
+from ..options import tax_rate_callback, tax_csv_callback
 from ..output import OutputStrategy, Console
 from ..portfolio_snapshot import PortfolioSnapshot
 from ..portfolio import Portfolio
@@ -234,7 +234,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, callback=tax_rate_callback)] = None,  # type: ignore
         shares: Annotated[float | None, typer.Option(help="Number of shares to sell (defaults to all available shares)", min=0.0001)] = None,
         price: Annotated[Money | None, typer.Option(help="Sale price per share (defaults to latest market price)")] = None,
-        tax_csv: Annotated[Path | None, typer.Option(help="CSV file with Vorabpauschale tax per share data")] = None
+        tax_csv: Annotated[Path | None, typer.Option(help="CSV file with Vorabpauschale tax per share data", callback=tax_csv_callback)] = None
 ) -> None:
     """
     Simulate selling shares: calculate fees, taxes (Abgeltungssteuer + Soli), and net proceeds.
@@ -250,26 +250,8 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     # Load Vorabpauschale CSV if provided
     vorab_csv_data = None
     if tax_csv is not None:
+        log.debug('Loading Vorabpauschale tax data from "%s"', tax_csv)
         vorab_csv_data = _load_vorabpauschale_csv(tax_csv)
-
-        # Basic validation: warn if CSV contains unknown account/security IDs
-        if vorab_csv_data is not None and not vorab_csv_data.empty:
-            csv_account_ids = {idx[1] for idx in vorab_csv_data.index}
-            csv_security_ids = {idx[2] for idx in vorab_csv_data.index}
-
-            # Check accounts
-            if portfolio.securities_accounts is not None:
-                known_account_ids = set(portfolio.securities_accounts.index)
-                unknown_accounts = csv_account_ids - known_account_ids
-                if unknown_accounts:
-                    log.warning("CSV contains unknown account IDs: %s", unknown_accounts)
-
-            # Check securities
-            if portfolio.securities is not None:
-                known_security_ids = set(portfolio.securities.index)
-                unknown_securities = csv_security_ids - known_security_ids
-                if unknown_securities:
-                    log.warning("CSV contains unknown security IDs: %s", unknown_securities)
 
     # Look up security by WKN
     if portfolio.securities is None:

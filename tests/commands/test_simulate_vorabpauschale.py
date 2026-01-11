@@ -28,7 +28,7 @@ from pp_terminal.portfolio import Portfolio
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.schemas import TransactionType, AccountType, Percent, Money
 from pp_terminal.commands.simulate_vorabpauschale import calculate
-from pp_terminal.pp_portfolio_builder import CachedPpPortfolioBuilder
+from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
 
 
 @pytest.fixture(name='sample_securities')
@@ -150,7 +150,7 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
 
 
 def test_kommer_2021(request: TopRequest) -> None:
-    portfolio = CachedPpPortfolioBuilder(use_cache=False).construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+    portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
 
@@ -182,7 +182,7 @@ def test_kommer_2023(request: TopRequest) -> None:
             "exemption-rate": "2baac2d0-459b-4b41-a0ef-d7dad0866892"
         }
     }
-    portfolio = CachedPpPortfolioBuilder(config=config, use_cache=False).construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+    portfolio = PpPortfolioBuilder(config=config).construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2023, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2023, 12, 31))
 
@@ -210,7 +210,7 @@ def test_kommer_2023(request: TopRequest) -> None:
 
 
 def test_empty_file(request: TopRequest) -> None:
-    portfolio = CachedPpPortfolioBuilder(use_cache=False).construct(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
+    portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))

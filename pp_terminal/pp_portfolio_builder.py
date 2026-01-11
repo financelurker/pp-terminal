@@ -51,8 +51,8 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
     _db: Ppxml2dbWrapper
     _config: Dict[str, Any]
 
-    def __init__(self, db: Ppxml2dbWrapper, config: Dict[str, Any] | None = None):
-        self._db = db
+    def __init__(self, db: Ppxml2dbWrapper | None = None, config: Dict[str, Any] | None = None):
+        self._db = db if db is not None else Ppxml2dbWrapper(dbname=DB_NAME_IN_MEMORY)
         self._config = config if config is not None else {}
 
     def construct(self, file: Path) -> Portfolio:
@@ -199,40 +199,32 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
 
 class CachedPpPortfolioBuilder:  # pylint: disable=too-few-public-methods
     _config: Dict[str, Any]
-    _use_cache: bool
 
-    def __init__(self, config: Dict[str, Any] | None = None, use_cache: bool = True):
+    def __init__(self, config: Dict[str, Any] | None = None):
         self._config = config if config is not None else {}
-        self._use_cache = use_cache
 
     def construct(self, file: Path) -> Portfolio:
-        cache_path: Path | None = None
         use_cache_file = False
 
-        # Determine cache strategy
-        if self._use_cache:
-            try:
-                cache_path = get_cache_path(file)
+        try:
+            cache_path = get_cache_path(file)
 
-                if cache_path.exists():
-                    log.debug('Using cache from "%s"', cache_path)
-                    use_cache_file = True
-                else:
-                    log.debug('Cache not found, will create at "%s"', cache_path)
+            if cache_path.exists():
+                log.debug('Using cache from "%s"', cache_path)
+                use_cache_file = True
+            else:
+                log.debug('Cache not found, will create at "%s"', cache_path)
 
-            except (OSError, IOError) as e:
-                log.warning(
-                    'Cache unavailable due to I/O error (%s), using in-memory database',
-                    str(e)
-                )
-                cache_path = None
+        except (OSError, IOError) as e:
+            log.warning(
+                'Cache unavailable due to I/O error (%s), using in-memory database',
+                str(e)
+            )
+            cache_path = None
 
         try:
-            if cache_path is not None:
-                db = Ppxml2dbWrapper(dbname=str(cache_path))
-            else:
-                log.debug('Using in-memory database')
-                db = Ppxml2dbWrapper(dbname=DB_NAME_IN_MEMORY)
+            assert cache_path is not None
+            db = Ppxml2dbWrapper(dbname=str(cache_path))
         except Exception as e:  # pylint: disable=broad-exception-caught
             log.warning(
                 'Failed to initialize cache database (%s), using in-memory database',

@@ -26,7 +26,7 @@ import pytest
 
 from pp_terminal.portfolio import Portfolio
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.pp_portfolio_builder import CachedPpPortfolioBuilder
+from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
 from pp_terminal.schemas import TransactionType, AccountType
 from pp_terminal.commands.simulate_vorabpauschale import calculate
 
@@ -248,7 +248,7 @@ def test_partial_sell_from_xml_fixture(request: TopRequest) -> None:
     - After tax (26.375%): 48.09 * 0.26375 = 12.68 EUR
     - After exemption (30% default): 12.68 * 0.70 = 8.88 EUR
     """
-    portfolio = CachedPpPortfolioBuilder(use_cache=False).construct(request.path.parent.parent / 'fixtures' / 'partial_sell.ids.xml')
+    portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'partial_sell.ids.xml')
 
     # Verify transactions are parsed correctly
     txns = portfolio.securities_account_transactions

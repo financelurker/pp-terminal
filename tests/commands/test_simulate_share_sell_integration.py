@@ -30,7 +30,7 @@ from pp_terminal.commands.simulate_share_sell import (
     _calculate_vorabpauschale_credit_for_lots
 )
 from pp_terminal.exceptions import InputError
-from pp_terminal.pp_portfolio_builder import CachedPpPortfolioBuilder
+from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
 from pp_terminal.portfolio_snapshot import PortfolioSnapshot
 
 
@@ -38,8 +38,7 @@ from pp_terminal.portfolio_snapshot import PortfolioSnapshot
 def provide_partial_sell_portfolio(request: pytest.FixtureRequest) -> Portfolio:
     """Load the partial_sell fixture with realistic buy/sell transactions."""
     fixture_path = request.path.parent.parent / 'fixtures' / 'partial_sell.ids.xml'
-    builder = CachedPpPortfolioBuilder(use_cache=False)
-    return builder.construct(fixture_path)
+    return PpPortfolioBuilder().construct(fixture_path)
 
 
 def test_partial_sell_remaining_shares(partial_sell_portfolio: Portfolio) -> None:

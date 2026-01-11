@@ -16,6 +16,7 @@
     You should have received a copy of the GNU General Public License
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
+# pylint: disable=duplicate-code
 
 from datetime import datetime
 from unittest.mock import Mock

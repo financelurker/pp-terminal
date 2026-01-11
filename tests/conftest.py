@@ -49,4 +49,4 @@ def provide_sample_transactions() -> pd.DataFrame:
             [datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
             [datetime(2018, 1, 30), TransactionType.TRANSFER_IN.value, 100000.0, 0, None, '2', AccountType.DEPOSIT.value, 'EUR', 0.0],
     ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes'])
-            .set_index(['date', 'SecurityId', 'account_id']))
+            .set_index(['date', 'account_id', 'SecurityId']))

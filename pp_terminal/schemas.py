@@ -56,7 +56,7 @@ class AccountType(Enum):
 class TransactionSchema(pa.DataFrameModel):
     date: Index[pa.DateTime]
     account_id: Index[str]
-    SecurityId: Optional[str]
+    SecurityId: Index[str] = pa.Field(nullable=True)
     Type: Series[str]  # @todo use pandera preprocessing?
     amount: Series[Money]
     Shares: Series[float]

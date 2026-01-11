@@ -66,7 +66,7 @@ def test_full_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_secur
     transactions = pd.DataFrame([
         [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 8, 1), TransactionType.SELL.value, 6000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'SecurityId', 'account_id'])
+    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'account_id', 'SecurityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -98,7 +98,7 @@ def test_partial_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_se
     transactions = pd.DataFrame([
         [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 8, 1), TransactionType.SELL.value, 3000.0, 50.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'SecurityId', 'account_id'])
+    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'account_id', 'SecurityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -127,7 +127,7 @@ def test_multiple_sells_during_year(sell_test_accounts: pd.DataFrame, sell_test_
         [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 3, 1), TransactionType.SELL.value, 1500.0, 25.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 9, 1), TransactionType.SELL.value, 1500.0, 25.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'SecurityId', 'account_id'])
+    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'account_id', 'SecurityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -172,7 +172,7 @@ def test_sell_and_rebuy_during_year(sell_test_accounts: pd.DataFrame, sell_test_
         [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 4, 1), TransactionType.SELL.value, 5500.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 8, 1), TransactionType.BUY.value, 3000.0, 50.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'SecurityId', 'account_id'])
+    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'account_id', 'SecurityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -199,7 +199,7 @@ def test_no_sells_baseline(sell_test_accounts: pd.DataFrame, sell_test_securitie
     """
     transactions = pd.DataFrame([
         [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'SecurityId', 'account_id'])
+    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'account_id', 'SecurityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))

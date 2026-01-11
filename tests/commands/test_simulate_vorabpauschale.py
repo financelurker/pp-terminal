@@ -52,7 +52,7 @@ def test_calculate_empty_if_no_securities_accounts(sample_accounts: pd.DataFrame
     transactions = (pd.DataFrame([
         [datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.SECURITIES.value, 'EUR']
     ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency'])
-                    .set_index(['date', 'SecurityId', 'account_id']))
+                    .set_index(['date', 'account_id', 'SecurityId']))
 
     # drop all rows but keep structure
     sample_accounts = sample_accounts.drop(sample_accounts.index)
@@ -130,7 +130,7 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
     transactions = pd.DataFrame([
         [datetime(2023, 12, 6), TransactionType.BUY.value, float(value_begin), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 6, 4), TransactionType.DIVIDENDS.value, float(payout), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'SecurityId', 'account_id'])
+    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'account_id', 'SecurityId'])
 
     portfolio = Portfolio(sample_accounts, transactions, sample_securities, prices)
 

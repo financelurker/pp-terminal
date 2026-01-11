@@ -1,5 +1,5 @@
 """
-    Copyright (C) 2025 Dipl.-Ing. Christoph Massmann <chris@dev-investor.de>
+    Copyright (C) 2025-26 Dipl.-Ing. Christoph Massmann <chris@dev-investor.de>
 
     This file is part of pp-terminal.
 

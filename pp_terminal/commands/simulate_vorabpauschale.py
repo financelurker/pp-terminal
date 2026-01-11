@@ -28,6 +28,7 @@ import numpy as np
 
 from ..df_filter import filter_by_type, drop_empty_values
 from ..helper import get_last_year, footer
+from ..options import tax_rate_callback
 from ..output import OutputStrategy, Console
 from ..portfolio_snapshot import PortfolioSnapshot, _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES
 from ..portfolio import Portfolio
@@ -263,7 +264,7 @@ def print_tax_table(
         ctx: typer.Context,
         year: Annotated[datetime, typer.Option(formats=["%Y"], help="The year to calculate the preliminary tax for", prompt=True, callback=set_begin, default_factory=get_last_year)],
         base_rate: Annotated[Percent, typer.Option(help="The base rate (Basiszinssatz)", min=-100, max=100, prompt="Base Rate (%)", prompt_required=True, default_factory=get_base_rate_percent_by_year)],
-        tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, prompt="Tax Rate (%)", prompt_required=True)] = 0.25 * (1 + 0.055) * 100,
+        tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, callback=tax_rate_callback)] = None,  # type: ignore
         exemption_rate: Annotated[Percent, typer.Option(help="The default exemption rate (Teilfreistellung), can be overwritten for each security.", min=0, max=100, prompt="Default Exemption Rate (%)", prompt_required=True)] = 30
 ) -> None:
     """

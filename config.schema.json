@@ -19,20 +19,20 @@
       "type": "object",
       "properties": {
         "rate": {
-          "description": "Tax rate (e.g., 0.26375 for 26.375%)",
+          "description": "Tax rate as percentage (e.g., 26.375 for 26.375%)",
           "type": "number",
           "minimum": 0,
-          "maximum": 1
+          "maximum": 100
         },
         "file": {
           "description": "Path to tax calculation file",
           "type": "string"
         },
         "exemption-rate": {
-          "description": "Tax exemption rate",
+          "description": "Tax exemption rate as percentage (e.g., 30 for 30%)",
           "type": "number",
           "minimum": 0,
-          "maximum": 1
+          "maximum": 100
         }
       },
       "additionalProperties": false

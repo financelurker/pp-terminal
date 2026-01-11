@@ -27,9 +27,9 @@ from rich import print # pylint: disable=redefined-builtin
 from rich.logging import RichHandler
 import typer
 from typing_extensions import Annotated
-from typer_config import conf_callback_factory, use_config
+from typer_config import use_config
 
-from .config import validated_json_loader
+from .config import validated_config_callback, get_config
 from .exceptions import InputError
 from .helper import set_precision
 from .output import create_strategy, OutputFormat
@@ -59,9 +59,6 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-validated_config_callback = conf_callback_factory(validated_json_loader)
-
-
 @app.callback(
     invoke_without_command=True,
     epilog="Small insights today, bigger returns tomorrow.",
@@ -70,8 +67,8 @@ validated_config_callback = conf_callback_factory(validated_json_loader)
 @use_config(validated_config_callback)
 def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         ctx: typer.Context,
-        file: Annotated[Optional[Path], typer.Option(help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)] = None,
-        format: Optional[OutputFormat] = None,  # pylint: disable=redefined-builtin
+        file: Annotated[Path, typer.Option(help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)],
+        format: OutputFormat = OutputFormat.TABLE,  # pylint: disable=redefined-builtin
         precision: int = 4,
         version: Annotated[  # pylint: disable=unused-argument
             Optional[bool],
@@ -86,15 +83,10 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     set_precision(precision)
 
     try:
-        if file is None:
-            raise InputError("Portfolio Performance XML file must be provided via --file option or config file")
-
-        if format is None:
-            format = OutputFormat.TABLE  # pylint: disable=redefined-builtin
-
         ctx.obj = SimpleNamespace(
             portfolio=PpPortfolioBuilder(cache_file=_DB_FILE if debug else None).construct(file),
-            output=create_strategy(format))
+            output=create_strategy(format),
+            config=get_config())
 
     except (RuntimeError, InputError) as e:
         if debug:

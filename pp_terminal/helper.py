@@ -96,5 +96,6 @@ def run_all_group_cmds(app: typer.Typer) -> Callable[[CommandFunctionType], Call
 def get_last_year() -> str:
     return str(date.today().year - 1)
 
+
 def footer() -> str:
     return 'All results are non-binding and provided without any guarantee. Actual values may differ.'

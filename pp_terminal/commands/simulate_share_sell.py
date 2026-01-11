@@ -29,6 +29,7 @@ from typing_extensions import Annotated
 from ..df_filter import filter_by_type
 from ..exceptions import InputError
 from ..helper import format_money, footer
+from ..options import tax_rate_callback
 from ..output import OutputStrategy, Console
 from ..portfolio_snapshot import PortfolioSnapshot
 from ..portfolio import Portfolio
@@ -230,7 +231,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         wkn: Annotated[str, typer.Option(help="Security WKN (Wertpapierkennnummer)", prompt="Security WKN", prompt_required=True)],
         account_id: Annotated[str, typer.Option(help="Securities account ID", prompt="Account ID", prompt_required=True)],
         date: Annotated[datetime | None, typer.Option(formats=["%Y-%m-%d"], help="Sale date (defaults to today)", prompt="Sale date (YYYY-MM-DD)", prompt_required=False)] = None,
-        tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, prompt="Tax Rate (%)", prompt_required=True)] = 0.25 * (1 + 0.055) * 100,
+        tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, callback=tax_rate_callback)] = None,  # type: ignore
         shares: Annotated[float | None, typer.Option(help="Number of shares to sell (defaults to all available shares)", min=0.0001)] = None,
         price: Annotated[Money | None, typer.Option(help="Sale price per share (defaults to latest market price)")] = None,
         tax_csv: Annotated[Path | None, typer.Option(help="CSV file with Vorabpauschale tax per share data")] = None

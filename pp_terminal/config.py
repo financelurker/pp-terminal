@@ -23,9 +23,13 @@ from pathlib import Path
 from typing import Any, Dict, cast
 
 from jsonschema import Draft7Validator, ValidationError as JsonSchemaValidationError
+from typer_config import conf_callback_factory
 from typer_config.loaders import json_loader
 
 log = logging.getLogger(__name__)
+
+# Global storage for the loaded config
+_loaded_config: Dict[str, Any] = {}
 
 
 def _load_schema() -> dict[str, Any]:
@@ -49,6 +53,11 @@ def validated_json_loader(config_path: str) -> Dict[str, Any]:
     Raises:
         JsonSchemaValidationError: If config fails schema validation
     """
+    global _loaded_config  # pylint: disable=global-statement
+
+    if config_path == '':
+        return _loaded_config
+
     config = json_loader(config_path)
 
     schema = _load_schema()
@@ -67,4 +76,21 @@ def validated_json_loader(config_path: str) -> Dict[str, Any]:
 
     log.debug("Loaded and validated config from file \"%s\"", config_path)
 
+    # Store config globally for access by commands
+    _loaded_config = config
+
     return config
+
+
+def get_config() -> Dict[str, Any]:
+    """
+    Get the currently loaded configuration.
+
+    Returns:
+        The loaded configuration dictionary, or empty dict if no config was loaded.
+    """
+    return _loaded_config
+
+
+# Create the config callback for use with @use_config decorator
+validated_config_callback = conf_callback_factory(validated_json_loader)

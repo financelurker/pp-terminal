@@ -215,15 +215,6 @@ class CachedPpPortfolioBuilder:  # pylint: disable=too-few-public-methods
             else:
                 log.debug('Cache not found, will create at "%s"', cache_path)
 
-        except (OSError, IOError) as e:
-            log.warning(
-                'Cache unavailable due to I/O error (%s), using in-memory database',
-                str(e)
-            )
-            cache_path = None
-
-        try:
-            assert cache_path is not None
             db = Ppxml2dbWrapper(dbname=str(cache_path))
         except Exception as e:  # pylint: disable=broad-exception-caught
             log.warning(

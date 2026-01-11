@@ -41,7 +41,7 @@
       "description": "Mapping of Portfolio Performance attributes",
       "type": "object",
       "properties": {
-        "exemption_rate": {
+        "exemption-rate": {
           "description": "UUID of the exemption rate attribute",
           "type": "string"
         }

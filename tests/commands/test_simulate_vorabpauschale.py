@@ -177,7 +177,12 @@ def test_kommer_2021(request: TopRequest) -> None:
 
 
 def test_kommer_2023(request: TopRequest) -> None:
-    portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+    config = {
+        "attributes": {
+            "exemption-rate": "2baac2d0-459b-4b41-a0ef-d7dad0866892"
+        }
+    }
+    portfolio = PpPortfolioBuilder(config).construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2023, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2023, 12, 31))
 

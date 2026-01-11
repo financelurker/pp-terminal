@@ -84,7 +84,7 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
     try:
         ctx.obj = SimpleNamespace(
-            portfolio=PpPortfolioBuilder(cache_file=_DB_FILE if debug else None).construct(file),
+            portfolio=PpPortfolioBuilder(config=get_config(), cache_file=_DB_FILE if debug else None).construct(file),
             output=create_strategy(format),
             config=get_config())
 

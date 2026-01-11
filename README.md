@@ -67,6 +67,24 @@ pp-terminal list accounts
 
 To view all available arguments you can always use the `--help` option.
 
+### Configuration File
+To persist the CLI options you can pass a configuration file with `pp-terminal --config=config.json --help`:
+```json
+{
+  "file": "portfolio_performance.xml",
+  "precision": 4,
+  "tax": {
+    "rate": 26.375,
+    "file": "vorabpauschale.csv",
+    "exemption-rate": 30
+  },
+  "attributes": {
+    "exemption-rate": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"
+  }
+}
+
+```
+
 ### Customize Number Formats
 If you want another formatting for numbers, assure that the terminal has the correct language settings, e.g. for Germany 
 set environment variable `LANG=de_DE.UTF-8`.

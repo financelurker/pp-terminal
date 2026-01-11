@@ -274,7 +274,7 @@ def print_tax_table(
     portfolio = ctx.obj.portfolio  # type: Portfolio
     output = ctx.obj.output  # type: OutputStrategy
 
-    console.print(output.hint('You can define the exemption rate for each security individually by creating a custom security attribute with a name like "Teilfreistellung" of type "Percent Number" in Portfolio Performance.'))
+    console.print(output.hint('You can define the exemption rate per each security individually by creating a custom security attribute of type "Percent Number" in Portfolio Performance and add it to pp-terminal configuration file.'))
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(year.year, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(year.year, 12, 31))

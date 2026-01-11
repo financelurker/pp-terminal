@@ -20,7 +20,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import cast
+from typing import Any, Dict, cast
 
 import numpy as np
 import pandas as pd
@@ -35,7 +35,6 @@ log = logging.getLogger(__name__)
 
 _SCALE = 100000000
 _CENTS_PER_EURO = 100
-_ATTRIBUTE_EXEMPT_LABEL = 'Teilfreistellung'
 _EXEMPT_RATE_MIN = 0.00
 _EXEMPT_RATE_MAX = 1.0
 _NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES = [
@@ -50,13 +49,15 @@ _NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES = [
 
 class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
     _db: Ppxml2dbWrapper
+    _config: Dict[str, Any]
 
-    def __init__(self, cache_file: str | None = None):
+    def __init__(self, config: Dict[str, Any] | None = None, cache_file: str | None = None):
         if cache_file is not None and os.path.exists(cache_file):
             log.debug('erasing old database "%s"', cache_file)
             os.remove(cache_file)
 
         self._db = Ppxml2dbWrapper(dbname=cache_file if cache_file is not None else DB_NAME_IN_MEMORY)
+        self._config = config if config is not None else {}
 
     def construct(self, file: Path) -> Portfolio:
         self._db.open(file)
@@ -75,15 +76,24 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
         return portfolio
 
     def _parse_securities(self) -> DataFrame[SecuritySchema]:
+        exempt_attr_uuid = self._config.get('attributes', {}).get('exemption-rate')
+
+        if exempt_attr_uuid:
+            # Use UUID-based query, verify UUID exists
+            cursor = self._db.connection.cursor()
+            cursor.execute('SELECT id FROM attribute_type WHERE id = ?', (exempt_attr_uuid,))
+            if cursor.fetchone() is None:
+                raise RuntimeError(f"Configured exemption-rate attribute UUID '{exempt_attr_uuid}' not found in Portfolio Performance database")
+
         securities = (pd.read_sql_query("""
 select s.*,
-       MAX(CASE WHEN at.name like ? THEN sa.value END) AS exempt_rate,
-       MAX(CASE WHEN at.name like ? THEN at.converterClass END) AS exempt_rate_converter
+   MAX(CASE WHEN at.id = ? THEN sa.value END) AS exempt_rate,
+   MAX(CASE WHEN at.id = ? THEN at.converterClass END) AS exempt_rate_converter
 from security as s
 left join security_attr as sa on sa."security" = s.uuid
 left join attribute_type as at on sa.attr_uuid = at.id
 group by s.uuid
-        """, self._db.connection, index_col=['uuid'], params=[f"%{_ATTRIBUTE_EXEMPT_LABEL}%", f"%{_ATTRIBUTE_EXEMPT_LABEL}%"])
+        """, self._db.connection, index_col=['uuid'], params=[exempt_attr_uuid, exempt_attr_uuid])
                       .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
 
         # Normalize and validate exempt_rate

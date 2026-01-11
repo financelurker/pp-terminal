@@ -74,7 +74,13 @@ class Ppxml2dbWrapper:
         return self._connection
 
     def _install(self) -> None:
-        self._create_tables(os.listdir(self._setup_scripts_path))
+        # Check if tables already exist (for cached databases)
+        try:
+            self._validate()
+            log.debug('Database tables already exist, skipping initialization scripts')
+        except Exception:  # pylint: disable=broad-exception-caught
+            # Tables don't exist, create them
+            self._create_tables(os.listdir(self._setup_scripts_path))
 
     def _create_tables(self, setup_scripts: list[str]) -> None:
         for filename in setup_scripts:

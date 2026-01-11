@@ -50,8 +50,6 @@ locale.setlocale(category=locale.LC_ALL, locale='')
 # Load external plugins dynamically
 load_command_plugins(app)
 
-_DB_FILE = '.cache.db'
-
 
 def version_callback(value: bool) -> None:
     if value:
@@ -70,6 +68,7 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         file: Annotated[Path, typer.Option(help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)],
         format: OutputFormat = OutputFormat.TABLE,  # pylint: disable=redefined-builtin
         precision: int = 4,
+        no_cache: Annotated[bool, typer.Option(help='Disable SQLite cache, use in-memory database')] = False,
         version: Annotated[  # pylint: disable=unused-argument
             Optional[bool],
             typer.Option("--version", callback=version_callback, is_eager=True),  # declared the option name to avoid --no-version
@@ -84,7 +83,7 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
     try:
         ctx.obj = SimpleNamespace(
-            portfolio=PpPortfolioBuilder(config=get_config(), cache_file=_DB_FILE if debug else None).construct(file),
+            portfolio=PpPortfolioBuilder(config=get_config(), use_cache=not no_cache).construct(file),
             output=create_strategy(format),
             config=get_config())
 

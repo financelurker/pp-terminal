@@ -8,4 +8,4 @@ build/
 *.egg-info/
 tests/.coverage
 tests/coverage.xml
-.cache.db
+.*.pp-terminal.db

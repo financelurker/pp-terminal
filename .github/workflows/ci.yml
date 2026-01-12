@@ -12,14 +12,12 @@ on:
       - created
   workflow_dispatch:
 
-permissions:
-  id-token: write  # Required for trusted publishing
-  contents: read
-
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         python-version: [ "3.13" ]
@@ -55,6 +53,8 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
+    permissions:
+      contents: read
 
     steps:
     - uses: actions/checkout@v6

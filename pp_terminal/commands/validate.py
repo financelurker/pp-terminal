@@ -18,7 +18,7 @@
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import wraps
 from typing import Callable, Any
 
@@ -26,12 +26,12 @@ import pandas as pd
 import typer
 from typer.models import CommandFunctionType
 
-from ..df_filter import filter_earlier_than, filter_not_retired
+from ..df_filter import filter_not_retired
 from ..exceptions import ValidationError
 from ..helper import run_all_group_cmds
 from ..output import Console
-from ..portfolio import Portfolio
 from ..portfolio_snapshot import PortfolioSnapshot
+from .validation_rules import create_rule, get_applicable_rule
 
 app = typer.Typer()
 console = Console()
@@ -39,7 +39,6 @@ log = logging.getLogger(__name__)
 
 validate_app = typer.Typer()
 app.add_typer(validate_app, name="validate", help='Run a number of different validation checks on the portfolio data')
-
 
 exit_code = 0  # pylint: disable=invalid-name
 
@@ -65,44 +64,69 @@ def catch_errors(func: CommandFunctionType) -> Callable[..., CommandFunctionType
 
 @validate_app.command(name="security-prices")
 @catch_errors
-def validate_security_prices_uptodate(ctx: typer.Context, warning_after_days: int = 30, error_after_days: int = 90) -> None:
-    """
-    Validate the timeliness of the security prices
-    """
+def validate_security_prices(ctx: typer.Context) -> None:
+    """Validate the timeliness of security prices."""
+    portfolio = ctx.obj.portfolio
+    config = ctx.obj.config
 
-    portfolio = ctx.obj.portfolio  # type: Portfolio
+    rules_config = config.get('validation', {}).get('securities', {}).get('rules', [])
+
+    if not rules_config:
+        log.debug('No security validation rules configured')
+        return
+
+    if portfolio.securities is None or portfolio.securities.empty:
+        log.debug('No securities found in portfolio')
+        return
+
+    rules = [create_rule(rule_config) for rule_config in rules_config]
 
     latest_prices = portfolio.prices.groupby(['SecurityId']).tail(1)
 
-    warning_cutoff_date = datetime.now() - timedelta(days=warning_after_days)
-    error_cutoff_date = datetime.now() - timedelta(days=error_after_days)
+    securities_with_prices = pd.merge(
+        portfolio.securities,
+        latest_prices.reset_index()[['SecurityId', 'date', 'Price']],
+        left_index=True,
+        right_on='SecurityId',
+        how='left'
+    ).set_index('SecurityId')
 
-    latest_prices = pd.merge(latest_prices, portfolio.securities, left_on='SecurityId', right_index=True, how='left')
-    latest_prices = latest_prices.pipe(filter_earlier_than, target_date=warning_cutoff_date).pipe(filter_not_retired)
-    latest_prices = latest_prices.reset_index()[['Wkn', 'Name', 'date']].to_dict(orient='records')
+    securities_with_prices = securities_with_prices.pipe(filter_not_retired)
+
+    if securities_with_prices.empty:
+        log.debug('No non-retired securities found')
+        return
 
     has_errors = False
-    for latest_price in latest_prices:
-        log_level = logging.WARNING
-        if latest_price['date'] < error_cutoff_date:
-            log_level = logging.ERROR
+    for security_id, security in securities_with_prices.iterrows():
+        rule = get_applicable_rule(security_id, security, rules)
+        if rule is None:
+            continue
+
+        context = {
+            'latest_price_date': security.get('date') if pd.notna(security.get('date')) else None,
+            'current_price': security.get('Price') if pd.notna(security.get('Price')) else None,
+            'portfolio': portfolio,
+        }
+
+        if rule.validate(security, security_id, context):
             has_errors = True
 
-        log.log(log_level, 'Latest price for security "%s" is from %s', latest_price['Name'], latest_price['date'])
-
     if has_errors:
-        raise ValidationError
+        raise ValidationError()
 
 
 @validate_app.command(name="accounts")
 @catch_errors
 def validate_accounts(ctx: typer.Context) -> None:
-    portfolio = ctx.obj.portfolio  # type: Portfolio
+    """Validate deposit accounts using configured validation rules."""
+    portfolio = ctx.obj.portfolio
     config = ctx.obj.config
 
-    account_limits = config.get('limits', {}).get('accounts', {})
-    if not account_limits:
-        log.debug('No account limits configured in config, skipping validation')
+    rules_config = config.get('validation', {}).get('accounts', {}).get('rules', [])
+
+    if not rules_config:
+        log.debug('No account validation rules configured')
         return
 
     snapshot = PortfolioSnapshot(portfolio, datetime.now())
@@ -114,11 +138,11 @@ def validate_accounts(ctx: typer.Context) -> None:
         log.debug('No deposit accounts found in portfolio')
         return
 
-    # Note: currency is the same per account
+    rules = [create_rule(rule_config) for rule_config in rules_config]
+
     total_balances = snapshot.balances.groupby('account_id').sum()
     total_balances.name = 'TotalBalance'
 
-    # Merge with account metadata
     accounts_with_balances = pd.merge(
         portfolio.deposit_accounts,
         total_balances,
@@ -127,38 +151,29 @@ def validate_accounts(ctx: typer.Context) -> None:
         how='right'
     )
 
-    # Filter to non-retired accounts
     accounts_with_balances = accounts_with_balances.pipe(filter_not_retired)
 
     if accounts_with_balances.empty:
         log.debug('No non-retired accounts found')
         return
 
-    # Extract default limit if configured
-    default_limit = account_limits.get('default')
-
-    # Validate each account
     has_errors = False
-    for account_id, row in accounts_with_balances.iterrows():
-        # Check for account-specific limit first, then fall back to default
-        limit = account_limits.get(account_id, default_limit)
-
-        # Skip accounts without any limit
-        if limit is None:
+    for account_id, account in accounts_with_balances.iterrows():
+        rule = get_applicable_rule(account_id, account, rules)
+        if rule is None:
             continue
 
-        balance = row['TotalBalance']
-        account_name = row['Name']
+        context = {
+            'balance': account['TotalBalance'],
+            'portfolio': portfolio,
+            'snapshot': snapshot,
+        }
 
-        if balance > limit:
-            log.error(
-                'Account "%s" balance %.2f exceeds limit %.2f',
-                account_name, balance, limit
-            )
+        if rule.validate(account, account_id, context):
             has_errors = True
 
     if has_errors:
-        raise ValidationError
+        raise ValidationError()
 
 
 @validate_app.callback(invoke_without_command=True)

@@ -44,6 +44,10 @@
         "exemption-rate": {
           "description": "UUID of the exemption rate attribute",
           "type": "string"
+        },
+        "account-limit": {
+          "description": "UUID of the account limit attribute",
+          "type": "string"
         }
       },
       "additionalProperties": false
@@ -78,7 +82,110 @@
         }
       },
       "additionalProperties": false
+    },
+    "validation": {
+      "description": "Validation rules for portfolio data",
+      "type": "object",
+      "properties": {
+        "accounts": {
+          "description": "Validation rules for deposit accounts",
+          "type": "object",
+          "properties": {
+            "rules": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/accountRule"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "securities": {
+          "description": "Validation rules for securities",
+          "type": "object",
+          "properties": {
+            "rules": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/securityRule"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "severity": {
+      "type": "string",
+      "enum": ["warning", "error"],
+      "default": "error"
+    },
+    "appliesTo": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "accountRule": {
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["balance-limit", "balance-limit-from-attribute", "date-passed"]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "severity": {
+          "$ref": "#/$defs/severity"
+        },
+        "applies-to": {
+          "$ref": "#/$defs/appliesTo"
+        }
+      },
+      "additionalProperties": false
+    },
+    "securityRule": {
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["price-staleness", "price-limit", "price-limit-from-attribute"]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "severity": {
+          "$ref": "#/$defs/severity"
+        },
+        "applies-to": {
+          "$ref": "#/$defs/appliesTo"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 }

@@ -15,14 +15,16 @@ too many edge-cases, etc.
 
 By default, `pp-terminal` provides the following commands:
 
-| Command                   | Description                                                                                        |
-|---------------------------|----------------------------------------------------------------------------------------------------|
-| `list accounts`           | Get detailed information about the balances per each deposit and/or securities account             |
-| `list securities`         | Get detailed information about the securities                                                      |
-| `simulate interest`       | Calculate how much interest you should have been earned per account and compare with actual values |
-| `simulate share-sell`     | Calculate the taxes if a security from a certain account would be sold                             |
-| `simulate vorabpauschale` | Run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
-| `validate`                | Run a number of different validation checks on the portfolio data, e.g. security prices up-to-date |
+| Command                    | Description                                                                                        |
+|----------------------------|----------------------------------------------------------------------------------------------------|
+| `list accounts`            | Get detailed information about the balances per each deposit and/or securities account             |
+| `list securities`          | Get detailed information about the securities                                                      |
+| `simulate interest`        | Calculate how much interest you should have been earned per account and compare with actual values |
+| `simulate share-sell`      | Calculate the taxes if a security from a certain account would be sold                             |
+| `simulate vorabpauschale`  | Run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
+| `validate`                 | Run a number of different validation checks on the portfolio data                                  |
+| `validate security-prices` | Verify the timeliness of security prices                                                           |
+| `validate accounts`        | Validate deposit accounts using configured validation rules.                                       |
 
 Code completion for commands and options is available.  
 You can choose between different output formats like JSON or CSV with the `--format` option.
@@ -81,9 +83,32 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
   "attributes": {
     "exemption-rate": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"
   },
-  "limits": {
+  "validation": {
     "accounts": {
-      "c9c57e01-7ea0-4e70-bed9-4656941f7687": 10000
+      "rules": [
+        {
+          "type": "balance-limit",
+          "value": 100000,
+          "applies-to": ["c9c57e01-7ea0-4e70-bed9-4656941f7687"]
+        },
+        {
+          "type": "balance-limit",
+          "value": 25000
+        }
+      ]
+    },
+    "securities": {
+      "rules": [
+        {
+          "type": "price-staleness",
+          "severity": "warning",
+          "value": 30
+        },
+        {
+          "type": "price-staleness",
+          "value": 90
+        }
+      ]
     }
   }
 }

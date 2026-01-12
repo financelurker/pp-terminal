@@ -181,8 +181,31 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
         return cast(DataFrame[TransactionSchema], transactions)
 
     def _parse_accounts(self) -> DataFrame[AccountSchema]:
-        accounts = (pd.read_sql_query('select * from account', self._db.connection, index_col='uuid')
-                          .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
+        account_limit_attr_uuid = self._config.get('attributes', {}).get('account-limit')
+
+        if account_limit_attr_uuid:
+            # Use UUID-based query with account attributes, verify UUID exists
+            cursor = self._db.connection.cursor()
+            cursor.execute('SELECT id FROM attribute_type WHERE id = ?', (account_limit_attr_uuid,))
+            if cursor.fetchone() is None:
+                raise RuntimeError(f"Configured account-limit attribute UUID '{account_limit_attr_uuid}' not found in Portfolio Performance database")
+
+            accounts = (pd.read_sql_query("""
+                select a.*,
+                   MAX(CASE WHEN at.id = ? THEN aa.value END) AS account_limit
+                from account as a
+                left join account_attr as aa on aa."account" = a.uuid
+                left join attribute_type as at on aa.attr_uuid = at.id
+                group by a.uuid
+            """, self._db.connection, index_col='uuid', params=[account_limit_attr_uuid])
+                              .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
+
+            # Convert account_limit to numeric
+            if 'account_limit' in accounts.columns:
+                accounts['account_limit'] = pd.to_numeric(accounts['account_limit'], errors='coerce')
+        else:
+            accounts = (pd.read_sql_query('select * from account', self._db.connection, index_col='uuid')
+                              .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
 
         return cast(DataFrame[AccountSchema], accounts)
 

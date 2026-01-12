@@ -127,20 +127,26 @@ def validate_accounts(ctx: typer.Context) -> None:
         how='right'
     )
 
-    # Filter to non-retired accounts with configured limits
+    # Filter to non-retired accounts
     accounts_with_balances = accounts_with_balances.pipe(filter_not_retired)
-    accounts_to_validate = accounts_with_balances[
-        accounts_with_balances.index.isin(account_limits.keys())
-    ]
 
-    if accounts_to_validate.empty:
-        log.debug('No non-retired accounts with configured limits found')
+    if accounts_with_balances.empty:
+        log.debug('No non-retired accounts found')
         return
+
+    # Extract default limit if configured
+    default_limit = account_limits.get('default')
 
     # Validate each account
     has_errors = False
-    for account_id, row in accounts_to_validate.iterrows():
-        limit = account_limits[account_id]
+    for account_id, row in accounts_with_balances.iterrows():
+        # Check for account-specific limit first, then fall back to default
+        limit = account_limits.get(account_id, default_limit)
+
+        # Skip accounts without any limit
+        if limit is None:
+            continue
+
         balance = row['TotalBalance']
         account_name = row['Name']
 

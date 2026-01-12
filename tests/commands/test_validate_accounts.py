@@ -260,3 +260,93 @@ def test_multiple_accounts_mixed_status(sample_portfolio_with_limits: Portfolio)
         validate_accounts(ctx)
 
     assert exc_info.value.exit_code == 1
+
+
+def test_default_limit_only(sample_portfolio_with_limits: Portfolio) -> None:
+    """Test that default limit applies to all accounts."""
+    ctx = Mock()
+    ctx.invoked_subcommand = None
+    ctx.obj = SimpleNamespace(
+        portfolio=sample_portfolio_with_limits,
+        config={'limits': {'accounts': {
+            'default': 1000.0  # Balance: account-1=1050, account-2=850, account-3=800
+        }}}
+    )
+
+    # Should raise error because account-1 (1050) exceeds default limit (1000)
+    with pytest.raises(typer.Exit) as exc_info:
+        validate_accounts(ctx)
+
+    assert exc_info.value.exit_code == 1
+
+
+def test_default_limit_with_specific_override(sample_portfolio_with_limits: Portfolio) -> None:
+    """Test that specific limits override the default limit."""
+    ctx = Mock()
+    ctx.invoked_subcommand = None
+    ctx.obj = SimpleNamespace(
+        portfolio=sample_portfolio_with_limits,
+        config={'limits': {'accounts': {
+            'default': 800.0,      # Would fail account-2 (850) and account-1 (1050)
+            'account-2': 900.0,    # Override: account-2 should pass (850 < 900)
+        }}}
+    )
+
+    # Should raise error because account-1 (1050) and account-3 (800) exceed default limit (800)
+    # account-2 passes because specific limit (900) > balance (850)
+    with pytest.raises(typer.Exit) as exc_info:
+        validate_accounts(ctx)
+
+    assert exc_info.value.exit_code == 1
+
+
+def test_default_limit_all_pass(sample_portfolio_with_limits: Portfolio) -> None:
+    """Test that all accounts pass when default limit is high enough."""
+    ctx = Mock()
+    ctx.invoked_subcommand = None
+    ctx.obj = SimpleNamespace(
+        portfolio=sample_portfolio_with_limits,
+        config={'limits': {'accounts': {
+            'default': 2000.0  # All balances below this
+        }}}
+    )
+
+    # Should complete successfully - all accounts within limit
+    validate_accounts(ctx)
+
+
+def test_default_limit_with_no_specific_limits(sample_portfolio_with_limits: Portfolio) -> None:
+    """Test default limit applies when no specific limits are configured."""
+    ctx = Mock()
+    ctx.invoked_subcommand = None
+    ctx.obj = SimpleNamespace(
+        portfolio=sample_portfolio_with_limits,
+        config={'limits': {'accounts': {
+            'default': 825.0  # Will fail account-2 (850) and account-1 (1050)
+        }}}
+    )
+
+    # Should raise error
+    with pytest.raises(typer.Exit) as exc_info:
+        validate_accounts(ctx)
+
+    assert exc_info.value.exit_code == 1
+
+
+def test_mixed_default_and_specific_limits(sample_portfolio_with_limits: Portfolio) -> None:
+    """Test combination of default limit and multiple specific limits."""
+    ctx = Mock()
+    ctx.invoked_subcommand = None
+    ctx.obj = SimpleNamespace(
+        portfolio=sample_portfolio_with_limits,
+        config={'limits': {'accounts': {
+            'default': 1000.0,     # Applies to account-2 (850) and account-3 (800)
+            'account-1': 1100.0,   # Specific override for account-1 (1050)
+        }}}
+    )
+
+    # All accounts should pass:
+    # - account-1: 1050 <= 1100 (specific)
+    # - account-2: 850 <= 1000 (default)
+    # - account-3: 800 <= 1000 (default)
+    validate_accounts(ctx)

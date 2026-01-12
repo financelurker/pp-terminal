@@ -80,6 +80,11 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
   },
   "attributes": {
     "exemption-rate": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"
+  },
+  "limits": {
+    "accounts": {
+      "c9c57e01-7ea0-4e70-bed9-4656941f7687": 10000
+    }
   }
 }
 

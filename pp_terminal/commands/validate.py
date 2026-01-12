@@ -31,6 +31,7 @@ from ..exceptions import ValidationError
 from ..helper import run_all_group_cmds
 from ..output import Console
 from ..portfolio import Portfolio
+from ..portfolio_snapshot import PortfolioSnapshot
 
 app = typer.Typer()
 console = Console()
@@ -88,6 +89,67 @@ def validate_security_prices_uptodate(ctx: typer.Context, warning_after_days: in
             has_errors = True
 
         log.log(log_level, 'Latest price for security "%s" is from %s', latest_price['Name'], latest_price['date'])
+
+    if has_errors:
+        raise ValidationError
+
+
+@validate_app.command(name="accounts")
+@catch_errors
+def validate_accounts(ctx: typer.Context) -> None:
+    portfolio = ctx.obj.portfolio  # type: Portfolio
+    config = ctx.obj.config
+
+    account_limits = config.get('limits', {}).get('accounts', {})
+    if not account_limits:
+        log.debug('No account limits configured in config, skipping validation')
+        return
+
+    snapshot = PortfolioSnapshot(portfolio, datetime.now())
+    if snapshot.balances is None or snapshot.balances.empty:
+        log.debug('No deposit account balances found')
+        return
+
+    if portfolio.deposit_accounts is None:
+        log.debug('No deposit accounts found in portfolio')
+        return
+
+    # Note: currency is the same per account
+    total_balances = snapshot.balances.groupby('account_id').sum()
+    total_balances.name = 'TotalBalance'
+
+    # Merge with account metadata
+    accounts_with_balances = pd.merge(
+        portfolio.deposit_accounts,
+        total_balances,
+        left_index=True,
+        right_index=True,
+        how='right'
+    )
+
+    # Filter to non-retired accounts with configured limits
+    accounts_with_balances = accounts_with_balances.pipe(filter_not_retired)
+    accounts_to_validate = accounts_with_balances[
+        accounts_with_balances.index.isin(account_limits.keys())
+    ]
+
+    if accounts_to_validate.empty:
+        log.debug('No non-retired accounts with configured limits found')
+        return
+
+    # Validate each account
+    has_errors = False
+    for account_id, row in accounts_to_validate.iterrows():
+        limit = account_limits[account_id]
+        balance = row['TotalBalance']
+        account_name = row['Name']
+
+        if balance > limit:
+            log.error(
+                'Account "%s" balance %.2f exceeds limit %.2f',
+                account_name, balance, limit
+            )
+            has_errors = True
 
     if has_errors:
         raise ValidationError

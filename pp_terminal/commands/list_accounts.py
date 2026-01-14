@@ -38,14 +38,14 @@ log = logging.getLogger(__name__)
 
 
 def calculate_deposit_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
-    balances = (pd.merge(snapshot.portfolio.deposit_accounts, snapshot.balances, left_index=True, right_on='account_id', how="right")
+    balances = (pd.merge(snapshot.portfolio.deposit_accounts, snapshot.balances, left_index=True, right_on='account_id', how="right", validate='one_to_many')
             .sort_values(by='Balance'))
 
     return balances[balances['Balance'] >= 0.01][['Name', 'Type', 'Balance']]
 
 
 def calculate_securities_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
-    values = (pd.merge(snapshot.portfolio.securities_accounts, snapshot.values.groupby(['account_id', 'currency']).sum(), left_index=True, right_on='account_id', how="right")
+    values = (pd.merge(snapshot.portfolio.securities_accounts, snapshot.values.groupby(['account_id', 'currency']).sum(), left_index=True, right_on='account_id', how="right", validate='one_to_many')
             .sort_values(by='Balance'))
 
     return values[values['Balance'] >= 0.01][['Name', 'Type', 'Balance']]

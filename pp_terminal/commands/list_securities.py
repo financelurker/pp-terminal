@@ -58,7 +58,7 @@ def print_securities(ctx: typer.Context, by: datetime = datetime.now(), active: 
 
     if shares is not None and not shares.empty:
         shares_by_security = shares.groupby('SecurityId').sum()
-        df = df.merge(shares_by_security, left_on='SecurityId', right_index=True, how='left')
+        df = df.merge(shares_by_security, left_on='SecurityId', right_index=True, how='left', validate='one_to_one')
         df['Shares'] = df['Shares'].fillna(0.0)
     else:
         df['Shares'] = 0.0

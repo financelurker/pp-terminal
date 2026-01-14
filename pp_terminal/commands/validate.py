@@ -88,7 +88,8 @@ def validate_security_prices(ctx: typer.Context) -> None:
         latest_prices.reset_index()[['SecurityId', 'date', 'Price']],
         left_index=True,
         right_on='SecurityId',
-        how='left'
+        how='left',
+        validate='one_to_one'
     ).set_index('SecurityId')
 
     securities_with_prices = securities_with_prices.pipe(filter_not_retired)
@@ -148,7 +149,8 @@ def validate_accounts(ctx: typer.Context) -> None:
         total_balances,
         left_index=True,
         right_index=True,
-        how='right'
+        how='right',
+        validate='one_to_one'
     )
 
     accounts_with_balances = accounts_with_balances.pipe(filter_not_retired)

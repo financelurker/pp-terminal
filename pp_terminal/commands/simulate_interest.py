@@ -66,7 +66,7 @@ def calculate_interest(snapshot_begin: PortfolioSnapshot, snapshot_end: Portfoli
     interest_transactions['amount'] = interest_transactions['amount'] + interest_transactions['taxes']
     df['actual_interest'] = interest_transactions.groupby(['account_id', 'currency'])['amount'].sum().fillna(0)
 
-    interest_per_account = (pd.merge(snapshot_end.portfolio.deposit_accounts, df, left_index=True, right_on='account_id', how="right")
+    interest_per_account = (pd.merge(snapshot_end.portfolio.deposit_accounts, df, left_index=True, right_on='account_id', how="right", validate='one_to_one')
                 .sort_values(by='interest'))
 
     return interest_per_account[interest_per_account['interest'] > 0][['Name', 'currency', 'mean_balance', 'interest', 'actual_interest']]

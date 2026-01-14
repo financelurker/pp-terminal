@@ -43,7 +43,7 @@ class Ppxml2dbWrapper:
         self._setup_scripts_path = os.path.dirname(dbhelper.__file__) + '/'
 
         try:
-            dbhelper.init(dbname)  # type: ignore
+            dbhelper.init('sqlite', dbname)  # type: ignore
             if dbhelper.db is None:
                 raise RuntimeError('could not establish database connection')
 

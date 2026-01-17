@@ -262,8 +262,10 @@ def get_base_rate_percent_by_year() -> Percent | None:  # this has to be adapted
             rate = 2.29
         case 2025:
             rate = 2.53
+        case 2026:
+            rate = 3.2
         case _:
-            rate = 2.53
+            rate = 3.2
 
     return rate
 

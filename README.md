@@ -7,7 +7,7 @@ and the convenient access of [ppxml2db](https://github.com/pfalcon/ppxml2db) to 
 
 For example, _pp-terminal_ includes a command to calculate the preliminary tax values ("Vorabpauschale") for Germany:
 
-![Vorabpauschale command in pp-terminal](sample_vorabpauschale.png)
+![Vorabpauschale command in pp-terminal](docs/sample_vorabpauschale.png)
 
 _pp-terminal_ is a lightweight tool for all the nice-to-have features that won't make it into the official Portfolio Performance app.
 This can be because of country-dependant tax rules, complex Java implementation, highly individual requirements, 

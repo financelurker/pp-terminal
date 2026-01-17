@@ -21,9 +21,11 @@ import sqlite3
 import os
 import logging
 from pathlib import Path
+from types import SimpleNamespace
 
 from ppxml2db.ppxml2db import PortfolioPerformanceXML2DB
 from ppxml2db import dbhelper
+from ppxml2db import ppxml2db_init
 
 from .exceptions import InputError
 
@@ -36,11 +38,11 @@ DB_NAME_IN_MEMORY = ':memory:'
 
 class Ppxml2dbWrapper:
     _connection: sqlite3.Connection
-    _setup_scripts_path: str
+    _schema_path: str
     _cursor: sqlite3.Cursor
 
     def __init__(self, dbname: str = DB_NAME_IN_MEMORY) -> None:
-        self._setup_scripts_path = os.path.dirname(dbhelper.__file__) + '/'
+        self._schema_path = os.path.dirname(dbhelper.__file__) + '/'
 
         try:
             dbhelper.init('sqlite', dbname)  # type: ignore
@@ -79,20 +81,19 @@ class Ppxml2dbWrapper:
             self._validate()
             log.debug('Database tables already exist, skipping initialization scripts')
         except Exception:  # pylint: disable=broad-exception-caught
-            # Tables don't exist, create them
-            self._create_tables(os.listdir(self._setup_scripts_path))
+            # Tables don't exist, create them using official ppxml2db schema
+            self._create_tables()
 
-    def _create_tables(self, setup_scripts: list[str]) -> None:
-        for filename in setup_scripts:
-            if filename.endswith('.sql'):
-                self._run_script(filename)
-
-    def _run_script(self, filename: str) -> None:
-        with open(self._setup_scripts_path + filename, 'r', encoding='utf-8') as sql_file:
-            sql_script = sql_file.read()
-
-        self._cursor.executescript(sql_script)
-        log.debug('ppxml2db setup script "%s" successfully executed', filename)
+    def _create_tables(self) -> None:
+        # Use ppxml2db_init.main() to ensure schema compatibility
+        args = SimpleNamespace(dbtype='sqlite', recreate=False)
+        current_dir = os.getcwd()
+        try:
+            os.chdir(self._schema_path)
+            ppxml2db_init.main(args)  # type: ignore
+            log.debug('ppxml2db schema initialized')
+        finally:
+            os.chdir(current_dir)
 
     def _validate(self) -> None:
         self._cursor.execute("select value as client_version from property where name = 'version'")

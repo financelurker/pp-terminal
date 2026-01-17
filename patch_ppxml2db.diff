@@ -47,3 +47,18 @@ index 070418f..64f348b 100644
                          self.handle_xact(what, uuid, el, 0)
                  elif el.tag == "transactionFrom":
                      if el.get("id"):
+diff --git a/ppxml2db/ppxml2db_init.py b/ppxml2db/ppxml2db_init.py
+index 8784dc4..2e8918c 100644
+--- a/ppxml2db/ppxml2db_init.py
++++ b/ppxml2db/ppxml2db_init.py
+@@ -2,8 +2,8 @@ import sys
+ import argparse
+ import logging
+
+-from version import __version__
+-import dbhelper
++from .version import __version__
++from . import dbhelper
+
+
+ SCHEMA = [

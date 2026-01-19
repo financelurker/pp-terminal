@@ -73,10 +73,10 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             Optional[bool],
             typer.Option("--version", callback=version_callback, is_eager=True),  # declared the option name to avoid --no-version
         ] = None,
-        debug: Annotated[Optional[bool], typer.Option('--debug', help='Enable verbose debug logging')] = None,
+        verbose: Annotated[Optional[bool], typer.Option('--verbose', help='Enable verbose logging')] = None,
 ) -> None:
 
-    if debug:
+    if verbose:
         logging.basicConfig(force=True, level=logging.DEBUG, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=True, show_time=False)])
 
     set_precision(precision)
@@ -94,7 +94,7 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             config=get_config())
 
     except (RuntimeError, InputError) as e:
-        if debug:
+        if verbose:
             raise e
 
         log.critical(e)

@@ -20,7 +20,7 @@ By default, `pp-terminal` provides the following commands:
 | `list accounts`            | Get detailed information about the balances per each deposit and/or securities account             |
 | `list securities`          | Get detailed information about the securities                                                      |
 | `simulate interest`        | Calculate how much interest you should have been earned per account and compare with actual values |
-| `simulate share-sell`      | Calculate the taxes if a security from a certain account would be sold                             |
+| `simulate share-sell`      | Calculate the taxes if a security would be sold (FIFO-based capital gains calculator)              |
 | `simulate vorabpauschale`  | Run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
 | `validate`                 | Run a number of different validation checks on the portfolio data                                  |
 | `validate security-prices` | Verify the timeliness of security prices                                                           |
@@ -56,16 +56,16 @@ pipx upgrade pp-terminal
 
 ## Usage 💡
 
-The commands mentioned above all require the Portfolio Performance XML file as input.  
-The application **does not modify** the original Portfolio Performance file.  
+### Portfolio Performance XML File
+> [!TIP]
+> The application **does not modify** the original Portfolio Performance file and works completely offline.
+
+All commands require the Portfolio Performance XML file as input.    
 You can either provide that file as first option to the command
 ```
 pp-terminal --file=depot.xml list accounts
 ```
-or by setting an environment variable `PP_TERMINAL_INPUT_FILE=depot.xml` you can omit the option
-```
-pp-terminal list accounts
-```
+or use a configuration file (see below).
 
 To view all available arguments you can always use the `--help` option.
 

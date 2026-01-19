@@ -112,6 +112,8 @@ def validate_security_prices(ctx: typer.Context) -> None:
 
         if rule.validate(security, security_id, context):
             has_errors = True
+        else:
+            log.debug('Security %s (ID: %s) passed rule %s', security.get('Name', 'Unknown'), security_id, rule.__class__.__name__)
 
     if has_errors:
         raise ValidationError()
@@ -173,6 +175,8 @@ def validate_accounts(ctx: typer.Context) -> None:
 
         if rule.validate(account, account_id, context):
             has_errors = True
+        else:
+            log.debug('Account %s (ID: %s) passed rule %s', account.get('Name', 'Unknown'), account_id, rule.__class__.__name__)
 
     if has_errors:
         raise ValidationError()

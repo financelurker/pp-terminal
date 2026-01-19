@@ -48,7 +48,8 @@ def calculate(  # pylint: disable=too-many-locals
         snapshot_period_end: PortfolioSnapshot,
         base_rate_percent: Percent,
         tax_rate_percent: Percent,
-        default_exemption_rate_percent: Percent = 30.0
+        default_exemption_rate_percent: Percent = 30.0,
+        config: dict[str, Any] | None = None
 ) -> pd.DataFrame | None:
     base_rate = max(base_rate_percent, 0) / 100
 
@@ -99,11 +100,20 @@ def calculate(  # pylint: disable=too-many-locals
 
     vorabpauschale = vorabpauschale * tax_rate_percent / 100
 
-    if snapshot_period_end.portfolio.securities is not None and 'exempt_rate' in snapshot_period_end.portfolio.securities.columns:
-        exempt_rate_per_security = (1 - snapshot_period_end.portfolio.securities[['exempt_rate']]
+    # Apply exemption rate if configured
+    exempt_rate_uuid = None
+    if config is not None:
+        attributes = config.get('attributes', {})
+        for attr_name, attr_uuid in attributes.items():
+            if 'exempt' in attr_name.lower():
+                exempt_rate_uuid = attr_uuid
+                break
+
+    if exempt_rate_uuid and snapshot_period_end.portfolio.securities is not None and exempt_rate_uuid in snapshot_period_end.portfolio.securities.columns:
+        exempt_rate_per_security = (1 - snapshot_period_end.portfolio.securities[[exempt_rate_uuid]]
                                     .astype(float)
                                     .fillna(default_exemption_rate_percent / 100)
-                                    .rename(columns={'exempt_rate': 0}))  # column name must match vorabpauschale
+                                    .rename(columns={exempt_rate_uuid: 0}))  # column name must match vorabpauschale
         vorabpauschale = exempt_rate_per_security.mul(vorabpauschale.to_frame(), level='SecurityId')
 
     if not vorabpauschale.empty:
@@ -284,13 +294,14 @@ def print_tax_table(
 
     portfolio = ctx.obj.portfolio  # type: Portfolio
     output = ctx.obj.output  # type: OutputStrategy
+    config = ctx.obj.config
 
     console.print(output.hint('You can define the exemption rate per each security individually by creating a custom security attribute of type "Percent Number" in Portfolio Performance and add it to pp-terminal configuration file.'))
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(year.year, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(year.year, 12, 31))
 
-    result = calculate(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate)
+    result = calculate(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate, config)
     result = result.round(2) if result is not None else result
 
     vorabpauschale_totals = {}

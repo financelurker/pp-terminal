@@ -79,7 +79,7 @@ def validate_security_prices(ctx: typer.Context) -> None:
         log.debug('No securities found in portfolio')
         return
 
-    rules = [create_rule(rule_config) for rule_config in rules_config]
+    rules = [create_rule(rule_config, config) for rule_config in rules_config]
 
     latest_prices = portfolio.prices.groupby(['SecurityId']).tail(1)
 
@@ -113,8 +113,6 @@ def validate_security_prices(ctx: typer.Context) -> None:
         for rule in applicable_rules:
             if rule.validate(security, str(security_id), context):
                 has_errors = True
-            else:
-                log.debug('Security "%s" (%s) passed rule %s', security.get('Name', 'Unknown'), security_id, rule)
 
     if has_errors:
         raise ValidationError()
@@ -142,7 +140,7 @@ def validate_accounts(ctx: typer.Context) -> None:
         log.debug('No deposit accounts found in portfolio')
         return
 
-    rules = [create_rule(rule_config) for rule_config in rules_config]
+    rules = [create_rule(rule_config, config) for rule_config in rules_config]
 
     total_balances = snapshot.balances.groupby('account_id').sum()
     total_balances.name = 'TotalBalance'
@@ -177,8 +175,6 @@ def validate_accounts(ctx: typer.Context) -> None:
         for rule in applicable_rules:
             if rule.validate(account, str(account_id), context):
                 has_errors = True
-            else:
-                log.debug('Account "%s" (%s) passed rule %s', account.get('Name', 'Unknown'), account_id, rule)
 
     if has_errors:
         raise ValidationError()

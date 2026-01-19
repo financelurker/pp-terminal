@@ -36,6 +36,9 @@ class ValidationRule(ABC):
     @abstractmethod
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
         """Validate and return True if error occurred (severity='error' and validation failed)."""
+        log.debug('Validating %s of "%s" (%s) using value %s %s', str(self), entity["Name"], entity_id, str(self._get_value(entity)), '(' + str(self._value) + ')' if self._value != self._get_value(entity) else '')
+
+        return False
 
     def matches_entity(self, entity: pd.Series, entity_id: str) -> bool:
         if self.rule_type.endswith('-from-attribute'):
@@ -63,11 +66,13 @@ class ValidationRule(ABC):
         return bool(self.severity == 'error')
 
     def __str__(self) -> str:
-        return self.rule_type + " (" + str(self._value) + ")"
+        return self.rule_type
 
 
 class BalanceLimitRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
+        super().validate(entity, entity_id, context)
+
         limit = self._get_value(entity)
         balance = context['balance']
 
@@ -79,6 +84,8 @@ class BalanceLimitRule(ValidationRule):
 
 class DatePassedRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
+        super().validate(entity, entity_id, context)
+
         date_value = self._get_value(entity)
 
         if pd.isna(date_value):
@@ -94,8 +101,7 @@ class DatePassedRule(ValidationRule):
         current_date = datetime.now()
         if date_value < current_date:
             self.log_violation(
-                f'Account "{entity["Name"]}" date attribute has passed: '
-                f'{date_value.strftime("%Y-%m-%d")} (current: {current_date.strftime("%Y-%m-%d")})'
+                f'Account "{entity["Name"]}" date attribute has passed {date_value.strftime("%Y-%m-%d")}'
             )
             return self.is_error()
         return False
@@ -103,6 +109,8 @@ class DatePassedRule(ValidationRule):
 
 class PriceStalenessRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
+        super().validate(entity, entity_id, context)
+
         max_days = self._get_value(entity)
         latest_price_date = context.get('latest_price_date')
 
@@ -115,8 +123,7 @@ class PriceStalenessRule(ValidationRule):
 
         if days_old > max_days:
             self.log_violation(
-                f'Security "{entity["Name"]}" price is {days_old} days old '
-                f'(limit: {max_days} days, last price: {latest_price_date.strftime("%Y-%m-%d")})'
+                f'Security "{entity["Name"]}" price is {days_old} days old (latest price from {latest_price_date.strftime("%Y-%m-%d")})'
             )
             return self.is_error()
         return False
@@ -124,6 +131,8 @@ class PriceStalenessRule(ValidationRule):
 
 class PriceLimitRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
+        super().validate(entity, entity_id, context)
+
         limit = self._get_value(entity)
         current_price = context.get('current_price')
 
@@ -135,8 +144,7 @@ class PriceLimitRule(ValidationRule):
 
         if current_price >= limit:
             self.log_violation(
-                f'Security "{entity["Name"]}" price {current_price:.2f} '
-                f'has reached limit {limit:.2f}'
+                f'Security "{entity["Name"]}" price {current_price:.2f} has reached limit {limit:.2f}'
             )
             return self.is_error()
         return False
@@ -152,10 +160,27 @@ RULE_TYPES = {
 }
 
 
-def create_rule(rule_config: dict[str, Any]) -> ValidationRule:
+def create_rule(rule_config: dict[str, Any], config: dict[str, Any] | None = None) -> ValidationRule:
     rule_type = rule_config['type']
     if rule_type not in RULE_TYPES:
         raise ValueError(f'Unknown rule type: {rule_type}')
+
+    # Resolve attribute names to UUIDs for *-from-attribute rules
+    if rule_type.endswith('-from-attribute'):
+        if config is None:
+            raise ValueError(f'Config required for rule type: {rule_type}')
+
+        attr_name = rule_config['value']
+        attributes = config.get('attributes', {})
+
+        if attr_name not in attributes:
+            raise ValueError(f'Attribute "{attr_name}" not found in config.attributes')
+
+        # Replace friendly name with UUID in the rule config
+        resolved_config = rule_config.copy()
+        resolved_config['value'] = attributes[attr_name]
+        rule_class = RULE_TYPES[rule_type]
+        return rule_class(resolved_config)  # type: ignore[abstract]
 
     rule_class = RULE_TYPES[rule_type]
     return rule_class(rule_config)  # type: ignore[abstract]

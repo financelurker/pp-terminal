@@ -72,85 +72,82 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
         return portfolio
 
     def _parse_securities(self) -> DataFrame[SecuritySchema]:
-        exempt_attr_uuid = self._config.get('attributes', {}).get('exemption-rate')
+        attributes = self._config.get('attributes', {})
 
-        if exempt_attr_uuid:
-            # Use UUID-based query, verify UUID exists
-            cursor = self._db.connection.cursor()
-            cursor.execute('SELECT id FROM attribute_type WHERE id = ?', (exempt_attr_uuid,))
-            if cursor.fetchone() is None:
-                raise RuntimeError(f"Configured exemption-rate attribute UUID '{exempt_attr_uuid}' not found in Portfolio Performance database")
+        if not attributes:
+            securities = (pd.read_sql_query('select * from security', self._db.connection, index_col='uuid')
+                              .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
+            return cast(DataFrame[SecuritySchema], securities)
 
-        securities = (pd.read_sql_query("""
-select s.*,
-   MAX(CASE WHEN at.id = ? THEN sa.value END) AS exempt_rate,
-   MAX(CASE WHEN at.id = ? THEN at.converterClass END) AS exempt_rate_converter
-from security as s
-left join security_attr as sa on sa."security" = s.uuid
-left join attribute_type as at on sa.attr_uuid = at.id
-group by s.uuid
-        """, self._db.connection, index_col=['uuid'], params=[exempt_attr_uuid, exempt_attr_uuid])
-                      .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
+        security_attrs = self._get_attributes_by_target('name.abuchen.portfolio.model.Security', attributes)
+        if not security_attrs:
+            securities = (pd.read_sql_query('select * from security', self._db.connection, index_col='uuid')
+                              .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
+            return cast(DataFrame[SecuritySchema], securities)
 
-        # Normalize and validate exempt_rate
-        if 'exempt_rate' in securities.columns and 'exempt_rate_converter' in securities.columns:
-            securities = self._normalize_exempt_rate(securities)
+        # Build dynamic SQL with CASE statements for each attribute
+        case_statements = []
+        params = []
+        for attr_uuid in security_attrs.values():
+            case_statements.append(f'MAX(CASE WHEN at.id = ? THEN sa.value END) AS "{attr_uuid}"')
+            params.append(attr_uuid)
+            case_statements.append(f'MAX(CASE WHEN at.id = ? THEN at.converterClass END) AS "{attr_uuid}_converter"')
+            params.append(attr_uuid)
+
+        sql = f"""
+            select s.*,
+                {', '.join(case_statements)}
+            from security as s
+            left join security_attr as sa on sa."security" = s.uuid
+            left join attribute_type as at on sa.attr_uuid = at.id
+            group by s.uuid
+        """
+
+        securities = (pd.read_sql_query(sql, self._db.connection, index_col='uuid', params=params)
+                          .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
+
+        # Convert attribute values based on converterClass
+        securities = self._convert_attribute_types(securities, security_attrs)
+
+        # Validate exempt_rate if present
+        securities = self._validate_exempt_rate(securities, security_attrs)
 
         return cast(DataFrame[SecuritySchema], securities)
 
-    def _normalize_exempt_rate(self, securities: pd.DataFrame) -> pd.DataFrame:
-        """Normalize and validate exempt_rate values based on converter type."""
+    def _validate_exempt_rate(self, securities: pd.DataFrame, attributes: Dict[str, str]) -> pd.DataFrame:
+        """Validate exempt_rate values are within acceptable range."""
+        # Find the exempt_rate attribute UUID (look for any attribute with 'exempt' in name)
+        exempt_rate_uuid = None
+        for attr_name, attr_uuid in attributes.items():
+            if 'exempt' in attr_name.lower():
+                exempt_rate_uuid = attr_uuid
+                break
+
+        if not exempt_rate_uuid or exempt_rate_uuid not in securities.columns:
+            return securities
+
+        # Validate range for exempt_rate values
         for idx, row in securities.iterrows():
-            if pd.notna(row['exempt_rate']):
-                # If exempt_rate exists but converter is missing, we can't normalize
-                if pd.isna(row['exempt_rate_converter']):
-                    log.warning(
-                        "Missing converter type for exempt_rate of security '%s' (WKN: %s). Ignoring value.",
-                        row['Name'], row.get('Wkn', 'N/A')
-                    )
-                    securities.at[idx, 'exempt_rate'] = np.nan
-                    continue
-
+            if pd.notna(row.get(exempt_rate_uuid)):
                 try:
-                    value = float(row['exempt_rate'])
-                    converter = str(row['exempt_rate_converter'])
+                    value = float(row[exempt_rate_uuid])
 
-                    # Normalize based on converter type
-                    if 'PercentPlainConverter' in converter:
-                        # PercentPlainConverter: 10 means 10%, so divide by 100
-                        normalized_value = value / 100
-                    elif 'PercentConverter' in converter:
-                        # PercentConverter: 0.1 means 10%, use as-is
-                        normalized_value = value
-                    else:
-                        log.warning(
-                            "Unknown exempt_rate converter type '%s' for security '%s' (WKN: %s). Ignoring value.",
-                            converter, row['Name'], row.get('Wkn', 'N/A')
-                        )
-                        securities.at[idx, 'exempt_rate'] = np.nan
-                        continue
-
-                    # Validate range: 1% to 100%
-                    if normalized_value < _EXEMPT_RATE_MIN or normalized_value > _EXEMPT_RATE_MAX:
+                    # Validate range: 0% to 100%
+                    if value < _EXEMPT_RATE_MIN or value > _EXEMPT_RATE_MAX:
                         log.warning(
                             "Invalid exempt_rate for security '%s' (WKN: %s): %.4f (%.2f%%) is outside valid range [%.0f%%, %.0f%%]. Ignoring value.",
                             row['Name'], row.get('Wkn', 'N/A'),
-                            normalized_value, normalized_value * 100,
+                            value, value * 100,
                             _EXEMPT_RATE_MIN * 100, _EXEMPT_RATE_MAX * 100
                         )
-                        securities.at[idx, 'exempt_rate'] = np.nan
-                    else:
-                        securities.at[idx, 'exempt_rate'] = normalized_value
+                        securities.at[idx, exempt_rate_uuid] = np.nan
 
                 except (ValueError, TypeError) as e:
                     log.warning(
-                        "Failed to parse exempt_rate '%s' for security '%s' (WKN: %s): %s. Ignoring value.",
-                        row['exempt_rate'], row['Name'], row.get('Wkn', 'N/A'), str(e)
+                        "Failed to validate exempt_rate for security '%s' (WKN: %s): %s. Ignoring value.",
+                        row['Name'], row.get('Wkn', 'N/A'), str(e)
                     )
-                    securities.at[idx, 'exempt_rate'] = np.nan
-
-        # Drop the converter column as it's no longer needed
-        securities = securities.drop(columns=['exempt_rate_converter'])
+                    securities.at[idx, exempt_rate_uuid] = np.nan
 
         return securities
 
@@ -181,33 +178,130 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
         return cast(DataFrame[TransactionSchema], transactions)
 
     def _parse_accounts(self) -> DataFrame[AccountSchema]:
-        account_limit_attr_uuid = self._config.get('attributes', {}).get('account-limit')
+        attributes = self._config.get('attributes', {})
 
-        if account_limit_attr_uuid:
-            # Use UUID-based query with account attributes, verify UUID exists
-            cursor = self._db.connection.cursor()
-            cursor.execute('SELECT id FROM attribute_type WHERE id = ?', (account_limit_attr_uuid,))
-            if cursor.fetchone() is None:
-                raise RuntimeError(f"Configured account-limit attribute UUID '{account_limit_attr_uuid}' not found in Portfolio Performance database")
-
-            accounts = (pd.read_sql_query("""
-                select a.*,
-                   MAX(CASE WHEN at.id = ? THEN aa.value END) AS account_limit
-                from account as a
-                left join account_attr as aa on aa."account" = a.uuid
-                left join attribute_type as at on aa.attr_uuid = at.id
-                group by a.uuid
-            """, self._db.connection, index_col='uuid', params=[account_limit_attr_uuid])
-                              .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
-
-            # Convert account_limit to numeric
-            if 'account_limit' in accounts.columns:
-                accounts['account_limit'] = pd.to_numeric(accounts['account_limit'], errors='coerce')
-        else:
+        if not attributes:
             accounts = (pd.read_sql_query('select * from account', self._db.connection, index_col='uuid')
                               .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
+            return cast(DataFrame[AccountSchema], accounts)
+
+        account_attrs = self._get_attributes_by_target('name.abuchen.portfolio.model.Account', attributes)
+        if not account_attrs:
+            accounts = (pd.read_sql_query('select * from account', self._db.connection, index_col='uuid')
+                              .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
+            return cast(DataFrame[AccountSchema], accounts)
+
+        # Build dynamic SQL with CASE statements for each attribute
+        case_statements = []
+        params = []
+        for attr_uuid in account_attrs.values():
+            case_statements.append(f'MAX(CASE WHEN at.id = ? THEN aa.value END) AS "{attr_uuid}"')
+            params.append(attr_uuid)
+            case_statements.append(f'MAX(CASE WHEN at.id = ? THEN at.converterClass END) AS "{attr_uuid}_converter"')
+            params.append(attr_uuid)
+
+        sql = f"""
+            select a.*,
+                {', '.join(case_statements)}
+            from account as a
+            left join account_attr as aa on aa."account" = a.uuid
+            left join attribute_type as at on aa.attr_uuid = at.id
+            group by a.uuid
+        """
+
+        accounts = (pd.read_sql_query(sql, self._db.connection, index_col='uuid', params=params)
+                          .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
+
+        # Convert attribute values based on converterClass
+        accounts = self._convert_attribute_types(accounts, account_attrs)
 
         return cast(DataFrame[AccountSchema], accounts)
+
+    def _get_attributes_by_target(self, target: str, attributes: Dict[str, str]) -> Dict[str, str]:
+        """
+        Filter attributes to only those targeting the specified entity type.
+
+        Args:
+            target: Target entity class (e.g., 'name.abuchen.portfolio.model.Account')
+            attributes: Dictionary mapping friendly names to attribute UUIDs
+
+        Returns:
+            Filtered dictionary of attributes that target the specified entity
+        """
+        if not attributes:
+            return {}
+
+        cursor = self._db.connection.cursor()
+        placeholders = ','.join('?' * len(attributes))
+        cursor.execute(
+            f'SELECT id FROM attribute_type WHERE target = ? AND id IN ({placeholders})',
+            [target] + list(attributes.values())
+        )
+
+        valid_uuids = {row[0] for row in cursor.fetchall()}
+
+        # Return only attributes that match the target
+        return {name: uuid for name, uuid in attributes.items() if uuid in valid_uuids}
+
+    def _convert_attribute_types(self, df: pd.DataFrame, attributes: Dict[str, str]) -> pd.DataFrame:
+        """
+        Convert attribute values based on their converterClass types.
+
+        Args:
+            df: DataFrame containing attribute columns
+            attributes: Dictionary mapping friendly names to attribute UUIDs
+
+        Returns:
+            DataFrame with converted attribute values
+        """
+        for attr_name, attr_uuid in attributes.items():
+            value_col = attr_uuid
+            converter_col = f"{attr_uuid}_converter"
+
+            if value_col not in df.columns:
+                continue
+
+            for idx, row in df.iterrows():
+                if pd.notna(row.get(value_col)):
+                    if pd.isna(row.get(converter_col)):
+                        log.warning(
+                            "Missing converter type for attribute '%s' (%s) of entity at index %s. Ignoring value.",
+                            attr_name, attr_uuid, idx
+                        )
+                        df.at[idx, value_col] = np.nan
+                        continue
+
+                    try:
+                        value = row[value_col]
+                        converter = str(row[converter_col])
+
+                        if 'DateConverter' in converter:
+                            df.at[idx, value_col] = pd.to_datetime(value)
+                        elif 'PercentPlainConverter' in converter:
+                            df.at[idx, value_col] = float(value) / 100
+                        elif 'PercentConverter' in converter:
+                            df.at[idx, value_col] = float(value)
+                        elif 'LongConverter' in converter or 'AmountConverter' in converter:
+                            df.at[idx, value_col] = float(value)
+                        elif 'StringConverter' in converter:
+                            df.at[idx, value_col] = str(value)
+                        else:
+                            log.warning(
+                                "Unknown converter type '%s' for attribute '%s' (%s). Keeping raw value.",
+                                converter, attr_name, attr_uuid
+                            )
+
+                    except (ValueError, TypeError) as e:
+                        log.warning(
+                            "Failed to parse attribute '%s' (%s) value '%s': %s. Ignoring value.",
+                            attr_name, attr_uuid, row[value_col], str(e)
+                        )
+                        df.at[idx, value_col] = np.nan
+
+            if converter_col in df.columns:
+                df = df.drop(columns=[converter_col])
+
+        return df
 
     def _get_property(self, name: str) -> str | None:
         cursor = self._db.connection.cursor()

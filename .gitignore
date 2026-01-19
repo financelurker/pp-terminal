@@ -8,4 +8,6 @@ build/
 *.egg-info/
 tests/.coverage
 tests/coverage.xml
+tests/fixtures/*.backup.xml
+tests/fixtures/*.backup-after-open.xml
 .*.pp-terminal.db

@@ -38,19 +38,12 @@
       "additionalProperties": false
     },
     "attributes": {
-      "description": "Mapping of Portfolio Performance attributes",
+      "description": "Mapping of friendly attribute names to Portfolio Performance attribute UUIDs",
       "type": "object",
-      "properties": {
-        "exemption-rate": {
-          "description": "UUID of the exemption rate attribute",
-          "type": "string"
-        },
-        "account-limit": {
-          "description": "UUID of the account limit attribute",
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      }
     },
     "limits": {
       "description": "Various limits and thresholds",

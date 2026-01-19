@@ -31,7 +31,7 @@ from ..exceptions import ValidationError
 from ..helper import run_all_group_cmds
 from ..output import Console
 from ..portfolio_snapshot import PortfolioSnapshot
-from .validation_rules import create_rule, get_applicable_rules
+from ..validation_rules import create_rule, get_applicable_rules
 
 app = typer.Typer()
 console = Console()

@@ -145,7 +145,7 @@ class PriceLimitRule(ValidationRule):
 RULE_TYPES = {
     'balance-limit': BalanceLimitRule,
     'balance-limit-from-attribute': BalanceLimitRule,
-    'date-passed': DatePassedRule,
+    'date-passed-from-attribute': DatePassedRule,
     'price-staleness': PriceStalenessRule,
     'price-limit': PriceLimitRule,
     'price-limit-from-attribute': PriceLimitRule,

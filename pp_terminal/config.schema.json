@@ -137,7 +137,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["balance-limit", "balance-limit-from-attribute", "date-passed"]
+          "enum": ["balance-limit", "balance-limit-from-attribute", "date-passed-from-attribute"]
         },
         "value": {
           "oneOf": [

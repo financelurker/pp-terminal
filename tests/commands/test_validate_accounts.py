@@ -132,7 +132,8 @@ def test_first_match_wins(sample_portfolio_with_limits: Portfolio) -> None:
 
 def test_attribute_based_rule(sample_portfolio_with_limits: Portfolio) -> None:
     """Test balance-limit-from-attribute rule type."""
-    sample_portfolio_with_limits._accounts['test_limit_attr'] = pd.Series({  # type: ignore[index]  # pylint: disable=protected-access
+    test_attr_uuid = 'test-attr-uuid-12345'
+    sample_portfolio_with_limits._accounts[test_attr_uuid] = pd.Series({  # type: ignore[index]  # pylint: disable=protected-access
         'account-1': 1200.0,
     })
 
@@ -140,10 +141,15 @@ def test_attribute_based_rule(sample_portfolio_with_limits: Portfolio) -> None:
     ctx.invoked_subcommand = None
     ctx.obj = SimpleNamespace(
         portfolio=sample_portfolio_with_limits,
-        config={'validation': {'accounts': {'rules': [
-            {'type': 'balance-limit-from-attribute', 'value': 'test_limit_attr'},
-            {'type': 'balance-limit', 'value': 900.0}
-        ]}}}
+        config={
+            'attributes': {
+                'test_limit_attr': test_attr_uuid
+            },
+            'validation': {'accounts': {'rules': [
+                {'type': 'balance-limit-from-attribute', 'value': 'test_limit_attr'},
+                {'type': 'balance-limit', 'value': 900.0}
+            ]}}
+        }
     )
     validate_accounts(ctx)
 

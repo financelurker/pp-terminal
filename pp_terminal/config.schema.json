@@ -29,10 +29,14 @@
           "type": "string"
         },
         "exemption-rate": {
-          "description": "Tax exemption rate as percentage (e.g., 30 for 30%)",
+          "description": "Default tax exemption rate as percentage (e.g., 30 for 30%)",
           "type": "number",
           "minimum": 0,
           "maximum": 100
+        },
+        "exemption-rate-attribute": {
+          "description": "Friendly name of the security attribute containing per-security exemption rates (see attributes)",
+          "type": "string"
         }
       },
       "additionalProperties": false

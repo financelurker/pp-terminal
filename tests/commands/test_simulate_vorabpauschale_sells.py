@@ -278,7 +278,7 @@ def test_partial_sell_from_xml_fixture(request: TopRequest) -> None:
     result_security = result[result['Name'] == 'Test World ETF']
 
     expected_df = pd.DataFrame([
-        ['TEST01', 'Test World ETF', 'EUR', 8.88]
+        ['TEST01', 'Test World ETF', 'EUR', 12.68]
     ], columns=['Wkn', 'Name', 'currency', 'Test Depot'], index=['test-security-uuid-001'])
     expected_df.index.name = 'SecurityId'
 

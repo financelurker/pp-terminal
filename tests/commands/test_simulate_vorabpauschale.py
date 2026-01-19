@@ -96,8 +96,6 @@ def test_inyear_buy(sample_accounts: pd.DataFrame, sample_transactions: pd.DataF
     assert result is not None
     assert_frame_equal(expected_df, result.round(2))
 
-# @todo test with sell
-
 # @see https://github.com/MStrecke/vorabpauschale/blob/master/test.ini
 # @see https://www.justetf.com/de/news/etf/etf-und-steuern-das-neue-investmentsteuergesetz-ab-2018.html
 samples = [
@@ -155,11 +153,11 @@ def test_kommer_2021(request: TopRequest) -> None:
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
 
     expected_df = pd.DataFrame([
-        ['ETF013', 'Lyxor MSCI Pacific UCITS ETF', 'EUR', 1.44539],
-        ['A0MZWQ', 'iShares Core MSCI Europe UCITS ETF EUR (Dist)', 'EUR', 3.88498],
-        ['A2DK6R', 'iShares Diversified Commodity Swap UCITS ETF', 'EUR', 3.37515],
-        ['A0HGWC', 'iShares MSCI EM UCITS ETF (Dist)', 'EUR', 6.73028],
-        ['A0J201', 'iShares MSCI North America UCITS ETF', 'EUR', 5.84267],
+        ['ETF013', 'Lyxor MSCI Pacific UCITS ETF', 'EUR', 2.064846],
+        ['A0MZWQ', 'iShares Core MSCI Europe UCITS ETF EUR (Dist)', 'EUR', 5.549975],
+        ['A2DK6R', 'iShares Diversified Commodity Swap UCITS ETF', 'EUR', 4.821648],
+        ['A0HGWC', 'iShares MSCI EM UCITS ETF (Dist)', 'EUR', 9.614679],
+        ['A0J201', 'iShares MSCI North America UCITS ETF', 'EUR', 8.346675],
         [None, 'Related Account Balance', 'EUR', 475.88]
     ], columns=['Wkn', 'Name', 'currency', 'Depot'], index=[
         'ff0a2b77-9749-45b0-8333-cb1d9787812c',
@@ -203,7 +201,7 @@ def test_kommer_2023(request: TopRequest) -> None:
     ])
     expected_df.index.name = 'SecurityId'
 
-    result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375)
+    result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375, 30.0, config['attributes']['exemption-rate'])
 
     assert result is not None
     assert_frame_equal(expected_df, result.round(5))

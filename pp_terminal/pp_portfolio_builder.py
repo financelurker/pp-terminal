@@ -35,8 +35,6 @@ log = logging.getLogger(__name__)
 
 _SCALE = 100000000
 _CENTS_PER_EURO = 100
-_EXEMPT_RATE_MIN = 0.00
-_EXEMPT_RATE_MAX = 1.0
 _NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES = [
     TransactionType.TRANSFER_OUT,
     TransactionType.REMOVAL,
@@ -109,47 +107,7 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
         # Convert attribute values based on converterClass
         securities = self._convert_attribute_types(securities, security_attrs)
 
-        # Validate exempt_rate if present
-        securities = self._validate_exempt_rate(securities, security_attrs)
-
         return cast(DataFrame[SecuritySchema], securities)
-
-    def _validate_exempt_rate(self, securities: pd.DataFrame, attributes: Dict[str, str]) -> pd.DataFrame:
-        """Validate exempt_rate values are within acceptable range."""
-        # Find the exempt_rate attribute UUID (look for any attribute with 'exempt' in name)
-        exempt_rate_uuid = None
-        for attr_name, attr_uuid in attributes.items():
-            if 'exempt' in attr_name.lower():
-                exempt_rate_uuid = attr_uuid
-                break
-
-        if not exempt_rate_uuid or exempt_rate_uuid not in securities.columns:
-            return securities
-
-        # Validate range for exempt_rate values
-        for idx, row in securities.iterrows():
-            if pd.notna(row.get(exempt_rate_uuid)):
-                try:
-                    value = float(row[exempt_rate_uuid])
-
-                    # Validate range: 0% to 100%
-                    if value < _EXEMPT_RATE_MIN or value > _EXEMPT_RATE_MAX:
-                        log.warning(
-                            "Invalid exempt_rate for security '%s' (WKN: %s): %.4f (%.2f%%) is outside valid range [%.0f%%, %.0f%%]. Ignoring value.",
-                            row['Name'], row.get('Wkn', 'N/A'),
-                            value, value * 100,
-                            _EXEMPT_RATE_MIN * 100, _EXEMPT_RATE_MAX * 100
-                        )
-                        securities.at[idx, exempt_rate_uuid] = np.nan
-
-                except (ValueError, TypeError) as e:
-                    log.warning(
-                        "Failed to validate exempt_rate for security '%s' (WKN: %s): %s. Ignoring value.",
-                        row['Name'], row.get('Wkn', 'N/A'), str(e)
-                    )
-                    securities.at[idx, exempt_rate_uuid] = np.nan
-
-        return securities
 
     def _parse_prices(self) -> DataFrame[SecurityPriceSchema]:
         prices = (pd.read_sql_query('select datetime(tstamp) as date, * from price', self._db.connection, index_col=['date', 'security'], parse_dates={"date": "%Y-%m-%d %H:%M:%S"}, dtype={'value': np.float64})
@@ -243,7 +201,7 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
         # Return only attributes that match the target
         return {name: uuid for name, uuid in attributes.items() if uuid in valid_uuids}
 
-    def _convert_attribute_types(self, df: pd.DataFrame, attributes: Dict[str, str]) -> pd.DataFrame:
+    def _convert_attribute_types(self, df: pd.DataFrame, attributes: Dict[str, str]) -> pd.DataFrame:  # pylint: disable=too-many-branches
         """
         Convert attribute values based on their converterClass types.
 

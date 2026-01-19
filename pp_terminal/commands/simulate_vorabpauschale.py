@@ -43,13 +43,13 @@ begin = None  # pylint: disable=invalid-name
 
 
 # @see https://www.gesetze-im-internet.de/invstg_2018/__18.html
-def calculate(  # pylint: disable=too-many-locals
+def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
         snapshot_period_begin: PortfolioSnapshot,
         snapshot_period_end: PortfolioSnapshot,
         base_rate_percent: Percent,
         tax_rate_percent: Percent,
         default_exemption_rate_percent: Percent = 30.0,
-        config: dict[str, Any] | None = None
+        exempt_rate_attr_uuid: str | None = None
 ) -> pd.DataFrame | None:
     base_rate = max(base_rate_percent, 0) / 100
 
@@ -101,24 +101,18 @@ def calculate(  # pylint: disable=too-many-locals
     vorabpauschale = vorabpauschale * tax_rate_percent / 100
 
     # Apply exemption rate if configured
-    exempt_rate_uuid = None
-    if config is not None:
-        attributes = config.get('attributes', {})
-        for attr_name, attr_uuid in attributes.items():
-            if 'exempt' in attr_name.lower():
-                exempt_rate_uuid = attr_uuid
-                break
-
-    if exempt_rate_uuid and snapshot_period_end.portfolio.securities is not None and exempt_rate_uuid in snapshot_period_end.portfolio.securities.columns:
-        exempt_rate_per_security = (1 - snapshot_period_end.portfolio.securities[[exempt_rate_uuid]]
+    if exempt_rate_attr_uuid and snapshot_period_end.portfolio.securities is not None and exempt_rate_attr_uuid in snapshot_period_end.portfolio.securities.columns:
+        exempt_rate_per_security = (1 - snapshot_period_end.portfolio.securities[[exempt_rate_attr_uuid]]
                                     .astype(float)
                                     .fillna(default_exemption_rate_percent / 100)
-                                    .rename(columns={exempt_rate_uuid: 0}))  # column name must match vorabpauschale
+                                    .rename(columns={exempt_rate_attr_uuid: 0}))  # column name must match vorabpauschale
         vorabpauschale = exempt_rate_per_security.mul(vorabpauschale.to_frame(), level='SecurityId')
 
     if not vorabpauschale.empty:
         vorabpauschale = vorabpauschale.unstack(level='account_id')
-        vorabpauschale.columns = [col[1] if len(col) > 1 else col[0] for col in vorabpauschale.columns]
+        # Only extract from tuple if it's a MultiIndex
+        if isinstance(vorabpauschale.columns, pd.MultiIndex):
+            vorabpauschale.columns = [col[1] if len(col) > 1 else col[0] for col in vorabpauschale.columns]
 
     vorabpauschale = vorabpauschale.pipe(drop_empty_values)
     if vorabpauschale.empty or snapshot_period_end.portfolio.securities is None or snapshot_period_end.portfolio.securities_accounts is None:
@@ -249,10 +243,11 @@ def set_begin(value: datetime | None) -> datetime | None:
     return value
 
 
-def get_base_rate_percent_by_year() -> Percent | None:  # this has to be adapted every year
+def get_base_rate_percent_by_year() -> Percent | None:  # pylint: disable=too-many-locals
     if begin is None:
         return None
 
+    # this has to be adapted every year
     match begin.year:
         case 2016:
             rate = 1.1
@@ -281,7 +276,7 @@ def get_base_rate_percent_by_year() -> Percent | None:  # this has to be adapted
 
 
 @app.command(name="vorabpauschale")
-def print_tax_table(
+def print_tax_table(  # pylint: disable=too-many-locals
         ctx: typer.Context,
         year: Annotated[datetime, typer.Option(formats=["%Y"], help="The year to calculate the preliminary tax for", prompt=True, callback=set_begin, default_factory=get_last_year)],
         base_rate: Annotated[Percent, typer.Option(help="The base rate (Basiszinssatz)", min=-100, max=100, prompt="Base Rate (%)", prompt_required=True, default_factory=get_base_rate_percent_by_year)],
@@ -296,12 +291,21 @@ def print_tax_table(
     output = ctx.obj.output  # type: OutputStrategy
     config = ctx.obj.config
 
+    # Resolve exempt-rate attribute UUID from explicit config
+    exempt_rate_uuid = None
+    if config:
+        tax_config = config.get('tax', {})
+        exemption_attr_name = tax_config.get('exemption-rate-attribute')
+        if exemption_attr_name:
+            attributes = config.get('attributes', {})
+            exempt_rate_uuid = attributes.get(exemption_attr_name)
+
     console.print(output.hint('You can define the exemption rate per each security individually by creating a custom security attribute of type "Percent Number" in Portfolio Performance and add it to pp-terminal configuration file.'))
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(year.year, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(year.year, 12, 31))
 
-    result = calculate(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate, config)
+    result = calculate(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate, exempt_rate_uuid)
     result = result.round(2) if result is not None else result
 
     vorabpauschale_totals = {}

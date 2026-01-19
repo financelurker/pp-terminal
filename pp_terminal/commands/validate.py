@@ -31,7 +31,7 @@ from ..exceptions import ValidationError
 from ..helper import run_all_group_cmds
 from ..output import Console
 from ..portfolio_snapshot import PortfolioSnapshot
-from .validation_rules import create_rule, get_applicable_rule
+from .validation_rules import create_rule, get_applicable_rules
 
 app = typer.Typer()
 console = Console()
@@ -100,8 +100,8 @@ def validate_security_prices(ctx: typer.Context) -> None:
 
     has_errors = False
     for security_id, security in securities_with_prices.iterrows():
-        rule = get_applicable_rule(security_id, security, rules)
-        if rule is None:
+        applicable_rules = get_applicable_rules(str(security_id), security, rules)
+        if not applicable_rules:
             continue
 
         context = {
@@ -110,10 +110,11 @@ def validate_security_prices(ctx: typer.Context) -> None:
             'portfolio': portfolio,
         }
 
-        if rule.validate(security, security_id, context):
-            has_errors = True
-        else:
-            log.debug('Security %s (ID: %s) passed rule %s', security.get('Name', 'Unknown'), security_id, rule.__class__.__name__)
+        for rule in applicable_rules:
+            if rule.validate(security, str(security_id), context):
+                has_errors = True
+            else:
+                log.debug('Security %s (ID: %s) passed rule %s', security.get('Name', 'Unknown'), security_id, rule.__class__.__name__)
 
     if has_errors:
         raise ValidationError()
@@ -163,8 +164,8 @@ def validate_accounts(ctx: typer.Context) -> None:
 
     has_errors = False
     for account_id, account in accounts_with_balances.iterrows():
-        rule = get_applicable_rule(account_id, account, rules)
-        if rule is None:
+        applicable_rules = get_applicable_rules(str(account_id), account, rules)
+        if not applicable_rules:
             continue
 
         context = {
@@ -173,10 +174,11 @@ def validate_accounts(ctx: typer.Context) -> None:
             'snapshot': snapshot,
         }
 
-        if rule.validate(account, account_id, context):
-            has_errors = True
-        else:
-            log.debug('Account %s (ID: %s) passed rule %s', account.get('Name', 'Unknown'), account_id, rule.__class__.__name__)
+        for rule in applicable_rules:
+            if rule.validate(account, str(account_id), context):
+                has_errors = True
+            else:
+                log.debug('Account %s (ID: %s) passed rule %s', account.get('Name', 'Unknown'), account_id, rule.__class__.__name__)
 
     if has_errors:
         raise ValidationError()

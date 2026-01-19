@@ -159,8 +159,16 @@ def create_rule(rule_config: dict[str, Any]) -> ValidationRule:
     return rule_class(rule_config)  # type: ignore[abstract]
 
 
-def get_applicable_rule(entity_id: str, entity: pd.Series, rules: list[ValidationRule]) -> ValidationRule | None:
+def get_applicable_rules(entity_id: str, entity: pd.Series, rules: list[ValidationRule]) -> list[ValidationRule]:
+    """Get all applicable rules, but only the first match per rule class."""
+    applicable_rules: list[ValidationRule] = []
+    seen_classes: set[type] = set()
+
     for rule in rules:
         if rule.matches_entity(entity, entity_id):
-            return rule
-    return None
+            rule_class = type(rule)
+            if rule_class not in seen_classes:
+                applicable_rules.append(rule)
+                seen_classes.add(rule_class)
+
+    return applicable_rules

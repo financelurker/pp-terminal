@@ -28,8 +28,8 @@ log = logging.getLogger(__name__)
 
 class ValidationRule(ABC):
     def __init__(self, rule_config: dict[str, Any]):
-        self.rule_type = rule_config['type']
-        self.value = rule_config['value']
+        self.rule_type = str(rule_config['type'])
+        self._value = rule_config['value']
         self.severity = rule_config.get('severity', 'error')
         self.applies_to = rule_config.get('applies-to', None)
 
@@ -39,7 +39,7 @@ class ValidationRule(ABC):
 
     def matches_entity(self, entity: pd.Series, entity_id: str) -> bool:
         if self.rule_type.endswith('-from-attribute'):
-            attr_uuid = self.value
+            attr_uuid = self._value
             return attr_uuid in entity.index and pd.notna(entity.get(attr_uuid))
 
         if self.applies_to is not None:
@@ -47,11 +47,11 @@ class ValidationRule(ABC):
 
         return True
 
-    def get_effective_value(self, entity: pd.Series) -> Any:
+    def _get_value(self, entity: pd.Series) -> Any:
         if self.rule_type.endswith('-from-attribute'):
-            attr_uuid = self.value
+            attr_uuid = self._value
             return entity.get(attr_uuid)
-        return self.value
+        return self._value
 
     def log_violation(self, message: str) -> None:
         if self.severity == 'error':
@@ -62,10 +62,13 @@ class ValidationRule(ABC):
     def is_error(self) -> bool:
         return bool(self.severity == 'error')
 
+    def __str__(self) -> str:
+        return self.rule_type + " (" + str(self._value) + ")"
+
 
 class BalanceLimitRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
-        limit = self.get_effective_value(entity)
+        limit = self._get_value(entity)
         balance = context['balance']
 
         if balance > limit:
@@ -76,8 +79,7 @@ class BalanceLimitRule(ValidationRule):
 
 class DatePassedRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
-        attr_uuid = self.value
-        date_value = entity.get(attr_uuid)
+        date_value = self._get_value(entity)
 
         if pd.isna(date_value):
             return False
@@ -101,7 +103,7 @@ class DatePassedRule(ValidationRule):
 
 class PriceStalenessRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
-        max_days = self.get_effective_value(entity)
+        max_days = self._get_value(entity)
         latest_price_date = context.get('latest_price_date')
 
         if pd.isna(latest_price_date) or latest_price_date is None:
@@ -122,7 +124,7 @@ class PriceStalenessRule(ValidationRule):
 
 class PriceLimitRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
-        limit = self.get_effective_value(entity)
+        limit = self._get_value(entity)
         current_price = context.get('current_price')
 
         if pd.isna(current_price):

@@ -31,6 +31,7 @@ from ..portfolio import Portfolio
 from ..portfolio_snapshot import PortfolioSnapshot
 from ..schemas import AccountType
 from ..table_decorator import TableOptions
+from ..validation_engine import validate_accounts, ValidationResult
 
 app = typer.Typer()
 console = Console()
@@ -59,6 +60,7 @@ def print_accounts(ctx: typer.Context, type: AccountType | None = None, by: date
 
     portfolio = ctx.obj.portfolio  # type: Portfolio
     output = ctx.obj.output  # type: OutputStrategy
+    config = ctx.obj.config
 
     snapshot = PortfolioSnapshot(portfolio, by)
 
@@ -75,7 +77,16 @@ def print_accounts(ctx: typer.Context, type: AccountType | None = None, by: date
     if df is None:
         raise InputError('invalid account type')
 
+    # Add validation messages column
+    validation_results = validate_accounts(portfolio, snapshot, config)
+    account_ids = df.index.get_level_values('account_id')
+    df['Messages'] = account_ids.map(lambda aid: validation_results.get(str(aid), ValidationResult.empty()).messages)
+
     df = df.pipe(unstack_column_by_currency, column='Balance', base_currency=snapshot.portfolio.base_currency)
+
+    # Reorder columns
+    non_messages_cols = [col for col in df.columns if col != 'Messages']
+    df = df[non_messages_cols + ['Messages']]
 
     console.print(*output.result_table(
         df, TableOptions(title="Balances on Accounts", caption=f"in total {len(df)} entries, per {by.strftime("%Y-%m-%d")}", show_index=True)

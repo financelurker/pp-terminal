@@ -28,6 +28,7 @@ from ..output import OutputStrategy, Console
 from ..portfolio import Portfolio
 from ..portfolio_snapshot import PortfolioSnapshot
 from ..table_decorator import TableOptions
+from ..validation_engine import validate_securities, ValidationResult
 
 app = typer.Typer()
 console = Console()
@@ -42,6 +43,7 @@ def print_securities(ctx: typer.Context, by: datetime = datetime.now(), active: 
 
     portfolio = ctx.obj.portfolio  # type: Portfolio
     output = ctx.obj.output  # type: OutputStrategy
+    config = ctx.obj.config
 
     securities = portfolio.securities
     if securities is None:
@@ -71,6 +73,14 @@ def print_securities(ctx: typer.Context, by: datetime = datetime.now(), active: 
 
     if 'is_retired' in df.columns:
         df = df.drop(columns=['is_retired'])
+
+    # Add validation messages column
+    validation_results = validate_securities(portfolio, config)
+    df['Messages'] = df['SecurityId'].map(lambda sid: validation_results.get(str(sid), ValidationResult.empty()).messages)
+
+    # Reorder columns
+    existing_cols = ['SecurityId', 'Name', 'Wkn', 'Currency', 'Shares']
+    df = df[existing_cols + ['Messages']]
 
     df = df.sort_values(by='Name')
 

@@ -34,11 +34,18 @@ class ValidationRule(ABC):
         self.applies_to = rule_config.get('applies-to', None)
 
     @abstractmethod
-    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
-        """Validate and return True if error occurred (severity='error' and validation failed)."""
+    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
+        """
+        Validate entity and return (is_error, message) tuple.
+
+        Returns:
+            tuple[bool, str | None]:
+                - First element: True if error occurred (severity='error' and validation failed)
+                - Second element: Violation message if validation failed, None otherwise
+        """
         log.debug('Validating %s of "%s" (%s) using value %s %s', str(self), entity["Name"], entity_id, str(self._get_value(entity)), '(' + str(self._value) + ')' if self._value != self._get_value(entity) else '')
 
-        return False
+        return (False, None)
 
     def matches_entity(self, entity: pd.Series, entity_id: str) -> bool:
         if self.rule_type.endswith('-from-attribute'):
@@ -70,84 +77,82 @@ class ValidationRule(ABC):
 
 
 class BalanceLimitRule(ValidationRule):
-    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
+    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
         super().validate(entity, entity_id, context)
 
         limit = self._get_value(entity)
         balance = context['balance']
 
         if balance > limit:
-            self.log_violation(f'Account "{entity["Name"]}" ({entity_id}) balance {balance:.2f} exceeds limit {limit:.2f}')
-            return self.is_error()
-        return False
+            message = f'Account "{entity["Name"]}" ({entity_id}) balance {balance:.2f} exceeds limit {limit:.2f}'
+            self.log_violation(message)
+            return (self.is_error(), message)
+        return (False, None)
 
 
 class DatePassedRule(ValidationRule):
-    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
+    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
         super().validate(entity, entity_id, context)
 
         date_value = self._get_value(entity)
 
         if pd.isna(date_value):
-            return False
+            return (False, None)
 
         if not isinstance(date_value, datetime):
             try:
                 date_value = pd.to_datetime(date_value)
             except (ValueError, TypeError):
                 log.warning('Account "%s" has invalid date value: %s', entity["Name"], date_value)
-                return False
+                return (False, None)
 
         current_date = datetime.now()
         if date_value < current_date:
-            self.log_violation(
-                f'Account "{entity["Name"]}" date attribute has passed {date_value.strftime("%Y-%m-%d")}'
-            )
-            return self.is_error()
-        return False
+            message = f'Account "{entity["Name"]}" date attribute has passed {date_value.strftime("%Y-%m-%d")}'
+            self.log_violation(message)
+            return (self.is_error(), message)
+        return (False, None)
 
 
 class PriceStalenessRule(ValidationRule):
-    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
+    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
         super().validate(entity, entity_id, context)
 
         max_days = self._get_value(entity)
         latest_price_date = context.get('latest_price_date')
 
         if pd.isna(latest_price_date) or latest_price_date is None:
-            self.log_violation(f'Security "{entity["Name"]}" has no price data')
-            return self.is_error()
+            message = f'Security "{entity["Name"]}" has no price data'
+            self.log_violation(message)
+            return (self.is_error(), message)
 
         current_date = datetime.now()
         days_old = (current_date - latest_price_date).days
 
         if days_old > max_days:
-            self.log_violation(
-                f'Security "{entity["Name"]}" price is {days_old} days old (latest price from {latest_price_date.strftime("%Y-%m-%d")})'
-            )
-            return self.is_error()
-        return False
+            message = f'Security "{entity["Name"]}" price is {days_old} days old (latest price from {latest_price_date.strftime("%Y-%m-%d")})'
+            self.log_violation(message)
+            return (self.is_error(), message)
+        return (False, None)
 
 
 class PriceLimitRule(ValidationRule):
-    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> bool:
+    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
         super().validate(entity, entity_id, context)
 
         limit = self._get_value(entity)
         current_price = context.get('current_price')
 
         if pd.isna(current_price):
-            self.log_violation(
-                f'Security "{entity["Name"]}" has no price data'
-            )
-            return self.is_error()
+            message = f'Security "{entity["Name"]}" has no price data'
+            self.log_violation(message)
+            return (self.is_error(), message)
 
         if current_price >= limit:
-            self.log_violation(
-                f'Security "{entity["Name"]}" price {current_price:.2f} has reached limit {limit:.2f}'
-            )
-            return self.is_error()
-        return False
+            message = f'Security "{entity["Name"]}" price {current_price:.2f} has reached limit {limit:.2f}'
+            self.log_violation(message)
+            return (self.is_error(), message)
+        return (False, None)
 
 
 RULE_TYPES = {

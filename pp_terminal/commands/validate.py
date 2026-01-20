@@ -22,16 +22,15 @@ from datetime import datetime
 from functools import wraps
 from typing import Callable, Any
 
-import pandas as pd
 import typer
 from typer.models import CommandFunctionType
 
-from ..df_filter import filter_not_retired
 from ..exceptions import ValidationError
 from ..helper import run_all_group_cmds
 from ..output import Console
 from ..portfolio_snapshot import PortfolioSnapshot
-from ..validation_rules import create_rule, get_applicable_rules
+from ..validation_engine import validate_accounts as validate_accounts_engine
+from ..validation_engine import validate_securities as validate_securities_engine
 
 app = typer.Typer()
 console = Console()
@@ -69,50 +68,16 @@ def validate_security_prices(ctx: typer.Context) -> None:
     portfolio = ctx.obj.portfolio
     config = ctx.obj.config
 
-    rules_config = config.get('validation', {}).get('securities', {}).get('rules', [])
+    results = validate_securities_engine(portfolio, config)
 
-    if not rules_config:
-        log.debug('No security validation rules configured')
-        return
-
-    if portfolio.securities is None or portfolio.securities.empty:
-        log.debug('No securities found in portfolio')
-        return
-
-    rules = [create_rule(rule_config, config) for rule_config in rules_config]
-
-    latest_prices = portfolio.prices.groupby(['SecurityId']).tail(1)
-
-    securities_with_prices = pd.merge(
-        portfolio.securities,
-        latest_prices.reset_index()[['SecurityId', 'date', 'Price']],
-        left_index=True,
-        right_on='SecurityId',
-        how='left',
-        validate='one_to_one'
-    ).set_index('SecurityId')
-
-    securities_with_prices = securities_with_prices.pipe(filter_not_retired)
-
-    if securities_with_prices.empty:
-        log.debug('No non-retired securities found')
+    if not results:
+        log.debug('No security validation rules configured or no securities to validate')
         return
 
     has_errors = False
-    for security_id, security in securities_with_prices.iterrows():
-        applicable_rules = get_applicable_rules(str(security_id), security, rules)
-        if not applicable_rules:
-            continue
-
-        context = {
-            'latest_price_date': security.get('date') if pd.notna(security.get('date')) else None,
-            'current_price': security.get('Price') if pd.notna(security.get('Price')) else None,
-            'portfolio': portfolio,
-        }
-
-        for rule in applicable_rules:
-            if rule.validate(security, str(security_id), context):
-                has_errors = True
+    for result in results.values():
+        if result.has_errors:
+            has_errors = True
 
     if has_errors:
         raise ValidationError()
@@ -125,56 +90,17 @@ def validate_accounts(ctx: typer.Context) -> None:
     portfolio = ctx.obj.portfolio
     config = ctx.obj.config
 
-    rules_config = config.get('validation', {}).get('accounts', {}).get('rules', [])
-
-    if not rules_config:
-        log.debug('No account validation rules configured')
-        return
-
     snapshot = PortfolioSnapshot(portfolio, datetime.now())
-    if snapshot.balances is None or snapshot.balances.empty:
-        log.debug('No deposit account balances found')
-        return
+    results = validate_accounts_engine(portfolio, snapshot, config)
 
-    if portfolio.deposit_accounts is None:
-        log.debug('No deposit accounts found in portfolio')
-        return
-
-    rules = [create_rule(rule_config, config) for rule_config in rules_config]
-
-    total_balances = snapshot.balances.groupby('account_id').sum()
-    total_balances.name = 'TotalBalance'
-
-    accounts_with_balances = pd.merge(
-        portfolio.deposit_accounts,
-        total_balances,
-        left_index=True,
-        right_index=True,
-        how='right',
-        validate='one_to_one'
-    )
-
-    accounts_with_balances = accounts_with_balances.pipe(filter_not_retired)
-
-    if accounts_with_balances.empty:
-        log.debug('No non-retired accounts found')
+    if not results:
+        log.debug('No account validation rules configured or no accounts to validate')
         return
 
     has_errors = False
-    for account_id, account in accounts_with_balances.iterrows():
-        applicable_rules = get_applicable_rules(str(account_id), account, rules)
-        if not applicable_rules:
-            continue
-
-        context = {
-            'balance': account['TotalBalance'],
-            'portfolio': portfolio,
-            'snapshot': snapshot,
-        }
-
-        for rule in applicable_rules:
-            if rule.validate(account, str(account_id), context):
-                has_errors = True
+    for result in results.values():
+        if result.has_errors:
+            has_errors = True
 
     if has_errors:
         raise ValidationError()

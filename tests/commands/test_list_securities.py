@@ -104,6 +104,7 @@ def test_list_securities_with_shares(securities_portfolio: Portfolio, capsys: py
     ctx.obj = Mock()
     ctx.obj.portfolio = securities_portfolio
     ctx.obj.output = RichOutputStrategy()
+    ctx.obj.config = {}
 
     print_securities(ctx)
 
@@ -125,6 +126,7 @@ def test_list_securities_without_transactions(empty_securities_portfolio: Portfo
     ctx.obj = Mock()
     ctx.obj.portfolio = empty_securities_portfolio
     ctx.obj.output = RichOutputStrategy()
+    ctx.obj.config = {}
 
     print_securities(ctx)
 
@@ -155,6 +157,7 @@ def test_list_securities_sorted_by_name(securities_portfolio: Portfolio, capsys:
     ctx.obj = Mock()
     ctx.obj.portfolio = securities_portfolio
     ctx.obj.output = RichOutputStrategy()
+    ctx.obj.config = {}
 
     print_securities(ctx)
 

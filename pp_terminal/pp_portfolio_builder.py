@@ -100,7 +100,7 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
             left join security_attr as sa on sa."security" = s.uuid
             left join attribute_type as at on sa.attr_uuid = at.id
             group by s.uuid
-        """
+        """  # nosec B608 - case_statements contain only column names with ? placeholders, data passed via params
 
         securities = (pd.read_sql_query(sql, self._db.connection, index_col='uuid', params=params)
                           .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
@@ -165,7 +165,7 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
             left join account_attr as aa on aa."account" = a.uuid
             left join attribute_type as at on aa.attr_uuid = at.id
             group by a.uuid
-        """
+        """  # nosec B608 - case_statements contain only column names with ? placeholders, data passed via params
 
         accounts = (pd.read_sql_query(sql, self._db.connection, index_col='uuid', params=params)
                           .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
@@ -192,7 +192,7 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
         cursor = self._db.connection.cursor()
         placeholders = ','.join('?' * len(attributes))
         cursor.execute(
-            f'SELECT id FROM attribute_type WHERE target = ? AND id IN ({placeholders})',
+            f'SELECT id FROM attribute_type WHERE target = ? AND id IN ({placeholders})',  # nosec B608 - placeholders is just ?,?,? string, data passed via params
             [target] + list(attributes.values())
         )
 

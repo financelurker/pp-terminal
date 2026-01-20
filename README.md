@@ -78,22 +78,28 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
   "tax": {
     "rate": 26.375,
     "file": "vorabpauschale.csv",
-    "exemption-rate": 30
+    "exemption-rate": 30,
+    "exemption-rate-attribute": "exemption-rate"
   },
   "attributes": {
-    "exemption-rate": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"
+    "exemption-rate": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3",
+    "interest-valid-until": "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"
   },
   "validation": {
     "accounts": {
       "rules": [
         {
           "type": "balance-limit",
-          "value": 100000,
+          "value": 25000,
           "applies-to": ["c9c57e01-7ea0-4e70-bed9-4656941f7687"]
         },
         {
           "type": "balance-limit",
-          "value": 25000
+          "value": 100000
+        },
+        {
+          "type": "date-passed-from-attribute",
+          "value": "interest-valid-until"
         }
       ]
     },
@@ -101,12 +107,12 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
       "rules": [
         {
           "type": "price-staleness",
-          "severity": "warning",
-          "value": 30
+          "value": 90
         },
         {
           "type": "price-staleness",
-          "value": 90
+          "severity": "warning",
+          "value": 30
         }
       ]
     }

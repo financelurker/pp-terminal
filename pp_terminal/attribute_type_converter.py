@@ -18,15 +18,81 @@
 """
 
 import logging
-from typing import Dict
+from typing import Any, Callable, Dict, Optional
 
 import numpy as np
 import pandas as pd
 
 log = logging.getLogger(__name__)
 
+def _percent_plain_converter(value: Any) -> float:
+    """Convert percent value stored as plain number (divide by 100)."""
+    return float(value) / 100
 
-def convert_attribute_types(df: pd.DataFrame, attributes: Dict[str, str]) -> pd.DataFrame:  # pylint: disable=too-many-branches
+
+CONVERTER_DISPATCH: Dict[str, Callable[[Any], Any]] = {
+    'DateConverter': pd.to_datetime,
+    'PercentPlainConverter': _percent_plain_converter,
+    'PercentConverter': float,
+    'LongConverter': float,
+    'AmountConverter': float,
+    'StringConverter': str,
+}
+
+
+def _get_converter_function(converter: str) -> Optional[Callable[[Any], Any]]:
+    """Get the conversion function for a given converter class name."""
+    for key, func in CONVERTER_DISPATCH.items():
+        if key in converter:
+            return func
+    return None
+
+
+def _convert_single_value(value: Any, converter: Any, attr_name: str, attr_uuid: str, idx: Any) -> Any:
+    """
+    Convert a single attribute value based on its converter type.
+
+    Args:
+        value: The raw attribute value to convert
+        converter: The converter class name
+        attr_name: Friendly name of the attribute (for logging)
+        attr_uuid: UUID of the attribute (for logging)
+        idx: Row index (for logging)
+
+    Returns:
+        Converted value or np.nan if conversion fails
+    """
+    if pd.isna(value):
+        return value
+
+    if pd.isna(converter):
+        log.warning(
+            "Missing converter type for attribute '%s' (%s) of entity at index %s. Ignoring value.",
+            attr_name, attr_uuid, idx
+        )
+        return np.nan
+
+    converter_str = str(converter)
+    convert_func = _get_converter_function(converter_str)
+
+    if convert_func is None:
+        log.warning(
+            "Unknown converter type '%s' for attribute '%s' (%s). Keeping raw value.",
+            converter_str, attr_name, attr_uuid
+        )
+        return value
+
+    try:
+        return convert_func(value)
+    except (ValueError, TypeError) as e:
+        log.warning(
+            "Failed to parse attribute '%s' (%s) value '%s': %s. Ignoring value.",
+            attr_name, attr_uuid, value, str(e)
+        )
+        return np.nan
+
+
+def convert_attribute_types(df: pd.DataFrame, attributes: Dict[str, str]) -> pd.DataFrame:
     """
     Convert attribute values based on their converterClass types.
 
@@ -49,42 +115,16 @@ def convert_attribute_types(df: pd.DataFrame, attributes: Dict[str, str]) -> pd.
         if value_col not in df.columns:
             continue
 
-        for idx, row in df.iterrows():
-            if pd.notna(row.get(value_col)):
-                if pd.isna(row.get(converter_col)):
-                    log.warning(
-                        "Missing converter type for attribute '%s' (%s) of entity at index %s. Ignoring value.",
-                        attr_name, attr_uuid, idx
-                    )
-                    df.at[idx, value_col] = np.nan
-                    continue
-
-                try:
-                    value = row[value_col]
-                    converter = str(row[converter_col])
-
-                    if 'DateConverter' in converter:
-                        df.at[idx, value_col] = pd.to_datetime(value)
-                    elif 'PercentPlainConverter' in converter:
-                        df.at[idx, value_col] = float(value) / 100
-                    elif 'PercentConverter' in converter:
-                        df.at[idx, value_col] = float(value)
-                    elif 'LongConverter' in converter or 'AmountConverter' in converter:
-                        df.at[idx, value_col] = float(value)
-                    elif 'StringConverter' in converter:
-                        df.at[idx, value_col] = str(value)
-                    else:
-                        log.warning(
-                            "Unknown converter type '%s' for attribute '%s' (%s). Keeping raw value.",
-                            converter, attr_name, attr_uuid
-                        )
-
-                except (ValueError, TypeError) as e:
-                    log.warning(
-                        "Failed to parse attribute '%s' (%s) value '%s': %s. Ignoring value.",
-                        attr_name, attr_uuid, row[value_col], str(e)
-                    )
-                    df.at[idx, value_col] = np.nan
+        df[value_col] = df.apply(
+            lambda row, vc=value_col, cc=converter_col, an=attr_name, au=attr_uuid: _convert_single_value(
+                row.get(vc),
+                row.get(cc),
+                an,
+                au,
+                row.name
+            ),
+            axis=1
+        )
 
         if converter_col in df.columns:
             df = df.drop(columns=[converter_col])

@@ -81,11 +81,11 @@ class TableDecorator(Table):
                 summary_row = pd.concat([summary_row, pd.Series(['Total'], index=[first_col])])
 
         # in case we have multiple footer lines, insert the total value into the right position in the dataframe
-        df_bottom = None
+        footer_rows = None
         if self._options.show_total and not self.show_default_footer:
-            df_bottom = df.iloc[-self._options.footer_lines:, :]
+            footer_rows = df.iloc[-self._options.footer_lines:, :]
             df = df.iloc[:-self._options.footer_lines, :]
-            df_bottom = pd.concat([df, summary_row.to_frame().T, df_bottom], ignore_index=True)
+            footer_rows = pd.concat([df, summary_row.to_frame().T, footer_rows], ignore_index=True)
 
         # add index column if show_index is enabled
         if self._options.show_index:
@@ -111,10 +111,10 @@ class TableDecorator(Table):
         for row_data in self._prepare_rows(df):
             self.add_row(*row_data)
 
-        if df_bottom is None:
+        if footer_rows is None:
             return self
 
-        self._print_footer(df_bottom)
+        self._print_footer(footer_rows)
 
         return self
 

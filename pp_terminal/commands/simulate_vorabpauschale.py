@@ -41,6 +41,21 @@ log = logging.getLogger(__name__)
 
 begin = None  # pylint: disable=invalid-name
 
+# Basiszinssatz (base interest rate) by year for German tax calculations
+# @link https://www.bundesbank.de/de/statistiken/geld-und-kapitalmaerkte/zinssaetze-und-renditen/basiszinssatz
+BASISZINS_BY_YEAR: dict[int, Percent] = {
+    2016: 1.1,
+    2018: 0.87,
+    2019: 0.52,
+    2020: 0.07,
+    2021: -0.45,
+    2022: -0.05,
+    2023: 2.55,
+    2024: 2.29,
+    2025: 2.53,
+    2026: 3.2,
+}
+
 
 # @see https://www.gesetze-im-internet.de/invstg_2018/__18.html
 def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
@@ -243,36 +258,17 @@ def set_begin(value: datetime | None) -> datetime | None:
     return value
 
 
-def get_base_rate_percent_by_year() -> Percent | None:  # pylint: disable=too-many-locals
+def get_base_rate_percent_by_year() -> Percent | None:
+    """
+    Get the base rate (Basiszinssatz) for the selected year.
+
+    Returns the official Basiszins rate for German tax calculations.
+    Defaults to 3.2% for years not explicitly defined in BASISZINS_BY_YEAR.
+    """
     if begin is None:
         return None
 
-    # this has to be adapted every year
-    match begin.year:
-        case 2016:
-            rate = 1.1
-        case 2018:
-            rate = 0.87
-        case 2019:
-            rate = 0.52
-        case 2020:
-            rate = 0.07
-        case 2021:
-            rate = -0.45
-        case 2022:
-            rate = -0.05
-        case 2023:
-            rate = 2.55
-        case 2024:
-            rate = 2.29
-        case 2025:
-            rate = 2.53
-        case 2026:
-            rate = 3.2
-        case _:
-            rate = 3.2
-
-    return rate
+    return BASISZINS_BY_YEAR.get(begin.year, 3.2)
 
 
 @app.command(name="vorabpauschale")

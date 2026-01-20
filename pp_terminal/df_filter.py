@@ -49,7 +49,7 @@ def filter_by_type(df: pd.DataFrame, transaction_types: TransactionType| list[Tr
 
 
 def filter_not_retired(df: pd.DataFrame) -> pd.DataFrame:
-    return df[df['is_retired'] != True]  # pylint: disable=singleton-comparison
+    return df[~df['is_retired']]
 
 
 def drop_empty_values(df: pd.DataFrame | pd.Series) -> pd.DataFrame:

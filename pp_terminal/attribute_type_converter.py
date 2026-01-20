@@ -116,11 +116,11 @@ def convert_attribute_types(df: pd.DataFrame, attributes: Dict[str, str]) -> pd.
             continue
 
         df[value_col] = df.apply(
-            lambda row, vc=value_col, cc=converter_col, an=attr_name, au=attr_uuid: _convert_single_value(
-                row.get(vc),
-                row.get(cc),
-                an,
-                au,
+            lambda row, value_column=value_col, converter_column=converter_col, attribute_name=attr_name, attribute_uuid=attr_uuid: _convert_single_value(
+                row.get(value_column),
+                row.get(converter_column),
+                attribute_name,
+                attribute_uuid,
                 row.name
             ),
             axis=1

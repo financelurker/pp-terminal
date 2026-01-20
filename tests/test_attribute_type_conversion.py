@@ -19,6 +19,7 @@
 
 import pandas as pd
 import numpy as np
+import pytest
 from _pytest.logging import LogCaptureFixture
 
 from pp_terminal.attribute_type_converter import convert_attribute_types
@@ -41,9 +42,9 @@ def test_convert_percent_plain_converter() -> None:
     attributes = {'test-attr': attr_uuid}
     result = convert_attribute_types(df, attributes)
 
-    assert result.loc[0, attr_uuid] == 0.30
-    assert result.loc[1, attr_uuid] == 0.15
-    assert result.loc[2, attr_uuid] == 1.0
+    assert result.loc[0, attr_uuid] == pytest.approx(0.30)
+    assert result.loc[1, attr_uuid] == pytest.approx(0.15)
+    assert result.loc[2, attr_uuid] == pytest.approx(1.0)
     assert f'{attr_uuid}_converter' not in result.columns
 
 
@@ -64,9 +65,9 @@ def test_convert_percent_converter() -> None:
     attributes = {'test-attr': attr_uuid}
     result = convert_attribute_types(df, attributes)
 
-    assert result.loc[0, attr_uuid] == 0.30
-    assert result.loc[1, attr_uuid] == 0.15
-    assert result.loc[2, attr_uuid] == 1.0
+    assert result.loc[0, attr_uuid] == pytest.approx(0.30)
+    assert result.loc[1, attr_uuid] == pytest.approx(0.15)
+    assert result.loc[2, attr_uuid] == pytest.approx(1.0)
     assert f'{attr_uuid}_converter' not in result.columns
 
 
@@ -105,8 +106,8 @@ def test_convert_long_converter() -> None:
     attributes = {'test-long-attr': attr_uuid}
     result = convert_attribute_types(df, attributes)
 
-    assert result.loc[0, attr_uuid] == 100000.0
-    assert result.loc[1, attr_uuid] == 250000.0
+    assert result.loc[0, attr_uuid] == pytest.approx(100000.0)
+    assert result.loc[1, attr_uuid] == pytest.approx(250000.0)
     assert f'{attr_uuid}_converter' not in result.columns
 
 
@@ -219,8 +220,8 @@ def test_convert_multiple_attributes() -> None:
     result = convert_attribute_types(df, attributes)
 
     # Check first attribute (percent)
-    assert result.loc[0, attr1_uuid] == 0.30
-    assert result.loc[1, attr1_uuid] == 0.15
+    assert result.loc[0, attr1_uuid] == pytest.approx(0.30)
+    assert result.loc[1, attr1_uuid] == pytest.approx(0.15)
 
     # Check second attribute (date)
     assert pd.Timestamp(result.loc[0, attr2_uuid]) == pd.Timestamp('2025-12-31')

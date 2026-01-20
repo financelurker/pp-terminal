@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 from pandera.typing import DataFrame
 
+from .attribute_type_converter import convert_attribute_types
 from .cache_utils import cleanup_old_cache_files, get_cache_path
 from .helper import enum_list_to_values
 from .portfolio import Portfolio
@@ -104,8 +105,7 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
         securities = (pd.read_sql_query(sql, self._db.connection, index_col='uuid', params=params)
                           .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
 
-        # Convert attribute values based on converterClass
-        securities = self._convert_attribute_types(securities, security_attrs)
+        securities = convert_attribute_types(securities, security_attrs)
 
         return cast(DataFrame[SecuritySchema], securities)
 
@@ -171,7 +171,7 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
                           .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
 
         # Convert attribute values based on converterClass
-        accounts = self._convert_attribute_types(accounts, account_attrs)
+        accounts = convert_attribute_types(accounts, account_attrs)
 
         return cast(DataFrame[AccountSchema], accounts)
 
@@ -200,66 +200,6 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
 
         # Return only attributes that match the target
         return {name: uuid for name, uuid in attributes.items() if uuid in valid_uuids}
-
-    def _convert_attribute_types(self, df: pd.DataFrame, attributes: Dict[str, str]) -> pd.DataFrame:  # pylint: disable=too-many-branches
-        """
-        Convert attribute values based on their converterClass types.
-
-        Args:
-            df: DataFrame containing attribute columns
-            attributes: Dictionary mapping friendly names to attribute UUIDs
-
-        Returns:
-            DataFrame with converted attribute values
-        """
-        for attr_name, attr_uuid in attributes.items():
-            value_col = attr_uuid
-            converter_col = f"{attr_uuid}_converter"
-
-            if value_col not in df.columns:
-                continue
-
-            for idx, row in df.iterrows():
-                if pd.notna(row.get(value_col)):
-                    if pd.isna(row.get(converter_col)):
-                        log.warning(
-                            "Missing converter type for attribute '%s' (%s) of entity at index %s. Ignoring value.",
-                            attr_name, attr_uuid, idx
-                        )
-                        df.at[idx, value_col] = np.nan
-                        continue
-
-                    try:
-                        value = row[value_col]
-                        converter = str(row[converter_col])
-
-                        if 'DateConverter' in converter:
-                            df.at[idx, value_col] = pd.to_datetime(value)
-                        elif 'PercentPlainConverter' in converter:
-                            df.at[idx, value_col] = float(value) / 100
-                        elif 'PercentConverter' in converter:
-                            df.at[idx, value_col] = float(value)
-                        elif 'LongConverter' in converter or 'AmountConverter' in converter:
-                            df.at[idx, value_col] = float(value)
-                        elif 'StringConverter' in converter:
-                            df.at[idx, value_col] = str(value)
-                        else:
-                            log.warning(
-                                "Unknown converter type '%s' for attribute '%s' (%s). Keeping raw value.",
-                                converter, attr_name, attr_uuid
-                            )
-
-                    except (ValueError, TypeError) as e:
-                        log.warning(
-                            "Failed to parse attribute '%s' (%s) value '%s': %s. Ignoring value.",
-                            attr_name, attr_uuid, row[value_col], str(e)
-                        )
-                        df.at[idx, value_col] = np.nan
-
-            if converter_col in df.columns:
-                df = df.drop(columns=[converter_col])
-
-        return df
 
     def _get_property(self, name: str) -> str | None:
         cursor = self._db.connection.cursor()

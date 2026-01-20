@@ -16,19 +16,16 @@
     You should have received a copy of the GNU General Public License
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
-# pylint: disable=protected-access
 
 import pandas as pd
 import numpy as np
 from _pytest.logging import LogCaptureFixture
 
-from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
+from pp_terminal.attribute_type_converter import convert_attribute_types
 
 
 def test_convert_percent_plain_converter() -> None:
     """Test PercentPlainConverter normalization (30 -> 0.3)."""
-    builder = PpPortfolioBuilder()
-
     attr_uuid = 'test-attr-uuid-001'
     df = pd.DataFrame({
         'Name': ['ETF A', 'ETF B', 'ETF C'],
@@ -42,7 +39,7 @@ def test_convert_percent_plain_converter() -> None:
     })
 
     attributes = {'test-attr': attr_uuid}
-    result = builder._convert_attribute_types(df, attributes)
+    result = convert_attribute_types(df, attributes)
 
     assert result.loc[0, attr_uuid] == 0.30
     assert result.loc[1, attr_uuid] == 0.15
@@ -52,8 +49,6 @@ def test_convert_percent_plain_converter() -> None:
 
 def test_convert_percent_converter() -> None:
     """Test PercentConverter normalization (0.3 -> 0.3)."""
-    builder = PpPortfolioBuilder()
-
     attr_uuid = 'test-attr-uuid-002'
     df = pd.DataFrame({
         'Name': ['ETF A', 'ETF B', 'ETF C'],
@@ -67,7 +62,7 @@ def test_convert_percent_converter() -> None:
     })
 
     attributes = {'test-attr': attr_uuid}
-    result = builder._convert_attribute_types(df, attributes)
+    result = convert_attribute_types(df, attributes)
 
     assert result.loc[0, attr_uuid] == 0.30
     assert result.loc[1, attr_uuid] == 0.15
@@ -77,8 +72,6 @@ def test_convert_percent_converter() -> None:
 
 def test_convert_date_converter() -> None:
     """Test DateConverter conversion."""
-    builder = PpPortfolioBuilder()
-
     attr_uuid = 'test-attr-uuid-003'
     df = pd.DataFrame({
         'Name': ['Account A', 'Account B'],
@@ -90,7 +83,7 @@ def test_convert_date_converter() -> None:
     })
 
     attributes = {'test-date-attr': attr_uuid}
-    result = builder._convert_attribute_types(df, attributes)
+    result = convert_attribute_types(df, attributes)
 
     assert pd.Timestamp(result.loc[0, attr_uuid]) == pd.Timestamp('2025-12-31')
     assert pd.Timestamp(result.loc[1, attr_uuid]) == pd.Timestamp('2026-01-15')
@@ -99,8 +92,6 @@ def test_convert_date_converter() -> None:
 
 def test_convert_long_converter() -> None:
     """Test LongConverter conversion."""
-    builder = PpPortfolioBuilder()
-
     attr_uuid = 'test-attr-uuid-004'
     df = pd.DataFrame({
         'Name': ['Item A', 'Item B'],
@@ -112,7 +103,7 @@ def test_convert_long_converter() -> None:
     })
 
     attributes = {'test-long-attr': attr_uuid}
-    result = builder._convert_attribute_types(df, attributes)
+    result = convert_attribute_types(df, attributes)
 
     assert result.loc[0, attr_uuid] == 100000.0
     assert result.loc[1, attr_uuid] == 250000.0
@@ -121,8 +112,6 @@ def test_convert_long_converter() -> None:
 
 def test_convert_string_converter() -> None:
     """Test StringConverter (keeps as-is)."""
-    builder = PpPortfolioBuilder()
-
     attr_uuid = 'test-attr-uuid-005'
     df = pd.DataFrame({
         'Name': ['Item A', 'Item B'],
@@ -134,7 +123,7 @@ def test_convert_string_converter() -> None:
     })
 
     attributes = {'test-string-attr': attr_uuid}
-    result = builder._convert_attribute_types(df, attributes)
+    result = convert_attribute_types(df, attributes)
 
     assert result.loc[0, attr_uuid] == 'Value 1'
     assert result.loc[1, attr_uuid] == 'Value 2'
@@ -143,8 +132,6 @@ def test_convert_string_converter() -> None:
 
 def test_convert_unknown_converter(caplog: LogCaptureFixture) -> None:
     """Test handling of unknown converter type (keeps raw value with warning)."""
-    builder = PpPortfolioBuilder()
-
     attr_uuid = 'test-attr-uuid-006'
     df = pd.DataFrame({
         'Name': ['ETF Unknown'],
@@ -154,7 +141,7 @@ def test_convert_unknown_converter(caplog: LogCaptureFixture) -> None:
     })
 
     attributes = {'test-unknown-attr': attr_uuid}
-    result = builder._convert_attribute_types(df, attributes)
+    result = convert_attribute_types(df, attributes)
 
     # Unknown converter should keep raw value
     assert result.loc[0, attr_uuid] == '30'
@@ -163,8 +150,6 @@ def test_convert_unknown_converter(caplog: LogCaptureFixture) -> None:
 
 def test_convert_invalid_format(caplog: LogCaptureFixture) -> None:
     """Test handling of unparseable values."""
-    builder = PpPortfolioBuilder()
-
     attr_uuid = 'test-attr-uuid-007'
     df = pd.DataFrame({
         'Name': ['ETF Invalid'],
@@ -174,7 +159,7 @@ def test_convert_invalid_format(caplog: LogCaptureFixture) -> None:
     })
 
     attributes = {'test-invalid-attr': attr_uuid}
-    result = builder._convert_attribute_types(df, attributes)
+    result = convert_attribute_types(df, attributes)
 
     # Invalid format should be set to NaN
     assert pd.isna(result.loc[0, attr_uuid])
@@ -183,8 +168,6 @@ def test_convert_invalid_format(caplog: LogCaptureFixture) -> None:
 
 def test_convert_missing_values(caplog: LogCaptureFixture) -> None:
     """Test handling of missing attribute or converter values."""
-    builder = PpPortfolioBuilder()
-
     attr_uuid = 'test-attr-uuid-008'
     df = pd.DataFrame({
         'Name': ['Item No Value', 'Item No Converter', 'Item Both Missing'],
@@ -197,7 +180,7 @@ def test_convert_missing_values(caplog: LogCaptureFixture) -> None:
     })
 
     attributes = {'test-missing-attr': attr_uuid}
-    result = builder._convert_attribute_types(df, attributes)
+    result = convert_attribute_types(df, attributes)
 
     # All should remain NaN
     assert pd.isna(result.loc[0, attr_uuid])  # No value -> stays NaN
@@ -211,8 +194,6 @@ def test_convert_missing_values(caplog: LogCaptureFixture) -> None:
 
 def test_convert_multiple_attributes() -> None:
     """Test converting multiple attributes at once."""
-    builder = PpPortfolioBuilder()
-
     attr1_uuid = 'attr-uuid-001'
     attr2_uuid = 'attr-uuid-002'
 
@@ -235,7 +216,7 @@ def test_convert_multiple_attributes() -> None:
         'exemption-rate': attr1_uuid,
         'valid-until': attr2_uuid
     }
-    result = builder._convert_attribute_types(df, attributes)
+    result = convert_attribute_types(df, attributes)
 
     # Check first attribute (percent)
     assert result.loc[0, attr1_uuid] == 0.30

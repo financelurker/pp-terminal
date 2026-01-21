@@ -207,3 +207,34 @@ def test_multiple_errors_logged(sample_portfolio_with_limits: Portfolio, caplog:
     assert 'account-2' in caplog.text
     assert '1050' in caplog.text
     assert '850' in caplog.text
+
+
+def test_date_passed_with_friendly_name(sample_portfolio_with_limits: Portfolio, caplog: Any) -> None:
+    """Test that date-passed-from-attribute shows friendly attribute name in message."""
+    caplog.set_level(logging.ERROR)
+
+    test_attr_uuid = 'test-date-attr-uuid-12345'
+    sample_portfolio_with_limits._accounts[test_attr_uuid] = pd.Series({  # type: ignore[index]  # pylint: disable=protected-access
+        'account-1': datetime(2020, 1, 1),
+    })
+
+    ctx = Mock()
+    ctx.invoked_subcommand = None
+    ctx.obj = SimpleNamespace(
+        portfolio=sample_portfolio_with_limits,
+        config={
+            'attributes': {
+                'expiry-date': test_attr_uuid
+            },
+            'validation': {'accounts': {'rules': [
+                {'type': 'date-passed-from-attribute', 'value': 'expiry-date'}
+            ]}}
+        }
+    )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        validate_accounts(ctx)
+
+    assert exc_info.value.exit_code == 1
+    assert len(caplog.records) == 1
+    assert 'expiry-date has passed 2020-01-01' in caplog.text

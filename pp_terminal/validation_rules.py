@@ -27,11 +27,19 @@ log = logging.getLogger(__name__)
 
 
 class ValidationRule(ABC):
-    def __init__(self, rule_config: dict[str, Any]):
-        self.rule_type = str(rule_config['type'])
-        self._value = rule_config['value']
-        self.severity = rule_config.get('severity', 'error')
-        self.applies_to = rule_config.get('applies-to', None)
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        rule_type: str,
+        value: Any,
+        severity: str = 'error',
+        applies_to: list[str] | None = None,
+        attribute_name: str | None = None
+    ):
+        self.rule_type = rule_type
+        self._value = value
+        self.severity = severity
+        self.applies_to = applies_to
+        self.attribute_name = attribute_name
 
     @abstractmethod
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
@@ -107,7 +115,8 @@ class DatePassedRule(ValidationRule):
 
         current_date = datetime.now()
         if date_value < current_date:
-            message = f'date attribute has passed {date_value.strftime("%Y-%m-%d")}'
+            attr_label = self.attribute_name if self.attribute_name else 'date attribute'
+            message = f'{attr_label} has passed {date_value.strftime("%Y-%m-%d")}'
             return (self.is_error(), message)
         return (False, None)
 
@@ -164,25 +173,33 @@ def create_rule(rule_config: dict[str, Any], config: dict[str, Any] | None = Non
     if rule_type not in RULE_TYPES:
         raise ValueError(f'Unknown rule type: {rule_type}')
 
+    value = rule_config['value']
+    severity = rule_config.get('severity', 'error')
+    applies_to = rule_config.get('applies-to', None)
+    attribute_name = None
+
     # Resolve attribute names to UUIDs for *-from-attribute rules
     if rule_type.endswith('-from-attribute'):
         if config is None:
             raise ValueError(f'Config required for rule type: {rule_type}')
 
-        attr_name = rule_config['value']
+        attr_name = value
         attributes = config.get('attributes', {})
 
         if attr_name not in attributes:
             raise ValueError(f'Attribute "{attr_name}" not found in config.attributes')
 
-        # Replace friendly name with UUID in the rule config
-        resolved_config = rule_config.copy()
-        resolved_config['value'] = attributes[attr_name]
-        rule_class = RULE_TYPES[rule_type]
-        return rule_class(resolved_config)  # type: ignore[abstract]
+        attribute_name = attr_name
+        value = attributes[attr_name]
 
     rule_class = RULE_TYPES[rule_type]
-    return rule_class(rule_config)  # type: ignore[abstract]
+    return rule_class(
+        rule_type=rule_type,
+        value=value,
+        severity=severity,
+        applies_to=applies_to,
+        attribute_name=attribute_name
+    )  # type: ignore[abstract]
 
 
 def get_applicable_rules(entity_id: str, entity: pd.Series, rules: list[ValidationRule]) -> list[ValidationRule]:

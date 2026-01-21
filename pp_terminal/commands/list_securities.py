@@ -35,8 +35,28 @@ console = Console()
 log = logging.getLogger(__name__)
 
 
+def _normalize_columns(requested_columns: list[str], available_columns: list[str]) -> list[str]:
+    """Normalize and validate column names (case-insensitive matching)."""
+    normalized = []
+    available_lower = {col.lower(): col for col in available_columns}
+
+    for col in requested_columns:
+        col_lower = col.strip().lower()
+        if col_lower not in available_lower:
+            raise InputError(f"Column '{col}' not found. Available columns: {', '.join(sorted(available_columns))}")
+        normalized.append(available_lower[col_lower])
+
+    return normalized
+
+
 @app.command(name="securities")
-def print_securities(ctx: typer.Context, by: datetime = datetime.now(), active: bool = False, in_stock: bool = False) -> None:
+def print_securities(  # pylint: disable=too-many-locals
+    ctx: typer.Context,
+    by: datetime = datetime.now(),
+    active: bool = False,
+    in_stock: bool = False,
+    columns: str | None = None
+) -> None:
     """
     Show a detailed table with all securities and their IDs.
     """
@@ -52,12 +72,10 @@ def print_securities(ctx: typer.Context, by: datetime = datetime.now(), active: 
     snapshot = PortfolioSnapshot(portfolio, by)
     shares = snapshot.shares
 
-    columns_to_select = ['uuid', 'Name', 'Wkn', 'currency']
-    if 'is_retired' in securities.columns:
-        columns_to_select.append('is_retired')
+    # Reset index to make SecurityId a column and rename columns
+    df = securities.reset_index().rename(columns={'uuid': 'SecurityId', 'currency': 'Currency', 'currencyCode': 'Currency'})
 
-    df = securities.reset_index()[columns_to_select].rename(columns={'uuid': 'SecurityId', 'currency': 'Currency'})
-
+    # Add Shares column
     if shares is not None and not shares.empty:
         shares_by_security = shares.groupby('SecurityId').sum()
         df = df.merge(shares_by_security, left_on='SecurityId', right_index=True, how='left', validate='one_to_one')
@@ -65,24 +83,35 @@ def print_securities(ctx: typer.Context, by: datetime = datetime.now(), active: 
     else:
         df['Shares'] = 0.0
 
+    # Apply filters
     if active and 'is_retired' in df.columns:
         df = df[~df['is_retired']]
 
     if in_stock:
         df = df[df['Shares'] > 0.001]
 
-    if 'is_retired' in df.columns:
-        df = df.drop(columns=['is_retired'])
-
     # Add validation messages column
     validation_results = validate_securities(portfolio, config)
     df['Messages'] = df['SecurityId'].map(lambda sid: validation_results.get(str(sid), ValidationResult.empty()).messages)
 
-    # Reorder columns
-    existing_cols = ['SecurityId', 'Name', 'Wkn', 'Currency', 'Shares']
-    df = df[existing_cols + ['Messages']]
+    # Handle column selection
+    if columns is None:
+        # Default columns
+        selected_columns = ['SecurityId', 'Name', 'Wkn', 'Currency', 'Shares', 'Messages']
+    else:
+        # Parse and normalize requested columns
+        requested_columns = [col.strip() for col in columns.split(',')]
+        available_columns = list(df.columns)
+        selected_columns = _normalize_columns(requested_columns, available_columns)
 
-    df = df.sort_values(by='Name')
+    # Filter to selected columns
+    df = df[selected_columns]
+
+    # Drop is_retired if it's still in the dataframe
+    if 'is_retired' in df.columns:
+        df = df.drop(columns=['is_retired'])
+
+    df = df.sort_values(by='Name') if 'Name' in df.columns else df
 
     console.print(*output.result_table(
         df, TableOptions(

@@ -38,6 +38,20 @@ console = Console()
 log = logging.getLogger(__name__)
 
 
+def _normalize_columns(requested_columns: list[str], available_columns: list[str]) -> list[str]:
+    """Normalize and validate column names (case-insensitive matching)."""
+    normalized = []
+    available_lower = {col.lower(): col for col in available_columns}
+
+    for col in requested_columns:
+        col_lower = col.strip().lower()
+        if col_lower not in available_lower:
+            raise InputError(f"Column '{col}' not found. Available columns: {', '.join(sorted(available_columns))}")
+        normalized.append(available_lower[col_lower])
+
+    return normalized
+
+
 def calculate_deposit_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
     balances = (pd.merge(snapshot.portfolio.deposit_accounts, snapshot.balances, left_index=True, right_on='account_id', how="right", validate='one_to_many')
             .sort_values(by='Balance'))
@@ -53,7 +67,12 @@ def calculate_securities_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFra
 
 
 @app.command(name="accounts")
-def print_accounts(ctx: typer.Context, type: AccountType | None = None, by: datetime = datetime.now()) -> None:  # pylint: disable=redefined-builtin
+def print_accounts(  # pylint: disable=too-many-locals
+    ctx: typer.Context,
+    type: AccountType | None = None,  # pylint: disable=redefined-builtin
+    by: datetime = datetime.now(),
+    columns: str | None = None
+) -> None:
     """
     Show a detailed table with the current balance per deposit account.
     """
@@ -82,11 +101,31 @@ def print_accounts(ctx: typer.Context, type: AccountType | None = None, by: date
     account_ids = df.index.get_level_values('account_id')
     df['Messages'] = account_ids.map(lambda aid: validation_results.get(str(aid), ValidationResult.empty()).messages)
 
-    df = df.pipe(unstack_column_by_currency, column='Balance', base_currency=snapshot.portfolio.base_currency)
+    if columns is None:
+        # Default: unstack Balance and show all columns with Messages at the end
+        if 'Balance' in df.columns:
+            df = df.pipe(unstack_column_by_currency, column='Balance', base_currency=snapshot.portfolio.base_currency)
+        non_messages_cols = [col for col in df.columns if col != 'Messages']
+        df = df[non_messages_cols + ['Messages']]
+    else:
+        requested_columns = [col.strip() for col in columns.split(',')]
+        available_before_unstack = ['Name', 'Type', 'Balance', 'Messages']
+        selected_columns_preunstack = _normalize_columns(requested_columns, available_before_unstack)
 
-    # Reorder columns
-    non_messages_cols = [col for col in df.columns if col != 'Messages']
-    df = df[non_messages_cols + ['Messages']]
+        if 'Balance' in selected_columns_preunstack and 'Balance' in df.columns:
+            df = df.pipe(unstack_column_by_currency, column='Balance', base_currency=snapshot.portfolio.base_currency)
+
+        # Map to actual columns after unstacking
+        selected_columns = []
+        for col in selected_columns_preunstack:
+            if col == 'Balance':
+                # Include all currency columns (columns that are not Name, Type, Messages)
+                currency_cols = [c for c in df.columns if c not in ['Name', 'Type', 'Messages']]
+                selected_columns.extend(currency_cols)
+            elif col in df.columns:
+                selected_columns.append(col)
+
+        df = df[selected_columns]
 
     console.print(*output.result_table(
         df, TableOptions(title="Balances on Accounts", caption=f"in total {len(df)} entries, per {by.strftime("%Y-%m-%d")}", show_index=True)

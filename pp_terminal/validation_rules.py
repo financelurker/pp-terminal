@@ -84,8 +84,7 @@ class BalanceLimitRule(ValidationRule):
         balance = context['balance']
 
         if balance > limit:
-            message = f'Account "{entity["Name"]}" ({entity_id}) balance {balance:.2f} exceeds limit {limit:.2f}'
-            self.log_violation(message)
+            message = f'balance {balance:.2f} exceeds limit {limit:.2f}'
             return (self.is_error(), message)
         return (False, None)
 
@@ -108,8 +107,7 @@ class DatePassedRule(ValidationRule):
 
         current_date = datetime.now()
         if date_value < current_date:
-            message = f'Account "{entity["Name"]}" date attribute has passed {date_value.strftime("%Y-%m-%d")}'
-            self.log_violation(message)
+            message = f'date attribute has passed {date_value.strftime("%Y-%m-%d")}'
             return (self.is_error(), message)
         return (False, None)
 
@@ -122,16 +120,14 @@ class PriceStalenessRule(ValidationRule):
         latest_price_date = context.get('latest_price_date')
 
         if pd.isna(latest_price_date) or latest_price_date is None:
-            message = f'Security "{entity["Name"]}" has no price data'
-            self.log_violation(message)
+            message = 'no price data'
             return (self.is_error(), message)
 
         current_date = datetime.now()
         days_old = (current_date - latest_price_date).days
 
         if days_old > max_days:
-            message = f'Security "{entity["Name"]}" price is {days_old} days old (latest price from {latest_price_date.strftime("%Y-%m-%d")})'
-            self.log_violation(message)
+            message = f'price is {days_old} days old (latest: {latest_price_date.strftime("%Y-%m-%d")})'
             return (self.is_error(), message)
         return (False, None)
 
@@ -144,13 +140,11 @@ class PriceLimitRule(ValidationRule):
         current_price = context.get('current_price')
 
         if pd.isna(current_price):
-            message = f'Security "{entity["Name"]}" has no price data'
-            self.log_violation(message)
+            message = 'no price data'
             return (self.is_error(), message)
 
         if current_price >= limit:
-            message = f'Security "{entity["Name"]}" price {current_price:.2f} has reached limit {limit:.2f}'
-            self.log_violation(message)
+            message = f'price {current_price:.2f} has reached limit {limit:.2f}'
             return (self.is_error(), message)
         return (False, None)
 

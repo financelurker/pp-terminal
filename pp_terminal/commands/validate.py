@@ -75,9 +75,17 @@ def validate_security_prices(ctx: typer.Context) -> None:
         return
 
     has_errors = False
-    for result in results.values():
-        if result.has_errors:
-            has_errors = True
+    for security_id, result in results.items():
+        if not result.violations:
+            continue
+
+        security_name = portfolio.securities.loc[security_id, 'Name']
+
+        for rule, message in result.violations:
+            full_message = f'Security "{security_name}" ({security_id}) {message}'
+            rule.log_violation(full_message)
+            if rule.is_error():
+                has_errors = True
 
     if has_errors:
         raise ValidationError()
@@ -98,9 +106,17 @@ def validate_accounts(ctx: typer.Context) -> None:
         return
 
     has_errors = False
-    for result in results.values():
-        if result.has_errors:
-            has_errors = True
+    for account_id, result in results.items():
+        if not result.violations:
+            continue
+
+        account_name = portfolio.deposit_accounts.loc[account_id, 'Name']
+
+        for rule, message in result.violations:
+            full_message = f'Account "{account_name}" ({account_id}) {message}'
+            rule.log_violation(full_message)
+            if rule.is_error():
+                has_errors = True
 
     if has_errors:
         raise ValidationError()

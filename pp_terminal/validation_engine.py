@@ -68,7 +68,7 @@ def validate_entity(
     rules: list[ValidationRule],
     context: dict[str, Any]
 ) -> ValidationResult:
-    """Validates single entity against applicable rules. No side effects."""
+    """Validates single entity against applicable rules."""
     applicable_rules = get_applicable_rules(entity_id, entity, rules)
     violations = []
 

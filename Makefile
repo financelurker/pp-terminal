@@ -16,7 +16,9 @@ check:
 	poetry run mypy .
 
 test:
-	poetry run pytest
+	poetry run pytest tests
+	poetry run coverage run --data-file=tests/.coverage -m pytest tests
+	poetry run mutmut run && poetry run mutmut results
 
 build: install check test
 	poetry build

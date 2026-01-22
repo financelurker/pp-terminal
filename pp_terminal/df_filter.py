@@ -56,7 +56,20 @@ def drop_empty_values(df: pd.DataFrame | pd.Series) -> pd.DataFrame:
     if df.empty:
         return df
 
-    df = df[~(df.isna() | df == 0)]
+    # Create mask for NaN values and zero values (only for numeric columns)
+    if isinstance(df, pd.DataFrame):
+        # For DataFrames, handle numeric and non-numeric columns separately
+        numeric_cols = df.select_dtypes(include='number').columns
+        mask = df.isna()
+        if len(numeric_cols) > 0:
+            mask = mask | (df[numeric_cols] == 0).reindex(columns=df.columns, fill_value=False)
+        df = df[~mask]
+    else:
+        # For Series, check if numeric before applying == 0
+        if pd.api.types.is_numeric_dtype(df):
+            df = df[~(df.isna() | (df == 0))]
+        else:
+            df = df[~df.isna()]
 
     df.dropna(how='all', axis=0, inplace=True)
     if isinstance(df, pd.DataFrame):

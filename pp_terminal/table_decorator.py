@@ -103,8 +103,7 @@ class TableDecorator(Table):
             if not self._options.show_index and footer_value == '' and i == 0:  # column is non-numeric
                 footer_value = 'Total'
 
-            column_title = str(column)
-            column_title = column_title[0].upper() + column_title[1:]
+            column_title = str(column).replace('_', ' ').replace('-', ' ').title()
 
             self.add_column(column_title, footer=footer_value if self.show_default_footer else '', justify=justify)
 

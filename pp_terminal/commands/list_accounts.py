@@ -23,6 +23,7 @@ from datetime import datetime
 import pandas as pd
 import typer
 
+from ..column_utils import normalize_columns, rename_uuid_columns
 from ..df_filter import unstack_column_by_currency
 from ..exceptions import InputError
 from ..helper import footer
@@ -38,50 +39,43 @@ console = Console()
 log = logging.getLogger(__name__)
 
 
-def _normalize_columns(requested_columns: list[str], available_columns: list[str], attribute_map: dict[str, str] | None = None) -> list[str]:
-    """
-    Normalize and validate column names (case-insensitive matching).
+def _prepare_df_for_display(
+    df: pd.DataFrame,
+    selected_columns_preunstack: list[str],
+    snapshot: PortfolioSnapshot,
+    attribute_map: dict[str, str] | None,
+    unstack_balance: bool
+) -> pd.DataFrame:
+    """Prepare DataFrame for display with optional Balance unstacking."""
+    if unstack_balance:
+        cols_before_unstack = set(df.columns)
+        df = df.pipe(unstack_column_by_currency, column='Balance', base_currency=snapshot.portfolio.base_currency)
+        currency_cols = list(set(df.columns) - cols_before_unstack)
+    else:
+        if 'currency' in df.columns:
+            df = df.drop(columns=['currency'])
+        currency_cols = []
 
-    Args:
-        requested_columns: List of column names requested by user
-        available_columns: List of actual column names in the dataframe
-        attribute_map: Optional mapping of friendly attribute names to UUID column names
-    """
-    normalized = []
-    available_lower = {col.lower(): col for col in available_columns}
+    df = df.reset_index()
+    df = df.rename(columns={'account_id': 'ID'})
 
-    # Create reverse mapping for attribute names (friendly name -> UUID)
-    attr_name_to_uuid = {}
-    if attribute_map:
-        for friendly_name, uuid in attribute_map.items():
-            attr_name_to_uuid[friendly_name.lower()] = uuid
+    if 'currency' in df.columns:
+        df = df.drop(columns=['currency'])
 
-    for col in requested_columns:
-        col_lower = col.strip().lower()
+    selected_columns = []
+    for col in selected_columns_preunstack:
+        if col == 'Balance' and currency_cols:
+            selected_columns.extend(currency_cols)
+        elif col in df.columns:
+            selected_columns.append(col)
 
-        # Try direct column match first
-        if col_lower in available_lower:
-            normalized.append(available_lower[col_lower])
-        # Try attribute name mapping
-        elif col_lower in attr_name_to_uuid:
-            uuid_col = attr_name_to_uuid[col_lower]
-            if uuid_col in available_columns:
-                normalized.append(uuid_col)
-            else:
-                raise InputError(f"Attribute '{col}' (UUID: {uuid_col}) not found in data")
-        else:
-            # Build helpful error message including attribute names
-            # Filter out internal columns (starting with _) and UUID columns
-            uuid_values = set(attribute_map.values()) if attribute_map else set()
-            available_names = sorted([
-                col for col in available_columns
-                if not col.startswith('_') and col not in uuid_values
-            ])
-            if attribute_map:
-                available_names.extend(f"{name} (attribute)" for name in sorted(attribute_map.keys()))
-            raise InputError(f"Column '{col}' not found. Available columns: {', '.join(available_names)}")
+    df = df[selected_columns]
+    df = rename_uuid_columns(df, attribute_map)
 
-    return normalized
+    if 'ID' in df.columns:
+        df = df.set_index('ID')
+
+    return df
 
 
 def calculate_deposit_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
@@ -155,71 +149,12 @@ def print_accounts(  # pylint: disable=too-many-locals
     if 'Balance' in df.columns:
         available_before_unstack.append('Balance')
 
-    selected_columns_preunstack = _normalize_columns(requested_columns, available_before_unstack, attribute_map)
+    selected_columns_preunstack = normalize_columns(requested_columns, available_before_unstack, attribute_map)
 
-    # Unstack Balance if requested (before resetting index)
-    if 'Balance' in selected_columns_preunstack and 'Balance' in df.columns:
-        # Track columns before unstacking
-        cols_before_unstack = set(df.columns)
-
-        df = df.pipe(unstack_column_by_currency, column='Balance', base_currency=snapshot.portfolio.base_currency)
-
-        # Identify currency columns (added by unstacking)
-        cols_after_unstack = set(df.columns)
-        currency_cols = list(cols_after_unstack - cols_before_unstack)
-
-        # After unstacking, reset index to make account_id a regular column
-        df = df.reset_index()
-        df = df.rename(columns={'account_id': 'ID'})
-
-        # Map to actual columns after unstacking and index reset
-        selected_columns = []
-        for col in selected_columns_preunstack:
-            if col == 'Balance':
-                # Include only the currency columns created by unstacking
-                selected_columns.extend(currency_cols)
-            elif col in df.columns:
-                selected_columns.append(col)
-
-        df = df[selected_columns]
-
-        # Rename UUID columns to friendly names
-        if attribute_map:
-            uuid_to_name = {uuid: name for name, uuid in attribute_map.items()}
-            rename_map = {col: uuid_to_name[col] for col in df.columns if col in uuid_to_name}
-            if rename_map:
-                df = df.rename(columns=rename_map)
-
-        # Set ID as index for display
-        if 'ID' in df.columns:
-            df = df.set_index('ID')
-    else:
-        # Balance not requested, drop the currency column first (exists as both column and index level)
-        if 'currency' in df.columns:
-            df = df.drop(columns=['currency'])
-
-        # Now reset the MultiIndex and rename
-        df = df.reset_index()
-        df = df.rename(columns={'account_id': 'ID'})
-
-        # Drop currency again if it came from the index
-        if 'currency' in df.columns:
-            df = df.drop(columns=['currency'])
-
-        # Filter to selected columns
-        selected_columns = [col for col in selected_columns_preunstack if col in df.columns]
-        df = df[selected_columns]
-
-        # Rename UUID columns to friendly names
-        if attribute_map:
-            uuid_to_name = {uuid: name for name, uuid in attribute_map.items()}
-            rename_map = {col: uuid_to_name[col] for col in df.columns if col in uuid_to_name}
-            if rename_map:
-                df = df.rename(columns=rename_map)
-
-        # Set ID as index for display
-        if 'ID' in df.columns:
-            df = df.set_index('ID')
+    df = _prepare_df_for_display(
+        df, selected_columns_preunstack, snapshot, attribute_map,
+        unstack_balance='Balance' in selected_columns_preunstack and 'Balance' in df.columns
+    )
 
     console.print(*output.result_table(
         df, TableOptions(title="Balances on Accounts", caption=f"in total {len(df)} entries, per {by.strftime("%Y-%m-%d")}", show_index=True)

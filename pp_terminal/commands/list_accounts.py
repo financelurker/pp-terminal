@@ -57,7 +57,7 @@ def _prepare_df_for_display(
         currency_cols = []
 
     df = df.reset_index()
-    df = df.rename(columns={'account_id': 'ID'})
+    df = df.rename(columns={'account_id': 'AccountId'})
 
     if 'currency' in df.columns:
         df = df.drop(columns=['currency'])
@@ -72,8 +72,8 @@ def _prepare_df_for_display(
     df = df[selected_columns]
     df = rename_uuid_columns(df, attribute_map)
 
-    if 'ID' in df.columns:
-        df = df.set_index('ID')
+    if 'AccountId' in df.columns:
+        df = df.set_index('AccountId')
 
     return df
 
@@ -107,7 +107,7 @@ def print_accounts(  # pylint: disable=too-many-locals
     ctx: typer.Context,
     type: AccountType | None = None,  # pylint: disable=redefined-builtin
     by: datetime = datetime.now(),
-    columns: str = 'ID,Name,Type,Balance,Messages'
+    columns: str = 'AccountId,Name,Type,Balance,Messages'
 ) -> None:
     """
     Show a detailed table with the current balance per deposit account.
@@ -144,8 +144,8 @@ def print_accounts(  # pylint: disable=too-many-locals
     # Parse requested columns
     requested_columns = [col.strip() for col in columns.split(',')]
 
-    # Available columns before unstacking - need to account for ID which will be from the index
-    available_before_unstack = list(set(df.columns) - {'Balance'}) + ['ID']
+    # Available columns before unstacking - need to account for AccountId which will be from the index
+    available_before_unstack = list(set(df.columns) - {'Balance'}) + ['AccountId']
     if 'Balance' in df.columns:
         available_before_unstack.append('Balance')
 

@@ -42,7 +42,7 @@ def print_securities(  # pylint: disable=too-many-locals
     by: datetime = datetime.now(),
     active: bool = False,
     in_stock: bool = False,
-    columns: str = 'ID,Name,Wkn,Currency,Shares,Messages'
+    columns: str = 'SecurityId,Name,Wkn,Currency,Shares,Messages'
 ) -> None:
     """
     Show a detailed table with all securities and their IDs.
@@ -84,21 +84,9 @@ def print_securities(  # pylint: disable=too-many-locals
 
     # Parse and normalize requested columns
     requested_columns = [col.strip() for col in columns.split(',')]
-    available_columns = list(df.columns)
+    selected_columns = normalize_columns(requested_columns, list(df.columns), attribute_map)
 
-    # Allow "ID" as an alias for "SecurityId"
-    available_with_alias = available_columns + ['ID']
-    selected_columns = normalize_columns(requested_columns, available_with_alias, attribute_map)
-
-    # Map ID back to SecurityId for selection
-    selected_columns = ['SecurityId' if col == 'ID' else col for col in selected_columns]
-
-    # Filter to selected columns
     df = df[selected_columns]
-
-    if 'SecurityId' in df.columns:
-        df = df.rename(columns={'SecurityId': 'ID'})
-
     df = rename_uuid_columns(df, attribute_map)
 
     # Drop is_retired if it's still in the dataframe

@@ -17,6 +17,8 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
+# pylint: disable=duplicate-code
+
 from datetime import datetime
 
 import pandas as pd

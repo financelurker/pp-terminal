@@ -17,6 +17,8 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
+# pylint: disable=duplicate-code
+
 import pandas as pd
 from _pytest.fixtures import TopRequest
 from pandas.testing import assert_frame_equal

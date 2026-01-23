@@ -17,6 +17,7 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
+import re
 from typing import Literal, Callable, Any
 
 import pandas as pd
@@ -26,6 +27,37 @@ from rich.text import Text
 from .df_filter import drop_empty_values
 from .helper import format_money, format_shares
 from .schemas import Money
+
+
+def camel_case_to_title(column_name: str) -> str:
+    """
+    Convert camelCase column names to Title Case with proper acronym handling.
+
+    Examples:
+        accountId -> Account ID
+        securityId -> Security ID
+        isRetired -> Is Retired
+        wkn -> WKN
+        isin -> ISIN
+    """
+    acronyms = {'Id': 'ID', 'Wkn': 'WKN', 'Isin': 'ISIN', 'Eur': 'EUR', 'Usd': 'USD'}
+
+    # Insert space before uppercase letters that follow lowercase letters
+    # accountId -> account Id
+    text = re.sub('([a-z])([A-Z])', r'\1 \2', column_name)
+
+    # Insert space before uppercase letter followed by lowercase (handles sequences of caps)
+    # XMLParser -> XML Parser
+    text = re.sub('([A-Z]+)([A-Z][a-z])', r'\1 \2', text)
+
+    # Title case each word
+    text = text.title()
+
+    # Replace known acronyms with uppercase versions
+    for acronym, replacement in acronyms.items():
+        text = re.sub(rf'\b{acronym}\b', replacement, text)
+
+    return text
 
 
 def format_value(value: Any, column_name: str, row: pd.Series) -> str:
@@ -103,7 +135,7 @@ class TableDecorator(Table):
             if not self._options.show_index and footer_value == '' and i == 0:  # column is non-numeric
                 footer_value = 'Total'
 
-            column_title = str(column).replace('_', ' ').replace('-', ' ').title()
+            column_title = camel_case_to_title(str(column))
 
             self.add_column(column_title, footer=footer_value if self.show_default_footer else '', justify=justify)
 

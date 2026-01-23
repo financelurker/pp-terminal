@@ -17,8 +17,8 @@ By default, `pp-terminal` provides the following commands:
 
 | Command                    | Description                                                                                        |
 |----------------------------|----------------------------------------------------------------------------------------------------|
-| `list accounts`            | Get detailed information about the balances per each deposit and/or securities account             |
-| `list securities`          | Get detailed information about the securities                                                      |
+| `view accounts`            | Get detailed information about the balances per each deposit and/or securities account             |
+| `view securities`          | Get detailed information about the securities                                                      |
 | `simulate interest`        | Calculate how much interest you should have been earned per account and compare with actual values |
 | `simulate share-sell`      | Calculate the taxes if a security would be sold (FIFO-based capital gains calculator)              |
 | `simulate vorabpauschale`  | Run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
@@ -63,7 +63,7 @@ pipx upgrade pp-terminal
 All commands require the Portfolio Performance XML file as input.    
 You can either provide that file as first option to the command
 ```
-pp-terminal --file=depot.xml list accounts
+pp-terminal --file=depot.xml view accounts
 ```
 or use a configuration file (see below).
 
@@ -146,7 +146,7 @@ To contribute improvements to _pp-terminal_ just follow these steps:
 
 Developers can easily extend the default _pp-terminal_ functionality by implementing their own commands. Therefore, the Python
 [entry point](https://packaging.python.org/en/latest/specifications/entry-points/) `pp_terminal.commands` is provided.
-To hook into a sub-command, e.g. `list`, you have to prefix the entry point name with `list.`.
+To hook into a sub-command, e.g. `view`, you have to prefix the entry point name with `view.`.
 
 The most basic _pp-terminal_ command looks like this:
 
@@ -164,8 +164,8 @@ def hello_world() -> None:
 ```
 This will result in the command `pp-terminal hello-world` being available.
 
-For more sophisticated samples take a look at the packaged commands in the `pp_terminal/commands` directory, 
-e.g. a good starting point is [list_accounts.py](https://github.com/ma4nn/pp-terminal/blob/master/pp_terminal/commands/list_accounts.py).
+For more sophisticated samples take a look at the packaged commands in the `pp_terminal/commands` directory,
+e.g. a good starting point is [view_accounts.py](https://github.com/ma4nn/pp-terminal/blob/master/pp_terminal/commands/view_accounts.py).
 
 The app uses [Typer](https://typer.tiangolo.com/) for composing the commands and [Rich](https://github.com/Textualize/rich)
 for nice console outputs. The Portfolio Performance XML file is read with [ppxml2db](https://github.com/pfalcon/ppxml2db) 

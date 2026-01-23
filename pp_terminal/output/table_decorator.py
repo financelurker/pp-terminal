@@ -48,7 +48,7 @@ def camel_case_to_title(column_name: str) -> str:
 
     # Insert space before uppercase letter followed by lowercase (handles sequences of caps)
     # XMLParser -> XML Parser
-    text = re.sub('([A-Z]+)([A-Z][a-z])', r'\1 \2', text)
+    text = re.sub(r'(?<=[A-Z])(?=[A-Z][a-z])', ' ', text)
 
     # Title case each word
     text = text.title()

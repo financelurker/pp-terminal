@@ -33,8 +33,8 @@ from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
 
 @pytest.fixture(name='sample_securities')
 def provide_sample_securities() -> pd.DataFrame:
-    securities = pd.DataFrame([['Some Share', 'A23432', 'EUR']], columns=['Name', 'Wkn', 'currency'], index=['1234567890'])
-    securities.index.name = 'SecurityId'
+    securities = pd.DataFrame([['Some Share', 'A23432', 'EUR']], columns=['name', 'wkn', 'currency'], index=['1234567890'])
+    securities.index.name = 'securityId'
 
     return securities
 
@@ -44,15 +44,15 @@ def provide_sample_prices() -> pd.DataFrame:
     return (pd.DataFrame([
         [datetime(2017, 12, 30), '1234567890', 200.0],
         [datetime(2018, 1, 10), '1234567890', 246.66],
-    ], columns=['date', 'SecurityId', 'Price'])
-            .set_index(['date', 'SecurityId']))
+    ], columns=['date', 'securityId', 'price'])
+            .set_index(['date', 'securityId']))
 
 
 def test_calculate_empty_if_no_securities_accounts(sample_accounts: pd.DataFrame, sample_securities: pd.DataFrame, sample_prices: pd.DataFrame) -> None:
     transactions = (pd.DataFrame([
         [datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.SECURITIES.value, 'EUR']
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency'])
-                    .set_index(['date', 'account_id', 'SecurityId']))
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency'])
+                    .set_index(['date', 'accountId', 'securityId']))
 
     # drop all rows but keep structure
     sample_accounts = sample_accounts.drop(sample_accounts.index)
@@ -88,8 +88,8 @@ def test_inyear_buy(sample_accounts: pd.DataFrame, sample_transactions: pd.DataF
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2018, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2018, 12, 31))
 
-    expected_df = pd.DataFrame([['A23432', 'Some Share', 'EUR', 1.76]], columns=['Wkn', 'Name', 'currency', 'Testdepot'], index=['1234567890'])
-    expected_df.index.name = 'SecurityId'
+    expected_df = pd.DataFrame([['A23432', 'Some Share', 'EUR', 1.76]], columns=['wkn', 'name', 'currency', 'Testdepot'], index=['1234567890'])
+    expected_df.index.name = 'securityId'
 
     result = calculate(snapshot_begin, snapshot_end, 2.29, 26.375)
 
@@ -124,19 +124,19 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
         [datetime(2024, 12, 31), '1234567890', value_end / shares],
         [datetime(2023, 12, 1), '1234567890', 46.54],
         [datetime(2025, 1, 2), '1234567890', 45.302],
-    ], columns=['date', 'SecurityId', 'Price']).set_index(['date', 'SecurityId'])
+    ], columns=['date', 'securityId', 'price']).set_index(['date', 'securityId'])
     transactions = pd.DataFrame([
         [datetime(2023, 12, 6), TransactionType.BUY.value, float(value_begin), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 6, 4), TransactionType.DIVIDENDS.value, float(payout), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'account_id', 'SecurityId'])
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes']).set_index(['date', 'accountId', 'securityId'])
 
     portfolio = Portfolio(sample_accounts, transactions, sample_securities, prices)
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))
 
-    expected_df = pd.DataFrame([['A23432', 'Some Share', 'EUR', expected_tax_value]], columns=['Wkn', 'Name', 'currency', 'Testdepot'], index=['1234567890'])
-    expected_df.index.name = 'SecurityId'
+    expected_df = pd.DataFrame([['A23432', 'Some Share', 'EUR', expected_tax_value]], columns=['wkn', 'name', 'currency', 'Testdepot'], index=['1234567890'])
+    expected_df.index.name = 'securityId'
 
     result = calculate(snapshot_begin, snapshot_end, base_rate_percent, 26.375 * 0.7)
 
@@ -159,7 +159,7 @@ def test_kommer_2021(request: TopRequest) -> None:
         ['A0HGWC', 'iShares MSCI EM UCITS ETF (Dist)', 'EUR', 9.614679],
         ['A0J201', 'iShares MSCI North America UCITS ETF', 'EUR', 8.346675],
         [None, 'Related Account Balance', 'EUR', 475.88]
-    ], columns=['Wkn', 'Name', 'currency', 'Depot'], index=[
+    ], columns=['wkn', 'name', 'currency', 'Depot'], index=[
         'ff0a2b77-9749-45b0-8333-cb1d9787812c',
         'c770a389-0a84-442c-ad85-2a58c3066924',
         '97000a3b-0a3d-4779-ad6c-1234bfea5e72',
@@ -167,7 +167,7 @@ def test_kommer_2021(request: TopRequest) -> None:
         'daab10fd-c3fb-4430-a368-0ce0cdf551c8',
         5,
     ])
-    expected_df.index.name = 'SecurityId'
+    expected_df.index.name = 'securityId'
 
     result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375)
 
@@ -191,7 +191,7 @@ def test_kommer_2023(request: TopRequest) -> None:
         ['A0HGWC', 'iShares MSCI EM UCITS ETF (Dist)', 'EUR', 5.75229],
         ['A0J201', 'iShares MSCI North America UCITS ETF', 'EUR', 6.83661],
         [None, 'Related Account Balance', 'EUR', 533.38]
-    ], columns=['Wkn', 'Name', 'currency', 'Depot'], index=[
+    ], columns=['wkn', 'name', 'currency', 'Depot'], index=[
         'ff0a2b77-9749-45b0-8333-cb1d9787812c',
         '99b9419f-8c70-422e-8e8e-05eadb4507ec',
         'c770a389-0a84-442c-ad85-2a58c3066924',
@@ -199,7 +199,7 @@ def test_kommer_2023(request: TopRequest) -> None:
         'daab10fd-c3fb-4430-a368-0ce0cdf551c8',
         5,
     ])
-    expected_df.index.name = 'SecurityId'
+    expected_df.index.name = 'securityId'
 
     result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375, 30.0, config['attributes']['exemption-rate'])
 

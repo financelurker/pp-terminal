@@ -29,7 +29,7 @@ from .schemas import Money
 
 
 def format_value(value: Any, column_name: str, row: pd.Series) -> str:
-    if column_name == 'Shares' and isinstance(value, float):
+    if column_name == 'shares' and isinstance(value, float):
         return format_shares(value)
     if isinstance(value, Money):
         return format_money(float(value), row['currency'] if 'currency' in row else column_name)

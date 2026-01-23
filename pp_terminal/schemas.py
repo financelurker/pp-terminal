@@ -51,37 +51,35 @@ class AccountType(Enum):
     DEPOSIT = "account"
 
 
-# @todo make all lowercase
-
 class TransactionSchema(pa.DataFrameModel):
     date: Index[pa.DateTime]
-    account_id: Index[str]
-    SecurityId: Index[str] = pa.Field(nullable=True)
-    Type: Series[str]  # @todo use pandera preprocessing?
+    accountId: Index[str]
+    securityId: Index[str] = pa.Field(nullable=True)
+    type: Series[str]  # @todo use pandera preprocessing?
     amount: Series[Money]
-    Shares: Series[float]
-    account_type: Series[str]
+    shares: Series[float]
+    accountType: Series[str]
     taxes: Series[Money]
 
 
 class AccountSchema(pa.DataFrameModel):
-    account_id: Index[str]
-    Name: Series[str]
-    Type: Series[str]  # @todo use pandera preprocessing?
-    Referenceaccount_id: Optional[Series[str]] = pa.Field(nullable=True)
-    is_retired: Optional[Series[bool]] = pa.Field(coerce=True)
+    accountId: Index[str]
+    name: Series[str]
+    type: Series[str]  # @todo use pandera preprocessing?
+    referenceAccount: Optional[Series[str]] = pa.Field(nullable=True)
+    isRetired: Optional[Series[bool]] = pa.Field(coerce=True)
     currency: Series[str] = pa.Field(nullable=True)
 
 
 class SecuritySchema(pa.DataFrameModel):
-    SecurityId: Index[str]
-    Name: Series[str]
-    Wkn: Series[str] = pa.Field(nullable=True)
+    securityId: Index[str]
+    name: Series[str]
+    wkn: Series[str] = pa.Field(nullable=True)
     currency: Series[str] = pa.Field(nullable=True)
-    is_retired: Optional[Series[bool]] = pa.Field(coerce=True)
+    isRetired: Optional[Series[bool]] = pa.Field(coerce=True)
 
 
 class SecurityPriceSchema(pa.DataFrameModel):
     date: Index[pa.DateTime]
-    SecurityId: Index[str]
-    Price: Series[Money]
+    securityId: Index[str]
+    price: Series[Money]

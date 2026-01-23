@@ -79,7 +79,7 @@ def validate_security_prices(ctx: typer.Context) -> None:
         if not result.violations:
             continue
 
-        security_name = portfolio.securities.loc[security_id, 'Name']
+        security_name = portfolio.securities.loc[security_id, 'name']
 
         for rule, message in result.violations:
             full_message = f'Security "{security_name}" ({security_id}) {message}'
@@ -110,7 +110,7 @@ def validate_accounts(ctx: typer.Context) -> None:
         if not result.violations:
             continue
 
-        account_name = portfolio.deposit_accounts.loc[account_id, 'Name']
+        account_name = portfolio.deposit_accounts.loc[account_id, 'name']
 
         for rule, message in result.violations:
             full_message = f'Account "{account_name}" ({account_id}) {message}'

@@ -33,7 +33,7 @@ def filter_later_than(df: pd.DataFrame, target_date: datetime) -> pd.DataFrame:
 
 
 def filter_by_account_id(df: pd.DataFrame, account_id: str) -> pd.DataFrame:
-    return df[df.index.get_level_values('account_id') == account_id]
+    return df[df.index.get_level_values('accountId') == account_id]
 
 
 def filter_by_type(df: pd.DataFrame, transaction_types: TransactionType| list[TransactionType]) -> pd.DataFrame:
@@ -45,11 +45,11 @@ def filter_by_type(df: pd.DataFrame, transaction_types: TransactionType| list[Tr
     for transaction_type in transaction_types:
         cleaned_transaction_types.append(transaction_type.name)
 
-    return df[df['Type'].isin(cleaned_transaction_types)]
+    return df[df['type'].isin(cleaned_transaction_types)]
 
 
 def filter_not_retired(df: pd.DataFrame) -> pd.DataFrame:
-    return df[~df['is_retired']]
+    return df[~df['isRetired']]
 
 
 def drop_empty_values(df: pd.DataFrame | pd.Series) -> pd.DataFrame:
@@ -81,7 +81,7 @@ def drop_empty_values(df: pd.DataFrame | pd.Series) -> pd.DataFrame:
 def unstack_column_by_currency(df: pd.DataFrame, column: str, base_currency: str) -> pd.DataFrame:
     column_unstacked = df[column].unstack(level='currency')
     df_modified = df.drop(columns=column).reset_index(level='currency', drop=True)
-    df_modified = df_modified[~df_modified.index.get_level_values('account_id').duplicated()]  # drop duplicates ignoring currency
+    df_modified = df_modified[~df_modified.index.get_level_values('accountId').duplicated()]  # drop duplicates ignoring currency
 
     df_modified = df_modified.join(column_unstacked, how='outer')
 

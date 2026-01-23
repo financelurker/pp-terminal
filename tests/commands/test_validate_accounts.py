@@ -39,16 +39,16 @@ def provide_sample_portfolio_with_limits() -> Portfolio:
         ['Checking Account', AccountType.DEPOSIT.value, None, False, 'EUR'],
         ['Savings Account', AccountType.DEPOSIT.value, None, False, 'EUR'],
         ['Multi-Currency Account', AccountType.DEPOSIT.value, None, False, 'EUR'],
-    ], columns=['Name', 'Type', 'Referenceaccount_id', 'is_retired', 'currency'],
+    ], columns=['name', 'type', 'referenceAccount', 'isRetired', 'currency'],
        index=['account-1', 'account-2', 'account-3'])
-    accounts.index.name = 'account_id'
+    accounts.index.name = 'accountId'
 
     transactions = pd.DataFrame([
         [datetime(2025, 1, 1), 'account-1', None, 'DEPOSIT', 1050.0, 0.0, AccountType.DEPOSIT.value, 'EUR', 0.0],
         [datetime(2025, 1, 2), 'account-2', None, 'DEPOSIT', 850.0, 0.0, AccountType.DEPOSIT.value, 'EUR', 0.0],
         [datetime(2025, 1, 3), 'account-3', None, 'DEPOSIT', 800.0, 0.0, AccountType.DEPOSIT.value, 'EUR', 0.0],
-    ], columns=['date', 'account_id', 'SecurityId', 'Type', 'amount', 'Shares', 'account_type', 'currency', 'taxes'])
-    transactions = transactions.set_index(['date', 'account_id', 'SecurityId'])
+    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
+    transactions = transactions.set_index(['date', 'accountId', 'securityId'])
 
     return Portfolio(
         accounts=accounts,

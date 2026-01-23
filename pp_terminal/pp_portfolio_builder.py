@@ -75,13 +75,13 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
 
         if not attributes:
             securities = (pd.read_sql_query('select * from security', self._db.connection, index_col='uuid')
-                              .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
+                              .rename_axis('securityId'))
             return cast(DataFrame[SecuritySchema], securities)
 
         security_attrs = self._get_attributes_by_target('name.abuchen.portfolio.model.Security', attributes)
         if not security_attrs:
             securities = (pd.read_sql_query('select * from security', self._db.connection, index_col='uuid')
-                              .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
+                              .rename_axis('securityId'))
             return cast(DataFrame[SecuritySchema], securities)
 
         # Build dynamic SQL with CASE statements for each attribute
@@ -103,7 +103,7 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
         """  # nosec B608 - case_statements contain only column names with ? placeholders, data passed via params
 
         securities = (pd.read_sql_query(sql, self._db.connection, index_col='uuid', params=params)
-                          .rename(columns={'uuid': 'SecurityId', 'name': 'Name', 'wkn': 'Wkn', 'isRetired': 'is_retired'}))
+                          .rename_axis('securityId'))
 
         securities = convert_attribute_types(securities, security_attrs)
 
@@ -111,9 +111,9 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
 
     def _parse_prices(self) -> DataFrame[SecurityPriceSchema]:
         prices = (pd.read_sql_query('select datetime(tstamp) as date, * from price', self._db.connection, index_col=['date', 'security'], parse_dates={"date": "%Y-%m-%d %H:%M:%S"}, dtype={'value': np.float64})
-                          .rename(columns={'security': 'SecurityId', 'tstamp': 'date', 'value': 'Price'}))[['Price']]
-        prices['Price'] = prices['Price'] / _SCALE
-        prices.index.set_names(['date', 'SecurityId'], inplace=True)
+                          .rename(columns={'value': 'price'}))[['price']]
+        prices['price'] = prices['price'] / _SCALE
+        prices.index.set_names(['date', 'securityId'], inplace=True)
 
         return cast(DataFrame[SecurityPriceSchema], prices)
 
@@ -123,15 +123,15 @@ select datetime(x.date) as date, ifnull(xu.forex_currency, x.currency) as curren
 from xact as x
 left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
         """, self._db.connection, index_col=['date', 'account', 'security'], parse_dates={"date": "%Y-%m-%d %H:%M:%S"}, dtype={'amount_wo_fees': np.float64, 'shares': np.float64, 'taxes': np.float64})
-                          .rename(columns={'uuid': 'TransactionId', 'account': 'account_id', 'type': 'Type', 'security': 'SecurityId', 'shares': 'Shares', 'acctype': 'account_type', 'amount_wo_fees': 'amount'}))
-        transactions['Shares'] = transactions['Shares'] / _SCALE
-        transactions['Type'] = pd.Categorical(transactions['Type'])
+                          .rename(columns={'amount_wo_fees': 'amount', 'acctype': 'accountType'}))
+        transactions['shares'] = transactions['shares'] / _SCALE
+        transactions['type'] = pd.Categorical(transactions['type'])
         transactions['amount'] = transactions.apply(
-            lambda row: -1 if row['Type'] in enum_list_to_values(_NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES) else 1,
+            lambda row: -1 if row['type'] in enum_list_to_values(_NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES) else 1,
             axis=1
         ) * transactions['amount'] / _CENTS_PER_EURO
         transactions['taxes'] = transactions['taxes'] / _CENTS_PER_EURO
-        transactions.index.set_names(['date', 'account_id', 'SecurityId'], inplace=True)
+        transactions.index.set_names(['date', 'accountId', 'securityId'], inplace=True)
 
         return cast(DataFrame[TransactionSchema], transactions)
 
@@ -140,13 +140,13 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
 
         if not attributes:
             accounts = (pd.read_sql_query('select * from account', self._db.connection, index_col='uuid')
-                              .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
+                              .rename_axis('accountId'))
             return cast(DataFrame[AccountSchema], accounts)
 
         account_attrs = self._get_attributes_by_target('name.abuchen.portfolio.model.Account', attributes)
         if not account_attrs:
             accounts = (pd.read_sql_query('select * from account', self._db.connection, index_col='uuid')
-                              .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
+                              .rename_axis('accountId'))
             return cast(DataFrame[AccountSchema], accounts)
 
         # Build dynamic SQL with CASE statements for each attribute
@@ -168,7 +168,7 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
         """  # nosec B608 - case_statements contain only column names with ? placeholders, data passed via params
 
         accounts = (pd.read_sql_query(sql, self._db.connection, index_col='uuid', params=params)
-                          .rename(columns={'uuid': 'account_id', 'type': 'Type', 'name': 'Name', 'referenceAccount': 'Referenceaccount_id', 'isRetired': 'is_retired'}))
+                          .rename_axis('accountId'))
 
         # Convert attribute values based on converterClass
         accounts = convert_attribute_types(accounts, account_attrs)

@@ -87,14 +87,14 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
             # Fallback: cap by end shares (assumes continuous holding)
             effective_begin_shares = shares_begin.combine(shares_end, min, fill_value=0).clip(lower=0)
 
-        effective_begin_shares.name = 'Shares'
+        effective_begin_shares.name = 'shares'
 
         # Calculate begin values using continuously held shares
-        begin_values_in_eur = (snapshot_period_begin.latest_prices * effective_begin_shares).groupby(['account_id', 'SecurityId']).sum()
+        begin_values_in_eur = (snapshot_period_begin.latest_prices * effective_begin_shares).groupby(['accountId', 'securityId']).sum()
     else:
-        begin_values_in_eur = snapshot_period_begin.values.groupby(['account_id', 'SecurityId']).sum()
+        begin_values_in_eur = snapshot_period_begin.values.groupby(['accountId', 'securityId']).sum()
 
-    end_values_in_eur = snapshot_period_end.values.groupby(['account_id', 'SecurityId']).sum()
+    end_values_in_eur = snapshot_period_end.values.groupby(['accountId', 'securityId']).sum()
 
     # use df.subtract to align both matrices
     outcome = end_values_in_eur.subtract(begin_values_in_eur, fill_value=0)
@@ -121,10 +121,10 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
                                     .astype(float)
                                     .fillna(default_exemption_rate_percent / 100)
                                     .rename(columns={exempt_rate_attr_uuid: 0}))  # column name must match vorabpauschale
-        vorabpauschale = exempt_rate_per_security.mul(vorabpauschale.to_frame(), level='SecurityId')
+        vorabpauschale = exempt_rate_per_security.mul(vorabpauschale.to_frame(), level='securityId')
 
     if not vorabpauschale.empty:
-        vorabpauschale = vorabpauschale.unstack(level='account_id')
+        vorabpauschale = vorabpauschale.unstack(level='accountId')
         # Only extract from tuple if it's a MultiIndex
         if isinstance(vorabpauschale.columns, pd.MultiIndex):
             vorabpauschale.columns = [col[1] if len(col) > 1 else col[0] for col in vorabpauschale.columns]
@@ -133,24 +133,24 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
     if vorabpauschale.empty or snapshot_period_end.portfolio.securities is None or snapshot_period_end.portfolio.securities_accounts is None:
         return None
 
-    vorabpauschale = pd.merge(snapshot_period_end.portfolio.securities[['Wkn', 'Name', 'currency']], vorabpauschale, left_index=True, right_index=True, how='right', validate='one_to_one').sort_values(by='Name')
+    vorabpauschale = pd.merge(snapshot_period_end.portfolio.securities[['wkn', 'name', 'currency']], vorabpauschale, left_index=True, right_index=True, how='right', validate='one_to_one').sort_values(by='name')
 
     securities_accounts = snapshot_period_end.portfolio.securities_accounts
-    if securities_accounts is not None and 'Referenceaccount_id' in securities_accounts and snapshot_period_end.balances is not None:
+    if securities_accounts is not None and 'referenceAccount' in securities_accounts and snapshot_period_end.balances is not None:
         # add the reference account balance
         vorabpauschale.loc[len(vorabpauschale)] = (
             pd.merge(
                 securities_accounts,
-                snapshot_period_end.balances.groupby(['account_id']).sum(),
-                left_on='Referenceaccount_id',
+                snapshot_period_end.balances.groupby(['accountId']).sum(),
+                left_on='referenceAccount',
                 right_index=True,
                 how='left',
                 validate='many_to_one'
-            )['Balance'].dropna().to_dict()
-            | {'Name': 'Related Account Balance', 'currency': snapshot_period_end.portfolio.base_currency}
+            )['balance'].dropna().to_dict()
+            | {'name': 'Related Account Balance', 'currency': snapshot_period_end.portfolio.base_currency}
         )
 
-    return vorabpauschale.rename(columns=securities_accounts['Name'])
+    return vorabpauschale.rename(columns=securities_accounts['name'])
 
 
 def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
@@ -160,7 +160,7 @@ def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
 
     transactions = transactions[transactions.index.get_level_values('date').year == snapshot_end.date.year] if not transactions.index.get_level_values('date').empty else transactions
 
-    payouts = transactions.pipe(filter_by_type, transaction_types=TransactionType.DIVIDENDS).groupby(['account_id', 'SecurityId'])['amount'].sum()
+    payouts = transactions.pipe(filter_by_type, transaction_types=TransactionType.DIVIDENDS).groupby(['accountId', 'securityId'])['amount'].sum()
     payouts.name = 'Payouts'
 
     return payouts
@@ -196,7 +196,7 @@ def _calculate_minimum_shares_during_year(snapshot_end: PortfolioSnapshot) -> pd
 
     # Calculate cumulative changes during the year
     def sign_shares(row: pd.Series) -> float:
-        return float(-row['Shares'] if row['Type'] in [t.value for t in _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES] else row['Shares'])
+        return float(-row['shares'] if row['type'] in [t.value for t in _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES] else row['shares'])
 
     # Group by account/security and calculate minimum cumulative position
     result_dict = {}
@@ -204,8 +204,8 @@ def _calculate_minimum_shares_during_year(snapshot_end: PortfolioSnapshot) -> pd
     for (account_id, security_id, currency), begin_count in begin_shares.items():
         # Get transactions for this specific account/security
         mask = (
-            (transactions_inyear.index.get_level_values('account_id') == account_id) &
-            (transactions_inyear.index.get_level_values('SecurityId') == security_id)
+            (transactions_inyear.index.get_level_values('accountId') == account_id) &
+            (transactions_inyear.index.get_level_values('securityId') == security_id)
         )
         security_txns = transactions_inyear[mask].copy() if mask.any() else pd.DataFrame()
 
@@ -223,7 +223,7 @@ def _calculate_minimum_shares_during_year(snapshot_end: PortfolioSnapshot) -> pd
     if not result_dict:
         return None
 
-    index = pd.MultiIndex.from_tuples(result_dict.keys(), names=['account_id', 'SecurityId', 'currency'])
+    index = pd.MultiIndex.from_tuples(result_dict.keys(), names=['accountId', 'securityId', 'currency'])
     return pd.Series(list(result_dict.values()), index=index, name='MinShares')
 
 
@@ -234,15 +234,15 @@ def _calculate_prorata_shares_for_inyear_buys(snapshot_end: PortfolioSnapshot) -
 
     transactions_inyear = transactions[transactions.index.get_level_values('date').year == snapshot_end.date.year] if not transactions.index.get_level_values('date').empty else None
     if transactions_inyear is None:
-        return pd.Series([], name='amount', index=pd.MultiIndex.from_tuples([], names=['account_id', 'SecurityId']), dtype='float64')
+        return pd.Series([], name='Amount', index=pd.MultiIndex.from_tuples([], names=['accountId', 'securityId']), dtype='float64')
 
     transactions_inyear = transactions_inyear.pipe(filter_by_type, transaction_types=[TransactionType.BUY, TransactionType.DELIVERY_INBOUND])
     transactions_inyear['months_held'] = snapshot_end.date.month - transactions_inyear.index.get_level_values('date').month + 1
-    transactions_inyear['shares_original'] = transactions_inyear['Shares']
-    transactions_inyear['Shares'] = transactions_inyear['Shares'] * transactions_inyear['months_held']/12
-    log.debug(transactions_inyear[['shares_original', 'months_held', 'Shares']].reset_index(level='date', drop=True).sort_values(by=['account_id', 'SecurityId', 'months_held']))
+    transactions_inyear['shares_original'] = transactions_inyear['shares']
+    transactions_inyear['shares'] = transactions_inyear['shares'] * transactions_inyear['months_held']/12
+    log.debug(transactions_inyear[['shares_original', 'months_held', 'shares']].reset_index(level='date', drop=True).sort_values(by=['accountId', 'securityId', 'months_held']))
 
-    return transactions_inyear.groupby(['account_id', 'SecurityId'])['Shares'].sum().abs()
+    return transactions_inyear.groupby(['accountId', 'securityId'])['shares'].sum().abs()
 
 
 def set_begin(value: datetime | None) -> datetime | None:
@@ -306,14 +306,14 @@ def print_tax_table(  # pylint: disable=too-many-locals
 
     vorabpauschale_totals = {}
     if result is not None and not result.empty:
-        balance_row_index = result[result['Name'] == 'Related Account Balance'].index
+        balance_row_index = result[result['name'] == 'Related Account Balance'].index
         if len(balance_row_index) > 0:
             vorabpauschale_data = result.drop(balance_row_index)
-            account_columns = [col for col in result.columns if col not in ['Wkn', 'Name', 'currency']]
+            account_columns = [col for col in result.columns if col not in ['wkn', 'name', 'currency']]
             vorabpauschale_totals = vorabpauschale_data[account_columns].sum().to_dict()
 
     def format_value_with_balance_check(value: Any, index: str, row: pd.Series) -> str:
-        if 'Name' in row.index and row['Name'] == 'Related Account Balance' and isinstance(value, Money) and index in vorabpauschale_totals:
+        if 'name' in row.index and row['name'] == 'Related Account Balance' and isinstance(value, Money) and index in vorabpauschale_totals:
             color = 'red' if value < vorabpauschale_totals[index] else 'green'
             return f"[{color}]{format_value(value, index, row)}[/{color}]"
         return format_value(value, index, row)

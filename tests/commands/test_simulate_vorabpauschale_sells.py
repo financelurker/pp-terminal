@@ -35,8 +35,8 @@ from pp_terminal.commands.simulate_vorabpauschale import calculate
 def provide_sell_test_accounts() -> pd.DataFrame:
     accounts = pd.DataFrame([
         ['Depot', AccountType.SECURITIES.value, 'EUR', None],
-    ], columns=['Name', 'Type', 'currency', 'Referenceaccount_id'], index=['1'])
-    accounts.index.name = 'account_id'
+    ], columns=['name', 'type', 'currency', 'referenceAccount'], index=['1'])
+    accounts.index.name = 'accountId'
     return accounts
 
 
@@ -44,8 +44,8 @@ def provide_sell_test_accounts() -> pd.DataFrame:
 def provide_sell_test_securities() -> pd.DataFrame:
     securities = pd.DataFrame([
         ['Test ETF', 'A1234', 'EUR']
-    ], columns=['Name', 'Wkn', 'currency'], index=['sec1'])
-    securities.index.name = 'SecurityId'
+    ], columns=['name', 'wkn', 'currency'], index=['sec1'])
+    securities.index.name = 'securityId'
     return securities
 
 
@@ -54,7 +54,7 @@ def provide_sell_test_prices() -> pd.DataFrame:
     return pd.DataFrame([
         [datetime(2023, 12, 31), 'sec1', 50.0],
         [datetime(2024, 12, 31), 'sec1', 60.0],
-    ], columns=['date', 'SecurityId', 'Price']).set_index(['date', 'SecurityId'])
+    ], columns=['date', 'securityId', 'price']).set_index(['date', 'securityId'])
 
 
 def test_full_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_securities: pd.DataFrame, sell_test_prices: pd.DataFrame) -> None:
@@ -66,7 +66,7 @@ def test_full_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_secur
     transactions = pd.DataFrame([
         [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 8, 1), TransactionType.SELL.value, 6000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'account_id', 'SecurityId'])
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes']).set_index(['date', 'accountId', 'securityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -98,7 +98,7 @@ def test_partial_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_se
     transactions = pd.DataFrame([
         [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 8, 1), TransactionType.SELL.value, 3000.0, 50.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'account_id', 'SecurityId'])
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes']).set_index(['date', 'accountId', 'securityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -107,12 +107,12 @@ def test_partial_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_se
     result = calculate(snapshot_begin, snapshot_end, 2.29, 26.375, 30)
 
     assert result is not None
-    result_security = result[result['Name'] == 'Test ETF']
+    result_security = result[result['name'] == 'Test ETF']
 
     expected_df = pd.DataFrame([
         ['A1234', 'Test ETF', 'EUR', 10.57]
-    ], columns=['Wkn', 'Name', 'currency', 'Depot'], index=['sec1'])
-    expected_df.index.name = 'SecurityId'
+    ], columns=['wkn', 'name', 'currency', 'Depot'], index=['sec1'])
+    expected_df.index.name = 'securityId'
 
     assert_frame_equal(expected_df, result_security.round(2))
 
@@ -127,7 +127,7 @@ def test_multiple_sells_during_year(sell_test_accounts: pd.DataFrame, sell_test_
         [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 3, 1), TransactionType.SELL.value, 1500.0, 25.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 9, 1), TransactionType.SELL.value, 1500.0, 25.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'account_id', 'SecurityId'])
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes']).set_index(['date', 'accountId', 'securityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -136,12 +136,12 @@ def test_multiple_sells_during_year(sell_test_accounts: pd.DataFrame, sell_test_
     result = calculate(snapshot_begin, snapshot_end, 2.29, 26.375, 30)
 
     assert result is not None
-    result_security = result[result['Name'] == 'Test ETF']
+    result_security = result[result['name'] == 'Test ETF']
 
     expected_df = pd.DataFrame([
         ['A1234', 'Test ETF', 'EUR', 10.57]
-    ], columns=['Wkn', 'Name', 'currency', 'Depot'], index=['sec1'])
-    expected_df.index.name = 'SecurityId'
+    ], columns=['wkn', 'name', 'currency', 'Depot'], index=['sec1'])
+    expected_df.index.name = 'securityId'
 
     assert_frame_equal(expected_df, result_security.round(2))
 
@@ -172,7 +172,7 @@ def test_sell_and_rebuy_during_year(sell_test_accounts: pd.DataFrame, sell_test_
         [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 4, 1), TransactionType.SELL.value, 5500.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 8, 1), TransactionType.BUY.value, 3000.0, 50.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'account_id', 'SecurityId'])
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes']).set_index(['date', 'accountId', 'securityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -181,12 +181,12 @@ def test_sell_and_rebuy_during_year(sell_test_accounts: pd.DataFrame, sell_test_
     result = calculate(snapshot_begin, snapshot_end, 2.29, 26.375, 30)
 
     assert result is not None
-    result_security = result[result['Name'] == 'Test ETF']
+    result_security = result[result['name'] == 'Test ETF']
 
     expected_df = pd.DataFrame([
         ['A1234', 'Test ETF', 'EUR', 4.40]
-    ], columns=['Wkn', 'Name', 'currency', 'Depot'], index=['sec1'])
-    expected_df.index.name = 'SecurityId'
+    ], columns=['wkn', 'name', 'currency', 'Depot'], index=['sec1'])
+    expected_df.index.name = 'securityId'
 
     assert_frame_equal(expected_df, result_security.round(2))
 
@@ -199,7 +199,7 @@ def test_no_sells_baseline(sell_test_accounts: pd.DataFrame, sell_test_securitie
     """
     transactions = pd.DataFrame([
         [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'Type', 'amount', 'Shares', 'SecurityId', 'account_id', 'account_type', 'currency', 'taxes']).set_index(['date', 'account_id', 'SecurityId'])
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes']).set_index(['date', 'accountId', 'securityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -219,12 +219,12 @@ def test_no_sells_baseline(sell_test_accounts: pd.DataFrame, sell_test_securitie
     assert result is not None
 
     # Filter to just the security row (exclude "Related Account Balance")
-    result_security = result[result['Name'] == 'Test ETF']
+    result_security = result[result['name'] == 'Test ETF']
 
     expected_df = pd.DataFrame([
         ['A1234', 'Test ETF', 'EUR', 21.14]
-    ], columns=['Wkn', 'Name', 'currency', 'Depot'], index=['sec1'])
-    expected_df.index.name = 'SecurityId'
+    ], columns=['wkn', 'name', 'currency', 'Depot'], index=['sec1'])
+    expected_df.index.name = 'securityId'
 
     assert_frame_equal(expected_df, result_security.round(2))
 
@@ -256,14 +256,14 @@ def test_partial_sell_from_xml_fixture(request: TopRequest) -> None:
     assert len(txns) == 2
 
     # Verify BUY transaction
-    buy_txn = txns[txns['Type'] == 'BUY']
+    buy_txn = txns[txns['type'] == 'BUY']
     assert len(buy_txn) == 1
-    assert float(buy_txn.iloc[0]['Shares']) == 100.0
+    assert float(buy_txn.iloc[0]['shares']) == 100.0
 
     # Verify SELL transaction is correctly parsed
-    sell_txn = txns[txns['Type'] == 'SELL']
+    sell_txn = txns[txns['type'] == 'SELL']
     assert len(sell_txn) == 1
-    assert float(sell_txn.iloc[0]['Shares']) == 40.0
+    assert float(sell_txn.iloc[0]['shares']) == 40.0
     assert sell_txn.index.get_level_values('date')[0].year == 2024
 
     # Calculate vorabpauschale
@@ -275,11 +275,11 @@ def test_partial_sell_from_xml_fixture(request: TopRequest) -> None:
     assert result is not None
 
     # Filter to just the security row (exclude "Related Account Balance")
-    result_security = result[result['Name'] == 'Test World ETF']
+    result_security = result[result['name'] == 'Test World ETF']
 
     expected_df = pd.DataFrame([
         ['TEST01', 'Test World ETF', 'EUR', 12.68]
-    ], columns=['Wkn', 'Name', 'currency', 'Test Depot'], index=['test-security-uuid-001'])
-    expected_df.index.name = 'SecurityId'
+    ], columns=['wkn', 'name', 'currency', 'Test Depot'], index=['test-security-uuid-001'])
+    expected_df.index.name = 'securityId'
 
     assert_frame_equal(expected_df, result_security.round(2))

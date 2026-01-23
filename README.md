@@ -79,11 +79,11 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
     "rate": 26.375,
     "file": "vorabpauschale.csv",
     "exemption-rate": 30,
-    "exemption-rate-attribute": "exemption-rate"
+    "exemption-rate-attribute": "exemptionRate"
   },
   "attributes": {
-    "exemption-rate": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3",
-    "interest-valid-until": "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"
+    "exemptionRate": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3",
+    "interestValidUntil": "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"
   },
   "validation": {
     "accounts": {
@@ -99,7 +99,7 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
         },
         {
           "type": "date-passed-from-attribute",
-          "value": "interest-valid-until"
+          "value": "interestValidUntil"
         }
       ]
     },

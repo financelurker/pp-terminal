@@ -38,31 +38,31 @@ def provide_securities_portfolio() -> Portfolio:
 
     accounts = pd.DataFrame([
         ['Depot1', AccountType.SECURITIES.value, 'account1', False, 'EUR'],
-    ], columns=['Name', 'Type', 'Referenceaccount_id', 'is_retired', 'currency'],
+    ], columns=['name', 'type', 'referenceAccount', 'isRetired', 'currency'],
     index=['depot1'])
-    accounts.index.name = 'account_id'
+    accounts.index.name = 'accountId'
 
     securities = pd.DataFrame([
         ['MSCI World ETF', 'IE00B4L5Y983', 'EUR'],
         ['S&P 500 ETF', 'IE00B5BMR087', 'USD'],
         ['No Holdings Security', 'IE00000000000', 'EUR'],
-    ], columns=['Name', 'Wkn', 'currency'], index=['sec1', 'sec2', 'sec3'])
-    securities.index.name = 'uuid'
+    ], columns=['name', 'wkn', 'currency'], index=['sec1', 'sec2', 'sec3'])
+    securities.index.name = 'securityId'
 
     transactions = pd.DataFrame([
         [datetime(2022, 1, 15), 'depot1', 'sec1', TransactionType.BUY.value, 5000.0, 50.0, AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2023, 6, 10), 'depot1', 'sec1', TransactionType.BUY.value, 7000.0, 30.0, AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2024, 1, 5), 'depot1', 'sec1', TransactionType.SELL.value, 2000.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0],
         [datetime(2023, 3, 20), 'depot1', 'sec2', TransactionType.BUY.value, 9000.0, 25.5, AccountType.SECURITIES.value, 'USD', 0.0],
-    ], columns=['date', 'account_id', 'SecurityId', 'Type', 'amount', 'Shares', 'account_type', 'currency', 'taxes'])
-    transactions = transactions.set_index(['date', 'account_id', 'SecurityId'])
+    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
+    transactions = transactions.set_index(['date', 'accountId', 'securityId'])
 
     prices = pd.DataFrame([
         [datetime(2024, 12, 31), 'sec1', 100.0],
         [datetime(2024, 12, 31), 'sec2', 200.0],
         [datetime(2024, 12, 31), 'sec3', 50.0],
-    ], columns=['date', 'SecurityId', 'Price'])
-    prices = prices.set_index(['date', 'SecurityId'])
+    ], columns=['date', 'securityId', 'price'])
+    prices = prices.set_index(['date', 'securityId'])
 
     portfolio = Portfolio(accounts, transactions, securities, prices)
     portfolio.base_currency = 'EUR'
@@ -75,23 +75,23 @@ def provide_empty_securities_portfolio() -> Portfolio:
 
     accounts = pd.DataFrame([
         ['Depot1', AccountType.SECURITIES.value, 'account1', False, 'EUR'],
-    ], columns=['Name', 'Type', 'Referenceaccount_id', 'is_retired', 'currency'],
+    ], columns=['name', 'type', 'referenceAccount', 'isRetired', 'currency'],
     index=['depot1'])
-    accounts.index.name = 'account_id'
+    accounts.index.name = 'accountId'
 
     securities = pd.DataFrame([
         ['Test Security 1', 'WKN001', 'EUR'],
         ['Test Security 2', 'WKN002', 'USD'],
-    ], columns=['Name', 'Wkn', 'currency'], index=['sec1', 'sec2'])
-    securities.index.name = 'uuid'
+    ], columns=['name', 'wkn', 'currency'], index=['sec1', 'sec2'])
+    securities.index.name = 'securityId'
 
     transactions = pd.DataFrame(
-        columns=['date', 'account_id', 'SecurityId', 'Type', 'amount', 'Shares', 'account_type', 'currency', 'taxes']
-    ).set_index(['date', 'account_id', 'SecurityId'])
+        columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes']
+    ).set_index(['date', 'accountId', 'securityId'])
 
     prices = pd.DataFrame(
-        columns=['date', 'SecurityId', 'Price']
-    ).set_index(['date', 'SecurityId'])
+        columns=['date', 'securityId', 'price']
+    ).set_index(['date', 'securityId'])
 
     portfolio = Portfolio(accounts, transactions, securities, prices)
     portfolio.base_currency = 'EUR'
@@ -135,7 +135,7 @@ def test_list_securities_without_transactions(empty_securities_portfolio: Portfo
 
     assert 'Test Security 1' in output
     assert 'Test Security 2' in output
-    assert 'Shares' not in output  # Column is dropped when all values are 0
+    assert 'shares' not in output  # Column is dropped when all values are 0
 
 
 def test_list_securities_share_calculation(securities_portfolio: Portfolio) -> None:
@@ -144,7 +144,7 @@ def test_list_securities_share_calculation(securities_portfolio: Portfolio) -> N
     shares = snapshot.shares
 
     assert shares is not None
-    shares_by_security = shares.groupby('SecurityId').sum()
+    shares_by_security = shares.groupby('securityId').sum()
 
     assert shares_by_security.loc['sec1'] == 70.0  # 50 + 30 - 10
     assert shares_by_security.loc['sec2'] == 25.5

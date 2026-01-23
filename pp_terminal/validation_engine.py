@@ -98,7 +98,7 @@ def validate_accounts(
     if portfolio.deposit_accounts is None:
         return {}
 
-    total_balances = snapshot.balances.groupby('account_id').sum()
+    total_balances = snapshot.balances.groupby('accountId').sum()
     total_balances.name = 'TotalBalance'
 
     accounts_with_balances = pd.merge(
@@ -142,16 +142,16 @@ def validate_securities(
 
     rules = [create_rule(rule_config, config) for rule_config in rules_config]
 
-    latest_prices = portfolio.prices.groupby(['SecurityId']).tail(1)
+    latest_prices = portfolio.prices.groupby(['securityId']).tail(1)
 
     securities_with_prices = pd.merge(
         portfolio.securities,
-        latest_prices.reset_index()[['SecurityId', 'date', 'Price']],
+        latest_prices.reset_index()[['securityId', 'date', 'price']],
         left_index=True,
-        right_on='SecurityId',
+        right_on='securityId',
         how='left',
         validate='one_to_one'
-    ).set_index('SecurityId')
+    ).set_index('securityId')
 
     securities_with_prices = securities_with_prices.pipe(filter_not_retired)
 
@@ -162,7 +162,7 @@ def validate_securities(
     for security_id, security in securities_with_prices.iterrows():
         context = {
             'latest_price_date': security.get('date') if pd.notna(security.get('date')) else None,
-            'current_price': security.get('Price') if pd.notna(security.get('Price')) else None,
+            'current_price': security.get('price') if pd.notna(security.get('price')) else None,
             'portfolio': portfolio,
         }
         result = validate_entity(str(security_id), security, rules, context)

@@ -37,13 +37,13 @@ def test_kommer(request: TopRequest) -> None:
         ['Kryptowährung', 72.07],
         ['Depot', 3038.80],
         ['Depot', 14031.37],
-    ], columns=['Name', 'Balance'], index=pd.MultiIndex.from_tuples([
+    ], columns=['name', 'balance'], index=pd.MultiIndex.from_tuples([
         ('57ede399-7ef8-4696-a874-1f425e25d1f5', 'EUR'),
         ('dc6fac85-6c6e-47f1-a968-2b5b84d90997', 'USD'),
         ('dc6fac85-6c6e-47f1-a968-2b5b84d90997', 'EUR'),
-    ], names=['account_id', 'currency']))
+    ], names=['accountId', 'currency']))
 
-    result = calculate_securities_accounts_sum(PortfolioSnapshot(portfolio, datetime(2024, 1, 1)))[['Name', 'Balance']]
+    result = calculate_securities_accounts_sum(PortfolioSnapshot(portfolio, datetime(2024, 1, 1)))[['name', 'balance']]
 
     assert_frame_equal(expected_df, result.round(2), check_names=False)
 
@@ -56,6 +56,6 @@ def test_empty_file(request: TopRequest) -> None:
     assert result is not None
     assert len(result) == 0
     # Check that minimum required columns are present
-    assert 'Name' in result.columns
-    assert 'Type' in result.columns
-    assert 'Balance' in result.columns
+    assert 'name' in result.columns
+    assert 'type' in result.columns
+    assert 'balance' in result.columns

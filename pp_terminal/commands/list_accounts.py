@@ -46,25 +46,23 @@ def _prepare_df_for_display(
     attribute_map: dict[str, str] | None,
     unstack_balance: bool
 ) -> pd.DataFrame:
-    """Prepare DataFrame for display with optional Balance unstacking."""
+    """Prepare DataFrame for display with optional balance unstacking."""
     if unstack_balance:
         cols_before_unstack = set(df.columns)
-        df = df.pipe(unstack_column_by_currency, column='Balance', base_currency=snapshot.portfolio.base_currency)
+        df = df.pipe(unstack_column_by_currency, column='balance', base_currency=snapshot.portfolio.base_currency)
         currency_cols = list(set(df.columns) - cols_before_unstack)
     else:
-        if 'currency' in df.columns:
-            df = df.drop(columns=['currency'])
         currency_cols = []
 
-    df = df.reset_index()
-    df = df.rename(columns={'account_id': 'AccountId'})
-
+    # Drop currency column before reset_index if it exists (to avoid collision with index level)
     if 'currency' in df.columns:
         df = df.drop(columns=['currency'])
 
+    df = df.reset_index()
+
     selected_columns = []
     for col in selected_columns_preunstack:
-        if col == 'Balance' and currency_cols:
+        if col == 'balance' and currency_cols:
             selected_columns.extend(currency_cols)
         elif col in df.columns:
             selected_columns.append(col)
@@ -72,31 +70,31 @@ def _prepare_df_for_display(
     df = df[selected_columns]
     df = rename_uuid_columns(df, attribute_map)
 
-    if 'AccountId' in df.columns:
-        df = df.set_index('AccountId')
+    if 'accountId' in df.columns:
+        df = df.set_index('accountId')
 
     return df
 
 
 def calculate_deposit_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
-    balances = (pd.merge(snapshot.portfolio.deposit_accounts, snapshot.balances, left_index=True, right_on='account_id', how="right", validate='one_to_many')
-            .sort_values(by='Balance'))
+    balances = (pd.merge(snapshot.portfolio.deposit_accounts, snapshot.balances, left_index=True, right_on='accountId', how="right", validate='one_to_many')
+            .sort_values(by='balance'))
 
-    balances = balances[balances['Balance'] >= 0.01]
+    balances = balances[balances['balance'] >= 0.01]
     # Drop columns that are not useful for display
-    cols_to_drop = [col for col in balances.columns if col in ['Referenceaccount_id', 'is_retired']]
+    cols_to_drop = [col for col in balances.columns if col in ['referenceAccount', 'isRetired']]
     if cols_to_drop:
         balances = balances.drop(columns=cols_to_drop)
     return balances
 
 
 def calculate_securities_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFrame:
-    values = (pd.merge(snapshot.portfolio.securities_accounts, snapshot.values.groupby(['account_id', 'currency']).sum(), left_index=True, right_on='account_id', how="right", validate='one_to_many')
-            .sort_values(by='Balance'))
+    values = (pd.merge(snapshot.portfolio.securities_accounts, snapshot.values.groupby(['accountId', 'currency']).sum(), left_index=True, right_on='accountId', how="right", validate='one_to_many')
+            .sort_values(by='balance'))
 
-    values = values[values['Balance'] >= 0.01]
+    values = values[values['balance'] >= 0.01]
     # Drop columns that are not useful for display
-    cols_to_drop = [col for col in values.columns if col in ['Referenceaccount_id', 'is_retired']]
+    cols_to_drop = [col for col in values.columns if col in ['referenceAccount', 'isRetired']]
     if cols_to_drop:
         values = values.drop(columns=cols_to_drop)
     return values
@@ -136,7 +134,7 @@ def print_accounts(  # pylint: disable=too-many-locals
 
     # Add validation messages column
     validation_results = validate_accounts(portfolio, snapshot, config)
-    account_ids = df.index.get_level_values('account_id')
+    account_ids = df.index.get_level_values('accountId')
     df['Messages'] = account_ids.map(
         lambda aid: validation_results.get(str(aid), ValidationResult.empty()).messages or ''
     )
@@ -144,16 +142,16 @@ def print_accounts(  # pylint: disable=too-many-locals
     # Parse requested columns
     requested_columns = [col.strip() for col in columns.split(',')]
 
-    # Available columns before unstacking - need to account for AccountId which will be from the index
-    available_before_unstack = list(set(df.columns) - {'Balance'}) + ['AccountId']
-    if 'Balance' in df.columns:
-        available_before_unstack.append('Balance')
+    # Available columns before unstacking - need to account for accountId which will be from the index
+    available_before_unstack = list(set(df.columns) - {'balance'}) + ['accountId']
+    if 'balance' in df.columns:
+        available_before_unstack.append('balance')
 
     selected_columns_preunstack = normalize_columns(requested_columns, available_before_unstack, attribute_map)
 
     df = _prepare_df_for_display(
         df, selected_columns_preunstack, snapshot, attribute_map,
-        unstack_balance='Balance' in selected_columns_preunstack and 'Balance' in df.columns
+        unstack_balance='balance' in selected_columns_preunstack and 'balance' in df.columns
     )
 
     console.print(*output.result_table(

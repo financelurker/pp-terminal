@@ -48,8 +48,8 @@ def test_no_deposit_accounts(sample_accounts: pd.DataFrame, sample_transactions:
     result = calculate_interest(snapshot_begin, snapshot_end, 2.3)
 
     expected_df = pd.DataFrame([
-    ], columns=['Name', 'currency', 'mean_balance', 'interest', 'actual_interest'], index=pd.MultiIndex.from_tuples([
-    ], names=['account_id', 'currency']))
+    ], columns=['name', 'currency', 'mean_balance', 'interest', 'actual_interest'], index=pd.MultiIndex.from_tuples([
+    ], names=['accountId', 'currency']))
 
     assert result is not None
     assert_frame_equal(expected_df, result, check_dtype=False)
@@ -63,9 +63,9 @@ def test_calculate_interest(sample_accounts: pd.DataFrame, sample_transactions: 
     result = calculate_interest(snapshot_begin, snapshot_end, 2.3)
 
     expected_df = pd.DataFrame([
-    ], columns=['Name', 'currency', 'mean_balance', 'interest', 'actual_interest'], index=pd.MultiIndex.from_tuples([
+    ], columns=['name', 'currency', 'mean_balance', 'interest', 'actual_interest'], index=pd.MultiIndex.from_tuples([
 
-    ], names=['account_id', 'currency']))
+    ], names=['accountId', 'currency']))
 
     assert result is not None
     assert_frame_equal(expected_df, result, check_dtype=False)
@@ -78,9 +78,9 @@ def test_kommer(request: TopRequest) -> None:
 
     expected_df = pd.DataFrame([
         ['Wertpapierkonto', 'EUR', 339.54724, 13.46723, None],
-    ], columns=['Name', 'currency', 'mean_balance', 'interest', 'actual_interest'], index=pd.MultiIndex.from_tuples([
+    ], columns=['name', 'currency', 'mean_balance', 'interest', 'actual_interest'], index=pd.MultiIndex.from_tuples([
         ('e068fb14-2554-427e-b2d0-30dcc6e15717', 'EUR')
-    ], names=['account_id', 'currency']))
+    ], names=['accountId', 'currency']))
 
     result = calculate_interest(snapshot_begin, snapshot_end, 3.75)
 
@@ -93,7 +93,7 @@ def test_empty_file(request: TopRequest) -> None:
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
 
-    expected_df = pd.DataFrame([], columns=['Name', 'currency', 'mean_balance', 'interest', 'actual_interest'], index=pd.MultiIndex.from_tuples([], names=['account_id', 'currency']))
+    expected_df = pd.DataFrame([], columns=['name', 'currency', 'mean_balance', 'interest', 'actual_interest'], index=pd.MultiIndex.from_tuples([], names=['accountId', 'currency']))
 
     result = calculate_interest(snapshot_begin, snapshot_end, 0.03)
 

@@ -67,7 +67,7 @@ def format_shares(value: float) -> str:
 def enum_types_to_name(enum_list: List[Any]) -> List[Any]:
     # prepare for enum storage in dataframe
     for element in enum_list:
-        element['Type'] = element['Type'].name
+        element['type'] = element['type'].name
 
     return enum_list
 

@@ -47,29 +47,29 @@ def calculate_interest(snapshot_begin: PortfolioSnapshot, snapshot_end: Portfoli
     if transactions is None:
         return None
 
-    df = transactions.reset_index(level='date').sort_values(by=['account_id', 'currency', 'date'])
-    df = df.groupby(['account_id', 'currency', 'date']).agg({'date': 'min', 'amount': 'sum'})
+    df = transactions.reset_index(level='date').sort_values(by=['accountId', 'currency', 'date'])
+    df = df.groupby(['accountId', 'currency', 'date']).agg({'date': 'min', 'amount': 'sum'})
 
-    df['days_diff'] = df.groupby(['account_id', 'currency'])['date'].diff().dt.days.fillna(0).astype(int)
-    df['balance'] = df.groupby(['account_id', 'currency'])['amount'].cumsum()
+    df['days_diff'] = df.groupby(['accountId', 'currency'])['date'].diff().dt.days.fillna(0).astype(int)
+    df['balance'] = df.groupby(['accountId', 'currency'])['amount'].cumsum()
     df['weighted_balance'] = df['balance'] * df['days_diff']
     df['interest_rate'] = np.power(1 + interest_rate / 100 / _DAYS_PER_YEAR, df['days_diff']) - 1
     df['interest'] = df['balance'] * df['interest_rate']
 
     df = df.pipe(filter_later_than, target_date=snapshot_begin.date)
-    df = df.groupby(['account_id', 'currency']).agg({'interest': 'sum', 'weighted_balance': 'sum', 'days_diff': 'sum'})
+    df = df.groupby(['accountId', 'currency']).agg({'interest': 'sum', 'weighted_balance': 'sum', 'days_diff': 'sum'})
     df['mean_balance'] = (df['weighted_balance'] / df['days_diff']).fillna(0)
 
     interest_transactions = (transactions.pipe(filter_by_type, transaction_types=[TransactionType.INTEREST, TransactionType.INTEREST_CHARGE])
                              .pipe(filter_later_than, target_date=snapshot_begin.date)
                              .reset_index(level='date'))
     interest_transactions['amount'] = interest_transactions['amount'] + interest_transactions['taxes']
-    df['actual_interest'] = interest_transactions.groupby(['account_id', 'currency'])['amount'].sum().fillna(0)
+    df['actual_interest'] = interest_transactions.groupby(['accountId', 'currency'])['amount'].sum().fillna(0)
 
-    interest_per_account = (pd.merge(snapshot_end.portfolio.deposit_accounts, df, left_index=True, right_on='account_id', how="right", validate='one_to_one')
+    interest_per_account = (pd.merge(snapshot_end.portfolio.deposit_accounts, df, left_index=True, right_on='accountId', how="right", validate='one_to_one')
                 .sort_values(by='interest'))
 
-    return interest_per_account[interest_per_account['interest'] > 0][['Name', 'currency', 'mean_balance', 'interest', 'actual_interest']]
+    return interest_per_account[interest_per_account['interest'] > 0][['name', 'currency', 'mean_balance', 'interest', 'actual_interest']]
 
 
 def _format_value_wrapper(value: Any, index: str, row: pd.Series) -> str:

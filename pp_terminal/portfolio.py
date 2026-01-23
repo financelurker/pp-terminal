@@ -71,28 +71,28 @@ class Portfolio:
         if self._accounts is None:
             return None
 
-        return cast(DataFrame[AccountSchema], self._accounts[self._accounts['Type'] == AccountType.SECURITIES.value])
+        return cast(DataFrame[AccountSchema], self._accounts[self._accounts['type'] == AccountType.SECURITIES.value])
 
     @property
     def deposit_accounts(self) -> DataFrame[AccountSchema] | None:
         if self._accounts is None:
             return None
 
-        return cast(DataFrame[AccountSchema], self._accounts[self._accounts['Type'] == AccountType.DEPOSIT.value])
+        return cast(DataFrame[AccountSchema], self._accounts[self._accounts['type'] == AccountType.DEPOSIT.value])
 
     @property
     def securities_account_transactions(self) -> DataFrame[TransactionSchema] | None:
         if self._transactions is None:
             return None
 
-        return cast(DataFrame[TransactionSchema], self._transactions[self._transactions['account_type'] == AccountType.SECURITIES.value].sort_values(by=['date']))
+        return cast(DataFrame[TransactionSchema], self._transactions[self._transactions['accountType'] == AccountType.SECURITIES.value].sort_values(by=['date']))
 
     @property
     def deposit_account_transactions(self) -> DataFrame[TransactionSchema] | None:
         if self._transactions is None:
             return None
 
-        return cast(DataFrame[TransactionSchema], self._transactions[self._transactions['account_type'] == AccountType.DEPOSIT.value].sort_values(by=['date']))
+        return cast(DataFrame[TransactionSchema], self._transactions[self._transactions['accountType'] == AccountType.DEPOSIT.value].sort_values(by=['date']))
 
     @property
     def securities(self) -> DataFrame[SecuritySchema] | None:

@@ -51,7 +51,7 @@ class ValidationRule(ABC):
                 - First element: True if error occurred (severity='error' and validation failed)
                 - Second element: Violation message if validation failed, None otherwise
         """
-        log.debug('Validating %s of "%s" (%s) using value %s %s', str(self), entity["Name"], entity_id, str(self._get_value(entity)), '(' + str(self._value) + ')' if self._value != self._get_value(entity) else '')
+        log.debug('Validating %s of "%s" (%s) using value %s %s', str(self), entity["name"], entity_id, str(self._get_value(entity)), '(' + str(self._value) + ')' if self._value != self._get_value(entity) else '')
 
         return (False, None)
 
@@ -110,7 +110,7 @@ class DatePassedRule(ValidationRule):
             try:
                 date_value = pd.to_datetime(date_value)
             except (ValueError, TypeError):
-                log.warning('Account "%s" has invalid date value: %s', entity["Name"], date_value)
+                log.warning('Account "%s" has invalid date value: %s', entity["name"], date_value)
                 return (False, None)
 
         current_date = datetime.now()

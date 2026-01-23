@@ -95,8 +95,8 @@ def _calculate_fifo_lots(
 
     # Filter to BUY and DELIVERY_INBOUND for this account/security
     purchase_txns = transactions[
-        (transactions.index.get_level_values('account_id') == account_id) &
-        (transactions.index.get_level_values('SecurityId') == security_id)
+        (transactions.index.get_level_values('accountId') == account_id) &
+        (transactions.index.get_level_values('securityId') == security_id)
     ].pipe(filter_by_type, transaction_types=[TransactionType.BUY, TransactionType.DELIVERY_INBOUND])
 
     if purchase_txns.empty:
@@ -112,9 +112,9 @@ def _calculate_fifo_lots(
         if shares_remaining <= 0:
             break
 
-        shares_from_lot = min(shares_remaining, row['Shares'])
+        shares_from_lot = min(shares_remaining, row['shares'])
         # BUY transactions have negative amounts (cash outflow), use absolute value for cost basis
-        purchase_price = abs(row['amount'] / row['Shares']) if row['Shares'] > 0 else 0
+        purchase_price = abs(row['amount'] / row['shares']) if row['shares'] > 0 else 0
         cost_basis = shares_from_lot * purchase_price
         capital_gain = shares_from_lot * (sale_price - purchase_price)
 
@@ -257,21 +257,21 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     if portfolio.securities is None:
         raise InputError("No securities found in portfolio")
 
-    security_match = portfolio.securities[portfolio.securities['Wkn'] == wkn]
+    security_match = portfolio.securities[portfolio.securities['wkn'] == wkn]
     if security_match.empty:
         raise InputError(f"Security with WKN '{wkn}' not found in portfolio")
 
     security_id = security_match.index[0]
     security_info = security_match.iloc[0]
-    security_name = security_info['Name']
-    security_wkn = security_info['Wkn']
+    security_name = security_info['name']
+    security_wkn = security_info['wkn']
 
     # Validate account exists and is a securities account
     if portfolio.securities_accounts is None or account_id not in portfolio.securities_accounts.index:
         raise InputError(f"Securities account '{account_id}' not found in portfolio")
 
     account_info = portfolio.securities_accounts.loc[account_id]
-    account_name = account_info['Name']
+    account_name = account_info['name']
 
     # Create snapshot at sale date
     snapshot = PortfolioSnapshot(portfolio, date)
@@ -363,7 +363,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     # Custom formatter for FIFO lots - exclude currency for Shares, skip Purchase Price total
     def format_lots_value(value: Any, col_name: str, row: pd.Series) -> str:
         # Skip Purchase Price total (summing prices is meaningless)
-        if col_name == 'Purchase Price' and 'Name' in row and row['Name'] == 'Total':
+        if col_name == 'Purchase Price' and 'name' in row and row['name'] == 'Total':
             return ''
         # Don't format shares with currency
         if col_name == 'Shares':

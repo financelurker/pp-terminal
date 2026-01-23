@@ -62,23 +62,23 @@ def print_securities(  # pylint: disable=too-many-locals
     attribute_map = config.get('attributes', {})
 
     # Reset index to make SecurityId a column and rename columns
-    df = securities.reset_index().rename(columns={'uuid': 'SecurityId', 'currency': 'Currency', 'currencyCode': 'Currency'})
+    df = securities.reset_index()
 
     if shares is not None and not shares.empty:
-        shares_by_security = shares.groupby('SecurityId').sum()
-        df = df.merge(shares_by_security, left_on='SecurityId', right_index=True, how='left', validate='one_to_one')
-        df['Shares'] = df['Shares'].fillna(0.0)
+        shares_by_security = shares.groupby('securityId').sum()
+        df = df.merge(shares_by_security, left_on='securityId', right_index=True, how='left', validate='one_to_one')
+        df['shares'] = df['shares'].fillna(0.0)
     else:
-        df['Shares'] = 0.0
+        df['shares'] = 0.0
 
-    if active and 'is_retired' in df.columns:
-        df = df[~df['is_retired']]
+    if active and 'isRetired' in df.columns:
+        df = df[~df['isRetired']]
 
     if in_stock:
-        df = df[df['Shares'] > 0.001]
+        df = df[df['shares'] > 0.001]
 
     validation_results = validate_securities(portfolio, config)
-    df['Messages'] = df['SecurityId'].map(
+    df['Messages'] = df['securityId'].map(
         lambda sid: validation_results.get(str(sid), ValidationResult.empty()).messages or ''
     )
 
@@ -89,11 +89,10 @@ def print_securities(  # pylint: disable=too-many-locals
     df = df[selected_columns]
     df = rename_uuid_columns(df, attribute_map)
 
-    # Drop is_retired if it's still in the dataframe
-    if 'is_retired' in df.columns and 'is_retired' not in columns:
-        df = df.drop(columns=['is_retired'])
+    if 'isRetired' in df.columns and 'isRetired' not in columns:
+        df = df.drop(columns=['isRetired'])
 
-    df = df.sort_values(by='Name') if 'Name' in df.columns else df
+    df = df.sort_values(by='name') if 'name' in df.columns else df
 
     console.print(*output.result_table(
         df, TableOptions(

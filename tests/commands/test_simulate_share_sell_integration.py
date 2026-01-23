@@ -158,23 +158,23 @@ def test_empty_portfolio_error() -> None:
     # Create minimal portfolio with no transactions
     accounts = pd.DataFrame([
         ['Test Depot', AccountType.SECURITIES.value, 'account1', False, 'EUR'],
-    ], columns=['Name', 'Type', 'Referenceaccount_id', 'is_retired', 'currency'],
+    ], columns=['name', 'type', 'referenceAccount', 'isRetired', 'currency'],
     index=['depot1'])
-    accounts.index.name = 'account_id'
+    accounts.index.name = 'accountId'
 
     securities = pd.DataFrame([
         ['Test ETF', 'TEST01', 'EUR'],
-    ], columns=['Name', 'Wkn', 'currency'], index=['sec1'])
-    securities.index.name = 'SecurityId'
+    ], columns=['name', 'wkn', 'currency'], index=['sec1'])
+    securities.index.name = 'securityId'
 
     # No transactions
-    transactions = pd.DataFrame(columns=['date', 'account_id', 'SecurityId', 'Type', 'amount', 'Shares', 'account_type', 'currency', 'taxes'])
-    transactions = transactions.set_index(['date', 'account_id', 'SecurityId'])
+    transactions = pd.DataFrame(columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
+    transactions = transactions.set_index(['date', 'accountId', 'securityId'])
 
     prices = pd.DataFrame([
         [datetime(2024, 12, 31), 'sec1', 100.0],
-    ], columns=['date', 'SecurityId', 'Price'])
-    prices = prices.set_index(['date', 'SecurityId'])
+    ], columns=['date', 'securityId', 'price'])
+    prices = prices.set_index(['date', 'securityId'])
 
     portfolio = Portfolio(accounts, transactions, securities, prices)
     portfolio.base_currency = 'EUR'

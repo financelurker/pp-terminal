@@ -38,29 +38,29 @@ def provide_share_sell_portfolio() -> Portfolio:
     accounts = pd.DataFrame([
         ['Depot1', AccountType.SECURITIES.value, 'account1', False, 'EUR'],
         ['Konto1', AccountType.DEPOSIT.value, None, False, 'EUR'],
-    ], columns=['Name', 'Type', 'Referenceaccount_id', 'is_retired', 'currency'],
+    ], columns=['name', 'type', 'referenceAccount', 'isRetired', 'currency'],
     index=['depot1', 'account1'])
-    accounts.index.name = 'account_id'
+    accounts.index.name = 'accountId'
 
     # Securities
     securities = pd.DataFrame([
         ['Test ETF', 'IE00B4L5Y983', 'EUR'],
-    ], columns=['Name', 'Wkn', 'currency'], index=['sec1'])
-    securities.index.name = 'SecurityId'
+    ], columns=['name', 'wkn', 'currency'], index=['sec1'])
+    securities.index.name = 'securityId'
 
     # Transactions - Three purchases at different prices
     transactions = pd.DataFrame([
         [datetime(2022, 1, 15), 'depot1', 'sec1', TransactionType.BUY.value, 5000.0, 50.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # €100/share
         [datetime(2023, 6, 10), 'depot1', 'sec1', TransactionType.BUY.value, 7000.0, 50.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # €140/share
         [datetime(2024, 3, 20), 'depot1', 'sec1', TransactionType.BUY.value, 9000.0, 60.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # €150/share
-    ], columns=['date', 'account_id', 'SecurityId', 'Type', 'amount', 'Shares', 'account_type', 'currency', 'taxes'])
-    transactions = transactions.set_index(['date', 'account_id', 'SecurityId'])
+    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
+    transactions = transactions.set_index(['date', 'accountId', 'securityId'])
 
     # Prices
     prices = pd.DataFrame([
         [datetime(2024, 12, 31), 'sec1', 160.0],
-    ], columns=['date', 'SecurityId', 'Price'])
-    prices = prices.set_index(['date', 'SecurityId'])
+    ], columns=['date', 'securityId', 'price'])
+    prices = prices.set_index(['date', 'securityId'])
 
     portfolio = Portfolio(accounts, transactions, securities, prices)
     portfolio.base_currency = 'EUR'

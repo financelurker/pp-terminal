@@ -28,8 +28,8 @@ import pytest
 import typer
 
 from pp_terminal.commands.validate import validate_accounts
-from pp_terminal.portfolio import Portfolio
-from pp_terminal.schemas import AccountType
+from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.schemas import AccountType
 
 
 @pytest.fixture(name='sample_portfolio_with_limits')

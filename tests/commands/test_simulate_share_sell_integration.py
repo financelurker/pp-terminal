@@ -22,16 +22,16 @@ from datetime import datetime
 import pandas as pd
 import pytest
 
-from pp_terminal.portfolio import Portfolio
-from pp_terminal.schemas import AccountType
+from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.schemas import AccountType
 from pp_terminal.commands.simulate_share_sell import (
     _calculate_fifo_lots,
     _calculate_taxes,
     _calculate_vorabpauschale_credit_for_lots
 )
 from pp_terminal.exceptions import InputError
-from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
-from pp_terminal.portfolio_snapshot import PortfolioSnapshot
+from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 
 
 @pytest.fixture(name='partial_sell_portfolio')

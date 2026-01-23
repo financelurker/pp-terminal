@@ -33,7 +33,7 @@ _loaded_config: Dict[str, Any] = {}
 
 
 def _load_schema() -> dict[str, Any]:
-    schema_path = Path(__file__).parent / 'config.schema.json'
+    schema_path = Path(__file__).parent.parent / 'config.schema.json'
     with open(schema_path, 'r', encoding='utf-8') as f:
         return cast(dict[str, Any], json.load(f))
 

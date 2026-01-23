@@ -26,15 +26,15 @@ import pandas as pd
 import typer
 from typing_extensions import Annotated
 
-from ..df_filter import filter_by_type
-from ..exceptions import InputError
-from ..helper import format_money, footer
-from ..options import tax_rate_callback, tax_csv_callback
-from ..output import OutputStrategy, Console
-from ..portfolio_snapshot import PortfolioSnapshot
-from ..portfolio import Portfolio
-from ..schemas import TransactionType, Percent, Money
-from ..table_decorator import TableOptions
+from pp_terminal.data.filters import filter_by_type
+from pp_terminal.exceptions import InputError
+from pp_terminal.utils.helper import format_money, footer
+from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
+from pp_terminal.output.output import OutputStrategy, Console
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
+from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.schemas import TransactionType, Percent, Money
+from pp_terminal.output.table_decorator import TableOptions
 
 app = typer.Typer()
 console = Console()

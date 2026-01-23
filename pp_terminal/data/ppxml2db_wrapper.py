@@ -27,7 +27,7 @@ from ppxml2db.ppxml2db import PortfolioPerformanceXML2DB
 from ppxml2db import dbhelper
 from ppxml2db import ppxml2db_init
 
-from .exceptions import InputError
+from pp_terminal.exceptions import InputError
 
 log = logging.getLogger(__name__)
 logging.getLogger('ppxml2db.dbhelper').setLevel(logging.INFO)  # reducing some "noise"

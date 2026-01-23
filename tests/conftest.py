@@ -24,7 +24,7 @@ import pandas as pd
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
-from pp_terminal.schemas import AccountType, TransactionType
+from pp_terminal.domain.schemas import AccountType, TransactionType
 
 
 @pytest.fixture(autouse=True)

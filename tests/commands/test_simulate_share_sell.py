@@ -25,9 +25,9 @@ import pytest
 
 from pp_terminal.commands.simulate_share_sell import _calculate_fifo_lots, _calculate_taxes
 from pp_terminal.exceptions import InputError
-from pp_terminal.portfolio import Portfolio
-from pp_terminal.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.schemas import AccountType, TransactionType
+from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
+from pp_terminal.domain.schemas import AccountType, TransactionType
 
 
 @pytest.fixture(name='share_sell_portfolio')

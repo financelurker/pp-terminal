@@ -18,8 +18,8 @@
 """
 import typer
 
-from pp_terminal.config import get_config
-from pp_terminal.schemas import Percent
+from pp_terminal.utils.config import get_config
+from pp_terminal.domain.schemas import Percent
 
 
 def tax_rate_callback(ctx: typer.Context, param: typer.CallbackParam, value: Percent | None) -> Percent:  # pylint: disable=unused-argument

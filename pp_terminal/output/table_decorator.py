@@ -24,9 +24,9 @@ import pandas as pd
 from rich.table import Table
 from rich.text import Text
 
-from .df_filter import drop_empty_values
-from .helper import format_money, format_shares
-from .schemas import Money
+from pp_terminal.data.filters import drop_empty_values
+from pp_terminal.utils.helper import format_money, format_shares
+from pp_terminal.domain.schemas import Money
 
 
 def camel_case_to_title(column_name: str) -> str:

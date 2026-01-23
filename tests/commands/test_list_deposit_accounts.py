@@ -23,8 +23,8 @@ import pandas as pd
 from _pytest.fixtures import TopRequest
 from pandas.testing import assert_frame_equal
 
-from pp_terminal.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
+from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
 from pp_terminal.commands.list_accounts import calculate_deposit_accounts_sum
 
 

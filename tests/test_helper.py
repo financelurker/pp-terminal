@@ -19,8 +19,8 @@
 
 import pytest
 
-from pp_terminal.helper import format_money
-from pp_terminal.schemas import Money
+from pp_terminal.utils.helper import format_money
+from pp_terminal.domain.schemas import Money
 
 
 @pytest.mark.parametrize('expected, money, currency, locale_value', [

@@ -26,13 +26,13 @@ import pandas as pd
 import typer
 from rich.console import Console
 
-from pp_terminal.df_filter import filter_later_than, filter_by_type
-from pp_terminal.helper import get_last_year, footer
-from pp_terminal.output import OutputStrategy
-from pp_terminal.portfolio import Portfolio
-from pp_terminal.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.schemas import Percent, TransactionType, Money
-from pp_terminal.table_decorator import TableOptions, format_value
+from pp_terminal.data.filters import filter_later_than, filter_by_type
+from pp_terminal.utils.helper import get_last_year, footer
+from pp_terminal.output.output import OutputStrategy
+from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
+from pp_terminal.domain.schemas import Percent, TransactionType, Money
+from pp_terminal.output.table_decorator import TableOptions, format_value
 
 app = typer.Typer()
 console = Console()

@@ -19,7 +19,7 @@
 
 import pandas as pd
 
-from pp_terminal.portfolio import Portfolio
+from pp_terminal.domain.portfolio import Portfolio
 
 
 def test_empty_df_is_valid() -> None:

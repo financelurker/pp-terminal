@@ -23,16 +23,16 @@ from datetime import datetime
 import pandas as pd
 import typer
 
-from ..column_utils import normalize_columns, rename_uuid_columns
-from ..df_filter import unstack_column_by_currency
-from ..exceptions import InputError
-from ..helper import footer
-from ..output import OutputStrategy, Console
-from ..portfolio import Portfolio
-from ..portfolio_snapshot import PortfolioSnapshot
-from ..schemas import AccountType
-from ..table_decorator import TableOptions
-from ..validation_engine import validate_accounts, ValidationResult
+from pp_terminal.output.column_utils import normalize_columns, rename_uuid_columns
+from pp_terminal.data.filters import unstack_column_by_currency
+from pp_terminal.exceptions import InputError
+from pp_terminal.utils.helper import footer
+from pp_terminal.output.output import OutputStrategy, Console
+from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
+from pp_terminal.domain.schemas import AccountType
+from pp_terminal.output.table_decorator import TableOptions
+from pp_terminal.validation.engine import validate_accounts, ValidationResult
 
 app = typer.Typer()
 console = Console()

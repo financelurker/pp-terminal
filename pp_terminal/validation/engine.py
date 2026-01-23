@@ -22,10 +22,10 @@ from typing import Any
 
 import pandas as pd
 
-from .df_filter import filter_not_retired
-from .portfolio import Portfolio
-from .portfolio_snapshot import PortfolioSnapshot
-from .validation_rules import ValidationRule, create_rule, get_applicable_rules
+from pp_terminal.data.filters import filter_not_retired
+from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
+from .rules import ValidationRule, create_rule, get_applicable_rules
 
 
 @dataclass

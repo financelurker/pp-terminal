@@ -25,12 +25,12 @@ from typing import Callable, Any
 import typer
 from typer.models import CommandFunctionType
 
-from ..exceptions import ValidationError
-from ..helper import run_all_group_cmds
-from ..output import Console
-from ..portfolio_snapshot import PortfolioSnapshot
-from ..validation_engine import validate_accounts as validate_accounts_engine
-from ..validation_engine import validate_securities as validate_securities_engine
+from pp_terminal.exceptions import ValidationError
+from pp_terminal.utils.helper import run_all_group_cmds
+from pp_terminal.output.output import Console
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
+from pp_terminal.validation.engine import validate_accounts as validate_accounts_engine
+from pp_terminal.validation.engine import validate_securities as validate_securities_engine
 
 app = typer.Typer()
 console = Console()

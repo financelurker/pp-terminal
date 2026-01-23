@@ -25,7 +25,7 @@ import pytest
 from _pytest.fixtures import TopRequest
 
 from pp_terminal.exceptions import InputError
-from pp_terminal.pp_portfolio_builder import PpPortfolioBuilder, CachedPpPortfolioBuilder
+from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder, CachedPpPortfolioBuilder
 
 
 def test_import_non_existent_file() -> None:

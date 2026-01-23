@@ -28,7 +28,7 @@ from babel import Locale
 from babel.numbers import format_currency
 from typer.models import CommandFunctionType
 
-from .schemas import Money
+from pp_terminal.domain.schemas import Money
 
 log = logging.getLogger(__name__)
 

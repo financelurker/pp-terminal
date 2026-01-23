@@ -22,7 +22,7 @@ import numpy as np
 import pytest
 from _pytest.logging import LogCaptureFixture
 
-from pp_terminal.attribute_type_converter import convert_attribute_types
+from pp_terminal.data.attribute_type_converter import convert_attribute_types
 
 
 def test_convert_percent_plain_converter() -> None:

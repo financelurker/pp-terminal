@@ -26,10 +26,10 @@ import pytest
 from typer import Context
 
 from pp_terminal.commands.list_securities import print_securities
-from pp_terminal.output import RichOutputStrategy
-from pp_terminal.portfolio import Portfolio
-from pp_terminal.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.schemas import AccountType, TransactionType
+from pp_terminal.output.output import RichOutputStrategy
+from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
+from pp_terminal.domain.schemas import AccountType, TransactionType
 
 
 @pytest.fixture(name='securities_portfolio')

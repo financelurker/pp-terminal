@@ -26,14 +26,14 @@ import typer
 from typing_extensions import Annotated
 import numpy as np
 
-from ..df_filter import filter_by_type, drop_empty_values
-from ..helper import get_last_year, footer
-from ..options import tax_rate_callback, exemption_rate_callback
-from ..output import OutputStrategy, Console
-from ..portfolio_snapshot import PortfolioSnapshot, _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES
-from ..portfolio import Portfolio
-from ..schemas import TransactionType, Percent, Money
-from ..table_decorator import TableOptions, format_value
+from pp_terminal.data.filters import filter_by_type, drop_empty_values
+from pp_terminal.utils.helper import get_last_year, footer
+from pp_terminal.utils.options import tax_rate_callback, exemption_rate_callback
+from pp_terminal.output.output import OutputStrategy, Console
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot, _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES
+from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.schemas import TransactionType, Percent, Money
+from pp_terminal.output.table_decorator import TableOptions, format_value
 
 app = typer.Typer()
 console = Console()

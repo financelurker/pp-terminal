@@ -18,7 +18,7 @@
 """
 import pandas as pd
 
-from .exceptions import InputError
+from pp_terminal.exceptions import InputError
 
 
 def normalize_columns(

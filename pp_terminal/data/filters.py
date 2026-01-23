@@ -21,7 +21,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from .schemas import TransactionType
+from pp_terminal.domain.schemas import TransactionType
 
 
 def filter_earlier_than(df: pd.DataFrame, target_date: datetime) -> pd.DataFrame:

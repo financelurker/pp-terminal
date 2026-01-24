@@ -29,7 +29,7 @@ import numpy as np
 from pp_terminal.data.filters import filter_by_type, drop_empty_values
 from pp_terminal.utils.helper import get_last_year, footer
 from pp_terminal.utils.options import tax_rate_callback, exemption_rate_callback
-from pp_terminal.output.output import OutputStrategy, Console
+from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot, _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TransactionType, Percent, Money

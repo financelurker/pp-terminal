@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from pp_terminal.utils.cache_utils import cleanup_old_cache_files, get_cache_path
+from pp_terminal.utils.cache import cleanup_old_cache_files, get_cache_path
 
 
 class TestGetCachePath:

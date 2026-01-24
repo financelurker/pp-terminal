@@ -25,7 +25,7 @@ import typer
 from pp_terminal.output.column_utils import normalize_columns, rename_uuid_columns
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import footer
-from pp_terminal.output.output import OutputStrategy, Console
+from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.output.table_decorator import TableOptions

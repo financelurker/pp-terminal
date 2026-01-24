@@ -28,7 +28,7 @@ from rich.console import Console
 
 from pp_terminal.data.filters import filter_later_than, filter_by_type
 from pp_terminal.utils.helper import get_last_year, footer
-from pp_terminal.output.output import OutputStrategy
+from pp_terminal.output.strategy import OutputStrategy
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.schemas import Percent, TransactionType, Money

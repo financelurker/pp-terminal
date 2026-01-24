@@ -27,7 +27,7 @@ from pandera.typing import DataFrame
 
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema, TransactionType
-from pp_terminal.utils.cache_utils import cleanup_old_cache_files, get_cache_path
+from pp_terminal.utils.cache import cleanup_old_cache_files, get_cache_path
 from pp_terminal.utils.helper import enum_list_to_values
 from .attribute_type_converter import convert_attribute_types
 from .ppxml2db_wrapper import Ppxml2dbWrapper, DB_NAME_IN_MEMORY

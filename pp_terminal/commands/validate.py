@@ -27,7 +27,7 @@ from typer.models import CommandFunctionType
 
 from pp_terminal.exceptions import ValidationError
 from pp_terminal.utils.helper import run_all_group_cmds
-from pp_terminal.output.output import Console
+from pp_terminal.output.strategy import Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.validation.engine import validate_accounts as validate_accounts_engine
 from pp_terminal.validation.engine import validate_securities as validate_securities_engine

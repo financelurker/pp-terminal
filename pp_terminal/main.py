@@ -32,7 +32,7 @@ from typer_config import use_config
 from pp_terminal.utils.config import validated_config_callback, get_config
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import set_precision
-from pp_terminal.output.output import create_strategy, OutputFormat
+from pp_terminal.output.strategy import create_strategy, OutputFormat
 from pp_terminal.utils.plugins import load_command_plugins
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder, CachedPpPortfolioBuilder
 from . import __version__

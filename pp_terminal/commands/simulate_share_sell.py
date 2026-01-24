@@ -30,7 +30,7 @@ from pp_terminal.data.filters import filter_by_type
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import format_money, footer
 from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
-from pp_terminal.output.output import OutputStrategy, Console
+from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TransactionType, Percent, Money

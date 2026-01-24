@@ -177,7 +177,9 @@ def test_kommer_2021(request: TopRequest) -> None:
 def test_kommer_2023(request: TopRequest) -> None:
     config = {
         "attributes": {
-            "exemption-rate": "2baac2d0-459b-4b41-a0ef-d7dad0866892"
+            "securities": {
+                "exemption-rate": "2baac2d0-459b-4b41-a0ef-d7dad0866892"
+            }
         }
     }
     portfolio = PpPortfolioBuilder(config=config).construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
@@ -201,7 +203,7 @@ def test_kommer_2023(request: TopRequest) -> None:
     ])
     expected_df.index.name = 'securityId'
 
-    result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375, 30.0, config['attributes']['exemption-rate'])
+    result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375, 30.0, config['attributes']['securities']['exemption-rate'])
 
     assert result is not None
     assert_frame_equal(expected_df, result.round(5))

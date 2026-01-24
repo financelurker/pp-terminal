@@ -59,7 +59,7 @@ def print_securities(  # pylint: disable=too-many-locals
     snapshot = PortfolioSnapshot(portfolio, by)
     shares = snapshot.shares
 
-    attribute_map = config.get('attributes', {})
+    attribute_map = config.get('attributes', {}).get('securities', {})
 
     # Reset index to make SecurityId a column and rename columns
     df = securities.reset_index()
@@ -82,7 +82,6 @@ def print_securities(  # pylint: disable=too-many-locals
         lambda sid: validation_results.get(str(sid), ValidationResult.empty()).messages or ''
     )
 
-    # Parse and normalize requested columns
     requested_columns = [col.strip() for col in columns.split(',')]
     selected_columns = normalize_columns(requested_columns, list(df.columns), attribute_map)
 

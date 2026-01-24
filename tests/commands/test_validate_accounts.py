@@ -143,7 +143,9 @@ def test_attribute_based_rule(sample_portfolio_with_limits: Portfolio) -> None:
         portfolio=sample_portfolio_with_limits,
         config={
             'attributes': {
-                'test_limit_attr': test_attr_uuid
+                'accounts': {
+                    'test_limit_attr': test_attr_uuid
+                }
             },
             'validation': {'accounts': {'rules': [
                 {'type': 'balance-limit-from-attribute', 'value': 'test_limit_attr'},
@@ -224,7 +226,9 @@ def test_date_passed_with_friendly_name(sample_portfolio_with_limits: Portfolio,
         portfolio=sample_portfolio_with_limits,
         config={
             'attributes': {
-                'expiry-date': test_attr_uuid
+                'accounts': {
+                    'expiry-date': test_attr_uuid
+                }
             },
             'validation': {'accounts': {'rules': [
                 {'type': 'date-passed-from-attribute', 'value': 'expiry-date'}

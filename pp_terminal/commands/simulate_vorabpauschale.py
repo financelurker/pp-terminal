@@ -290,10 +290,9 @@ def print_tax_table(  # pylint: disable=too-many-locals
     # Resolve exempt-rate attribute UUID from explicit config
     exempt_rate_uuid = None
     if config:
-        tax_config = config.get('tax', {})
-        exemption_attr_name = tax_config.get('exemption-rate-attribute')
+        exemption_attr_name = config.get('tax', {}).get('exemption-rate-attribute')
         if exemption_attr_name:
-            attributes = config.get('attributes', {})
+            attributes = config.get('attributes', {}).get('securities', {})
             exempt_rate_uuid = attributes.get(exemption_attr_name)
 
     console.print(output.hint('You can define the exemption rate per each security individually by creating a custom security attribute of type "Percent Number" in Portfolio Performance and add it to pp-terminal configuration file.'))

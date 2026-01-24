@@ -184,10 +184,11 @@ def create_rule(rule_config: dict[str, Any], config: dict[str, Any] | None = Non
             raise ValueError(f'Config required for rule type: {rule_type}')
 
         attr_name = value
-        attributes = config.get('attributes', {})
+        attributes_config = config.get('attributes', {})
+        attributes = attributes_config.get('accounts', {}) |  attributes_config.get('securities', {})
 
         if attr_name not in attributes:
-            raise ValueError(f'Attribute "{attr_name}" not found in config.attributes')
+            raise ValueError(f'Attribute "{attr_name}" not found in config')
 
         attribute_name = attr_name
         value = attributes[attr_name]

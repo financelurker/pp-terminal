@@ -71,7 +71,7 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
         return portfolio
 
     def _parse_securities(self) -> DataFrame[SecuritySchema]:
-        attributes = self._config.get('attributes', {})
+        attributes = self._config.get('attributes', {}).get('securities', {})
 
         if not attributes:
             securities = (pd.read_sql_query('select * from security', self._db.connection, index_col='uuid')
@@ -136,7 +136,7 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
         return cast(DataFrame[TransactionSchema], transactions)
 
     def _parse_accounts(self) -> DataFrame[AccountSchema]:
-        attributes = self._config.get('attributes', {})
+        attributes = self._config.get('attributes', {}).get('accounts', {})
 
         if not attributes:
             accounts = (pd.read_sql_query('select * from account', self._db.connection, index_col='uuid')

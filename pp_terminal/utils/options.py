@@ -18,7 +18,6 @@
 """
 import typer
 
-from pp_terminal.utils.config import get_config
 from pp_terminal.domain.schemas import Percent
 
 
@@ -28,8 +27,7 @@ def tax_rate_callback(ctx: typer.Context, param: typer.CallbackParam, value: Per
         return value
 
     # 2. Try config file
-    config = get_config()
-    config_tax = config.get('tax')
+    config_tax = ctx.obj.config.get('tax')
     if config_tax is not None and 'rate' in config_tax:
         return Percent(config_tax['rate'])
 
@@ -47,8 +45,7 @@ def exemption_rate_callback(ctx: typer.Context, param: typer.CallbackParam, valu
         return value
 
     # 2. Try config file
-    config = get_config()
-    config_tax = config.get('tax')
+    config_tax = ctx.obj.config.get('tax')
     if config_tax is not None and 'exemption-rate' in config_tax:
         return Percent(config_tax['exemption-rate'])
 
@@ -66,8 +63,7 @@ def tax_csv_callback(ctx: typer.Context, param: typer.CallbackParam, value: str 
         return value
 
     # 2. Try config file
-    config = get_config()
-    config_tax = config.get('tax')
+    config_tax = ctx.obj.config.get('tax')
     if config_tax is not None and 'file' in config_tax:
         return str(config_tax['file'])
 

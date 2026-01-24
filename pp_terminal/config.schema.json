@@ -42,12 +42,27 @@
       "additionalProperties": false
     },
     "attributes": {
-      "description": "Mapping of friendly attribute names to Portfolio Performance attribute UUIDs",
+      "description": "Entity-specific attribute mappings to Portfolio Performance attribute UUIDs",
       "type": "object",
-      "additionalProperties": {
-        "type": "string",
-        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-      }
+      "properties": {
+        "accounts": {
+          "description": "Account-specific attribute mappings",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          }
+        },
+        "securities": {
+          "description": "Security-specific attribute mappings",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "limits": {
       "description": "Various limits and thresholds",

@@ -115,7 +115,7 @@ def print_accounts(  # pylint: disable=too-many-locals
     output = ctx.obj.output  # type: OutputStrategy
     config = ctx.obj.config
 
-    attribute_map = config.get('attributes', {})
+    attribute_map = config.get('attributes', {}).get('accounts', {})
 
     snapshot = PortfolioSnapshot(portfolio, by)
 

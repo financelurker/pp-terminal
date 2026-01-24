@@ -84,7 +84,7 @@ def validated_json_loader(config_path: str) -> Dict[str, Any]:
 
 def get_config() -> Dict[str, Any]:
     """
-    Get the currently loaded configuration.
+    Get the currently loaded configuration - should only be used with prior @use_config(validated_config_callback).
 
     Returns:
         The loaded configuration dictionary, or empty dict if no config was loaded.

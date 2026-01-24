@@ -37,7 +37,7 @@ console = Console()
 log = logging.getLogger(__name__)
 
 validate_app = typer.Typer()
-app.add_typer(validate_app, name="validate", help='Run a number of different validation checks on the portfolio data')
+app.add_typer(validate_app, name="validate", help='Run configured validation rules on the portfolio data')
 
 exit_code = 0  # pylint: disable=invalid-name
 
@@ -61,9 +61,9 @@ def catch_errors(func: CommandFunctionType) -> Callable[..., CommandFunctionType
     return wrapper
 
 
-@validate_app.command(name="security-prices")
+@validate_app.command(name="securities")
 @catch_errors
-def validate_security_prices(ctx: typer.Context) -> None:
+def validate_securities(ctx: typer.Context) -> None:
     """Validate the timeliness of security prices."""
     portfolio = ctx.obj.portfolio
     config = ctx.obj.config

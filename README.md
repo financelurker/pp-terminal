@@ -13,18 +13,11 @@ _pp-terminal_ is a lightweight tool for all the nice-to-have features that won't
 This can be because of country-dependant tax rules, complex Java implementation, highly individual requirements, 
 too many edge-cases, etc.
 
-By default, `pp-terminal` provides the following commands:
+> [!IMPORTANT]
+> I am not a tax consultant. All results of this application are just a non-binding indication and without guarantee.
+> They may deviate from the actual values.
 
-| Command                    | Description                                                                                        |
-|----------------------------|----------------------------------------------------------------------------------------------------|
-| `view accounts`            | Get detailed information about the balances per each deposit and/or securities account             |
-| `view securities`          | Get detailed information about the securities                                                      |
-| `simulate interest`        | Calculate how much interest you should have been earned per account and compare with actual values |
-| `simulate share-sell`      | Calculate the taxes if a security would be sold (FIFO-based capital gains calculator)              |
-| `simulate vorabpauschale`  | Run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
-| `validate`                 | Run a number of different validation checks on the portfolio data                                  |
-| `validate security-prices` | Verify the timeliness of security prices                                                           |
-| `validate accounts`        | Validate deposit accounts using configured validation rules.                                       |
+## Commands
 
 Code completion for commands and options is available.  
 You can choose between different output formats like JSON or CSV with the `--format` option.
@@ -32,9 +25,30 @@ You can choose between different output formats like JSON or CSV with the `--for
 In addition to the standard set, you can easily [create your own commands](#user-content-create-your-own-command-️) 
 and share them with the community.
 
-> [!IMPORTANT]
-> I am not a tax consultant. All results of this application are just a non-binding indication and without guarantee.
-> They may deviate from the actual values.
+By default, `pp-terminal --help` provides the following commands:
+
+### View Data
+
+| Command           | Description                                                                            |
+|-------------------|----------------------------------------------------------------------------------------|
+| `view accounts`   | Get detailed information about the balances per each deposit and/or securities account |
+| `view securities` | Get detailed information about the securities                                          |
+
+### Run Simulations
+
+| Command                   | Description                                                                                        |
+|---------------------------|----------------------------------------------------------------------------------------------------|
+| `simulate interest`       | Calculate how much interest you should have been earned per account and compare with actual values |
+| `simulate share-sell`     | Calculate gains and taxes if a security would be sold (based on FIFO capital gains)                |
+| `simulate vorabpauschale` | Run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
+
+### Validate Data
+
+| Command               | Description                                     |
+|-----------------------|-------------------------------------------------|
+| `validate`            | Run all validation checks on the portfolio data |
+| `validate accounts`   | Run configured accounts validations             |
+| `validate securities` | Run configured security validations             |
 
 ## Requirements
 
@@ -82,8 +96,12 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
     "exemption-rate-attribute": "exemptionRate"
   },
   "attributes": {
-    "exemptionRate": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3",
-    "interestValidUntil": "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"
+    "securities": {
+      "exemptionRate": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"
+    },
+    "accounts": {
+      "interestValidUntil": "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"
+    }
   },
   "validation": {
     "accounts": {

@@ -27,14 +27,14 @@ and share them with the community.
 
 By default, `pp-terminal --help` provides the following commands:
 
-### View Data
+### Inspect Portfolio
 
 | Command           | Description                                                                            |
 |-------------------|----------------------------------------------------------------------------------------|
 | `view accounts`   | Get detailed information about the balances per each deposit and/or securities account |
 | `view securities` | Get detailed information about the securities                                          |
 
-### Run Simulations
+### Simulate Scenarios
 
 | Command                   | Description                                                                                        |
 |---------------------------|----------------------------------------------------------------------------------------------------|
@@ -44,11 +44,18 @@ By default, `pp-terminal --help` provides the following commands:
 
 ### Validate Data
 
-| Command               | Description                                     |
-|-----------------------|-------------------------------------------------|
-| `validate`            | Run all validation checks on the portfolio data |
-| `validate accounts`   | Run configured accounts validations             |
-| `validate securities` | Run configured security validations             |
+| Command               | Description                                                 |
+|-----------------------|-------------------------------------------------------------|
+| `validate`            | Run all validation checks on the portfolio data             |
+| `validate accounts`   | Run configured accounts validations, e.g. balance limits    |
+| `validate securities` | Run configured security validations, e.g. prices up-to-date |
+
+### Export
+
+| Command             | Description                                                      |
+|---------------------|------------------------------------------------------------------|
+| `export anonymized` | Save an anonymized version of the Portfolio Performance XML file |
+
 
 ## Requirements
 

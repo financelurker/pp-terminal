@@ -40,6 +40,7 @@ from . import __version__
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich")
 app.add_typer(typer.Typer(no_args_is_help=True), name="simulate")
 app.add_typer(typer.Typer(no_args_is_help=True), name="view")
+app.add_typer(typer.Typer(no_args_is_help=True), name="export")
 
 # init default logging (this is e.g. import for errors during command plugin load
 logging.basicConfig(level=logging.WARN, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=False, show_time=False, show_path=False)])
@@ -89,6 +90,7 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             builder = CachedPpPortfolioBuilder(config=get_config())
 
         ctx.obj = SimpleNamespace(
+            file_path=file,
             portfolio=builder.construct(file),
             output=create_strategy(format),
             config=get_config())

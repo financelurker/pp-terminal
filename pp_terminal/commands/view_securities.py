@@ -102,7 +102,7 @@ def print_securities(  # pylint: disable=too-many-locals
     console.print(*output.result_table(
         df, TableOptions(
             title=f"{'Active ' if active else ''}Securities",
-            caption=f"in total {len(df)} entries, per {by.strftime("%Y-%m-%d")}",
+            caption=f"{len(df)} entries per {by.strftime("%Y-%m-%d")}",
             show_index=False,
             show_total=False
         )

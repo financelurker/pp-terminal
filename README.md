@@ -34,6 +34,15 @@ By default, `pp-terminal --help` provides the following commands:
 | `view accounts`   | Get detailed information about the balances per each deposit and/or securities account |
 | `view securities` | Get detailed information about the securities                                          |
 
+The commands can be customized in the [configuration file](#configuration-file):
+```toml
+[commands.view.accounts]
+columns = ["AccountId", "Name", "Balance"]
+
+[commands.view.securities]
+columns = ["SecurityId", "Name", "Shares"]
+```
+
 ### Simulate Scenarios
 
 | Command                   | Description                                                                                        |
@@ -50,12 +59,48 @@ By default, `pp-terminal --help` provides the following commands:
 | `validate accounts`   | Run configured accounts validations, e.g. balance limits    |
 | `validate securities` | Run configured security validations, e.g. prices up-to-date |
 
+The commands can be customized in the [configuration file](#configuration-file):
+```toml
+# Note: order of rules is relevant
+
+[[commands.validate.accounts.rules]]
+type = "balance-limit"
+value = 25000
+applies-to = ["c9c57e01-7ea0-4e70-bed9-4656941f7687"]
+
+[[commands.validate.accounts.rules]]
+type = "balance-limit"
+value = 100000
+
+[[commands.validate.accounts.rules]]
+type = "date-passed-from-attribute"
+value = "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"
+
+[[commands.validate.securities.rules]]
+type = "price-staleness"
+value = 90
+
+[[commands.validate.securities.rules]]
+type = "price-staleness"
+severity = "warning"
+value = 30
+```
+
 ### Export
 
 | Command             | Description                                                      |
 |---------------------|------------------------------------------------------------------|
 | `export anonymized` | Save an anonymized version of the Portfolio Performance XML file |
 
+The command can be customized in the [configuration file](#configuration-file):
+```toml
+[commands.export.anonymized.attributes."a1b2c3d4-e5f6-7890-abcd-ef1234567890"]
+provider = "iban"
+
+[commands.export.anonymized.attributes."fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"]
+provider = "pyfloat"
+args = { min_value = 0.0, max_value = 1.0, right_digits = 2 }
+```
 
 ## Requirements
 
@@ -104,36 +149,6 @@ rate = 26.375
 file = "vorabpauschale.csv"
 exemption-rate = 30
 exemption-rate-attribute = "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"
-
-[commands.validate.accounts]
-rules = [
-    {type = "balance-limit", value = 25000, applies-to = ["c9c57e01-7ea0-4e70-bed9-4656941f7687"]},
-    {type = "balance-limit", value = 100000},
-    {type = "date-passed-from-attribute", value = "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"}
-]
-
-[commands.validate.securities]
-rules = [
-    {type = "price-staleness", value = 90},
-    {type = "price-staleness", severity = "warning", value = 30}
-]
-
-[commands.view.accounts]
-columns = ["AccountId", "Name", "Balance"]
-
-[commands.view.securities]
-columns = ["SecurityId", "Name", "Shares"]
-
-[commands.export.anonymized.attributes."a1b2c3d4-e5f6-7890-abcd-ef1234567890"]
-provider = "iban"
-
-[commands.export.anonymized.attributes."fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"]
-provider = "pyfloat"
-
-[commands.export.anonymized.attributes."fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9".args]
-min_value = 0.0
-max_value = 1.0
-right_digits = 2
 ```
 
 ### Customize Number Formats

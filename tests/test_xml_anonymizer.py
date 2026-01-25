@@ -310,11 +310,15 @@ def test_attribute_anonymization_with_config(tmp_path: Path) -> None:
     input_file.write_text(xml_content)
 
     config = {
-        "anonymization": {
-            "attributes": {
-                "test-uuid-123": {
-                    "provider": "pyfloat",
-                    "args": {"min_value": 0.0, "max_value": 1.0, "right_digits": 2}
+        "commands": {
+            "export": {
+                "anonymized": {
+                    "attributes": {
+                        "test-uuid-123": {
+                            "provider": "pyfloat",
+                            "args": {"min_value": 0.0, "max_value": 1.0, "right_digits": 2}
+                        }
+                    }
                 }
             }
         }
@@ -377,10 +381,14 @@ def test_attribute_uuid_not_in_xml_no_error(tmp_path: Path) -> None:
     input_file.write_text(xml_content)
 
     config = {
-        "anonymization": {
-            "attributes": {
-                "non-existent-uuid-123": {
-                    "provider": "pyfloat"
+        "commands": {
+            "export": {
+                "anonymized": {
+                    "attributes": {
+                        "non-existent-uuid-123": {
+                            "provider": "pyfloat"
+                        }
+                    }
                 }
             }
         }

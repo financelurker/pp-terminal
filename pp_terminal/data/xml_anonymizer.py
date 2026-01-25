@@ -26,6 +26,8 @@ from typing import Any
 import lxml.etree as ET  # pylint: disable=c-extension-no-member
 from faker import Faker
 
+from pp_terminal.utils.config import get_command_config
+
 log = logging.getLogger(__name__)
 
 
@@ -54,7 +56,7 @@ class XmlAnonymizer:  # pylint: disable=too-many-instance-attributes,too-few-pub
         self.faker = Faker()
         Faker.seed(seed)
 
-        self.config = config if config is not None else {}
+        self.config = get_command_config(config, 'export.anonymized.attributes') if config else {}
 
         # Caches for consistent anonymization
         self.amount_factors: dict[str, float] = {}
@@ -195,10 +197,8 @@ class XmlAnonymizer:  # pylint: disable=too-many-instance-attributes,too-few-pub
         if not attr_type_uuid or not current_value:
             return
 
-        # Get anonymization config for this UUID
-        attr_configs = self.config.get('anonymization', {}).get('attributes', {})
-        if attr_type_uuid in attr_configs:
-            config = attr_configs[attr_type_uuid]
+        if attr_type_uuid in self.config:
+            config = self.config[attr_type_uuid]
             provider = config.get('provider')
             args = config.get('args', {})
 

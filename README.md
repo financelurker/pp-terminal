@@ -110,19 +110,23 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
       "securities": {
         "columns": ["SecurityId", "Name", "Shares"]
       }
-    }
-  },
-  "anonymization": {
-    "a1b2c3d4-e5f6-7890-abcd-ef1234567890": {
-      "provider": "iban",
-      "args": {}
     },
-    "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9": {
-      "provider": "pyfloat",
-      "args": {
-        "min_value": 0.0,
-        "max_value": 1.0,
-        "right_digits": 2
+    "export": {
+      "anonymized": {
+        "attributes": {
+          "a1b2c3d4-e5f6-7890-abcd-ef1234567890": {
+            "provider": "iban",
+            "args": {}
+          },
+          "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9": {
+            "provider": "pyfloat",
+            "args": {
+              "min_value": 0.0,
+              "max_value": 1.0,
+              "right_digits": 2
+            }
+          }
+        }
       }
     }
   },

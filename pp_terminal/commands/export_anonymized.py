@@ -24,6 +24,7 @@ from rich.console import Console
 import typer
 
 from pp_terminal.data.xml_anonymizer import XmlAnonymizer
+from pp_terminal.exceptions import InputError
 
 app = typer.Typer()
 console = Console()
@@ -57,6 +58,9 @@ def export_anonymized(
     input_file = ctx.obj.file_path
     output = ctx.obj.output
     config = ctx.obj.config
+
+    if output_file.exists():
+        raise InputError(f"Output file {output_file} already exists")
 
     log.debug("Using seed value %s", seed)
 

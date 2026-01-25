@@ -110,7 +110,7 @@ class DatePassedRule(ValidationRule):
             try:
                 date_value = pd.to_datetime(date_value)
             except (ValueError, TypeError):
-                log.warning('Account "%s" has invalid date value: %s', entity["name"], date_value)
+                log.warning('"%s" has invalid date value: %s', entity["name"], date_value)
                 return False, None
 
         attribute_name = 'date attribute'

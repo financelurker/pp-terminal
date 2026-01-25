@@ -47,6 +47,15 @@ index 070418f..64f348b 100644
                          self.handle_xact(what, uuid, el, 0)
                  elif el.tag == "transactionFrom":
                      if el.get("id"):
+@@ -609,7 +613,7 @@ class PortfolioPerformanceXML2DB:
+                     preserve = True
+                 elif self.el_stack and self.el_stack[-1] == "watchlist" and el.tag == "securities":
+                     preserve = True
+-                elif self.container_stack and self.container_stack[-1][0] in ("security", "account", "portfolio") and el.tag == "attributes":
++                elif self.container_stack and self.container_stack[-1][0] in ("security", "account", "portfolio", "accountFrom", "accountTo", "referenceAccount", "portfolioFrom", "portfolioTo") and el.tag == "attributes":
+                     preserve = True
+
+                 if not preserve:
 diff --git a/ppxml2db/ppxml2db_init.py b/ppxml2db/ppxml2db_init.py
 index 8784dc4..2e8918c 100644
 --- a/ppxml2db/ppxml2db_init.py

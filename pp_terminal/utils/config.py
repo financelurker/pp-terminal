@@ -24,7 +24,7 @@ from typing import Any, Dict, cast
 
 from jsonschema import Draft7Validator, ValidationError as JsonSchemaValidationError
 from typer_config import conf_callback_factory
-from typer_config.loaders import json_loader
+from typer_config.loaders import toml_loader
 
 log = logging.getLogger(__name__)
 
@@ -38,11 +38,11 @@ def _load_schema() -> dict[str, Any]:
         return cast(dict[str, Any], json.load(f))
 
 
-def validated_json_loader(config_path: str) -> Dict[str, Any]:
+def validated_toml_loader(config_path: str) -> Dict[str, Any]:
     """
-    Load and validate JSON configuration file for use with typer-config.
+    Load and validate TOML configuration file for use with typer-config.
 
-    This loader wraps typer-config's json_loader with JSON schema validation.
+    This loader wraps typer-config's toml_loader with JSON schema validation.
 
     Args:
         config_path: Path to the configuration file
@@ -58,7 +58,7 @@ def validated_json_loader(config_path: str) -> Dict[str, Any]:
     if config_path == '':
         return _loaded_config
 
-    config = json_loader(config_path)
+    config = toml_loader(config_path)
 
     schema = _load_schema()
     validator = Draft7Validator(schema)
@@ -119,4 +119,4 @@ def get_command_config(config: Dict[str, Any], path: str, default: Any = None) -
 
 
 # Create the config callback for use with @use_config decorator
-validated_config_callback = conf_callback_factory(validated_json_loader)
+validated_config_callback = conf_callback_factory(validated_toml_loader)

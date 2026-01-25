@@ -56,10 +56,11 @@ def export_anonymized(
 
     input_file = ctx.obj.file_path
     output = ctx.obj.output
+    config = ctx.obj.config
 
     log.debug("Using seed value %s", seed)
 
-    anonymizer = XmlAnonymizer(seed=seed)
+    anonymizer = XmlAnonymizer(seed=seed, config=config)
 
     anonymizer.anonymize_file(input_file, output_file)
     console.print(output.text(f"Anonymized Portfolio Performance file saved to {output_file}"))

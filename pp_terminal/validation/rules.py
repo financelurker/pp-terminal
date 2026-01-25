@@ -23,6 +23,8 @@ from typing import Any
 import logging
 import pandas as pd
 
+from pp_terminal.utils.attribute import get_attribute_id_by_name
+
 log = logging.getLogger(__name__)
 
 
@@ -168,7 +170,7 @@ RULE_TYPES = {
 }
 
 
-def create_rule(rule_config: dict[str, Any], config: dict[str, Any] | None = None) -> ValidationRule:
+def create_rule(rule_config: dict[str, Any], config: dict[str, Any]) -> ValidationRule:
     rule_type = rule_config['type']
     if rule_type not in RULE_TYPES:
         raise ValueError(f'Unknown rule type: {rule_type}')
@@ -178,20 +180,11 @@ def create_rule(rule_config: dict[str, Any], config: dict[str, Any] | None = Non
     applies_to = rule_config.get('applies-to', None)
     attribute_name = None
 
-    # Resolve attribute names to UUIDs for *-from-attribute rules
     if rule_type.endswith('-from-attribute'):
-        if config is None:
-            raise ValueError(f'Config required for rule type: {rule_type}')
-
-        attr_name = value
-        attributes_config = config.get('attributes', {})
-        attributes = attributes_config.get('accounts', {}) |  attributes_config.get('securities', {})
-
-        if attr_name not in attributes:
-            raise ValueError(f'Attribute "{attr_name}" not found in config')
-
-        attribute_name = attr_name
-        value = attributes[attr_name]
+        attribute_name = value
+        value = get_attribute_id_by_name(config, attribute_name)
+        if value is None:
+            raise ValueError(f'Invalid attribute reference "{attribute_name}"')
 
     rule_class = RULE_TYPES[rule_type]
     return rule_class(

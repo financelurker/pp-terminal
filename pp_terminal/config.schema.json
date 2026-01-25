@@ -64,6 +64,26 @@
       },
       "additionalProperties": false
     },
+    "anonymization": {
+      "description": "Anonymization configuration for export anonymized command. Defines how to replace Portfolio Performance attribute values with fake data using Faker library providers.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["provider"],
+        "properties": {
+          "provider": {
+            "description": "Faker provider method name (e.g., 'pyfloat', 'iban', 'name', 'address'). See https://faker.readthedocs.io/en/master/providers.html",
+            "type": "string"
+          },
+          "args": {
+            "description": "Arguments to pass to the Faker provider method",
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "validation": {
       "description": "Validation rules for portfolio data",
       "type": "object",

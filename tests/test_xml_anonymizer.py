@@ -17,40 +17,83 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import lxml.etree as ET  # pylint: disable=c-extension-no-member
+# pylint: disable=c-extension-no-member
+from pathlib import Path
+
+import lxml.etree as ET
+import pytest
 
 from pp_terminal.data.xml_anonymizer import XmlAnonymizer
+from pp_terminal.exceptions import InputError
 
 
-def test_date_shifting_preserves_order():
+def test_date_shifting_preserves_order(tmp_path: Path) -> None:
     """Relative date order is preserved after anonymization."""
-    anon = XmlAnonymizer(seed=42)
-    anon._init_date_offset()  # pylint: disable=protected-access
+    xml_content = """<client id="1">
+  <account id="2">
+    <name>Test</name>
+    <transactions>
+      <account-transaction>
+        <date>2019-01-01</date>
+      </account-transaction>
+      <account-transaction>
+        <date>2019-06-01</date>
+      </account-transaction>
+    </transactions>
+  </account>
+</client>"""
 
-    date1 = "2019-01-01"
-    date2 = "2019-06-01"
+    input_file = tmp_path / "test_input.xml"
+    output_file = tmp_path / "test_output.xml"
+    input_file.write_text(xml_content)
 
-    shifted1 = anon._shift_date(date1)  # pylint: disable=protected-access
-    shifted2 = anon._shift_date(date2)  # pylint: disable=protected-access
+    anonymizer = XmlAnonymizer(seed=42)
+    anonymizer.anonymize_file(input_file, output_file)
+
+    tree = ET.parse(str(output_file))
+    dates = tree.findall('.//date')
+
+    assert len(dates) == 2, "Should have two dates"
+    shifted1 = dates[0].text
+    shifted2 = dates[1].text
 
     assert shifted1 < shifted2, "Date order should be preserved"
+    assert shifted1 != "2019-01-01", "First date should be changed"
+    assert shifted2 != "2019-06-01", "Second date should be changed"
 
 
-def test_date_shifting_with_time():
+def test_date_shifting_with_time(tmp_path: Path) -> None:
     """Date shifting works with ISO datetime format."""
-    anon = XmlAnonymizer(seed=42)
-    anon._init_date_offset()  # pylint: disable=protected-access
+    xml_content = """<client id="1">
+  <account id="2">
+    <name>Test</name>
+    <transactions>
+      <account-transaction>
+        <date>2019-01-01T00:00</date>
+      </account-transaction>
+    </transactions>
+  </account>
+</client>"""
 
-    date_with_time = "2019-01-01T00:00"
-    shifted = anon._shift_date(date_with_time)  # pylint: disable=protected-access
+    input_file = tmp_path / "test_input.xml"
+    output_file = tmp_path / "test_output.xml"
+    input_file.write_text(xml_content)
+
+    anonymizer = XmlAnonymizer(seed=42)
+    anonymizer.anonymize_file(input_file, output_file)
+
+    tree = ET.parse(str(output_file))
+    date = tree.find('.//date')
+
+    assert date is not None, "Date element should exist"
+    shifted = date.text
 
     assert "T" in shifted, "Time component should be preserved"
-    assert shifted != date_with_time, "Date should be changed"
+    assert shifted != "2019-01-01T00:00", "Date should be changed"
 
 
-def test_xstream_ids_unchanged(tmp_path):
+def test_xstream_ids_unchanged(tmp_path: Path) -> None:
     """XStream id and reference attributes are not modified."""
-    # Create test XML with id and reference
     xml_content = """<client id="1">
   <account id="20">
     <name>Test Account</name>
@@ -65,11 +108,9 @@ def test_xstream_ids_unchanged(tmp_path):
     output_file = tmp_path / "test_output.xml"
     input_file.write_text(xml_content)
 
-    # Anonymize
     anonymizer = XmlAnonymizer(seed=42)
     anonymizer.anonymize_file(input_file, output_file)
 
-    # Parse output and check ids/references
     tree = ET.parse(str(output_file))
     root = tree.getroot()
 
@@ -80,31 +121,10 @@ def test_xstream_ids_unchanged(tmp_path):
     assert ref_account.get('reference') == '20', "Reference should be unchanged"
 
 
-def test_uuids_unchanged(tmp_path):
-    """UUID elements are kept as-is."""
+def test_financial_ids_preserved(tmp_path: Path) -> None:
     xml_content = """<client id="1">
   <security id="2">
     <uuid>f52d3250-9a9f-4fd5-b4e4-5bcf705e0a15</uuid>
-    <name>Test Security</name>
-  </security>
-</client>"""
-
-    input_file = tmp_path / "test_input.xml"
-    output_file = tmp_path / "test_output.xml"
-    input_file.write_text(xml_content)
-
-    anonymizer = XmlAnonymizer(seed=42)
-    anonymizer.anonymize_file(input_file, output_file)
-
-    tree = ET.parse(str(output_file))
-    uuid_elem = tree.find('.//uuid')
-    assert uuid_elem.text == "f52d3250-9a9f-4fd5-b4e4-5bcf705e0a15", "UUID should be unchanged"
-
-
-def test_financial_ids_preserved(tmp_path):
-    """ISIN, WKN, tickerSymbol remain unchanged."""
-    xml_content = """<client id="1">
-  <security id="2">
     <name>Test Security</name>
     <isin>DE0008469008</isin>
     <wkn>846900</wkn>
@@ -122,13 +142,13 @@ def test_financial_ids_preserved(tmp_path):
     tree = ET.parse(str(output_file))
     security = tree.find('.//security')
 
+    assert security.find('uuid').text == "f52d3250-9a9f-4fd5-b4e4-5bcf705e0a15", "UUID should be unchanged"
     assert security.find('isin').text == "DE0008469008", "ISIN should be unchanged"
     assert security.find('wkn').text == "846900", "WKN should be unchanged"
     assert security.find('tickerSymbol').text == "^GDAXI", "Ticker should be unchanged"
 
 
-def test_amount_randomization_preserves_magnitude(tmp_path):
-    """Amount randomization keeps values in reasonable range."""
+def test_amount_randomization_preserves_magnitude(tmp_path: Path) -> None:
     xml_content = """<client id="1">
   <account id="2">
     <name>Test</name>
@@ -155,8 +175,7 @@ def test_amount_randomization_preserves_magnitude(tmp_path):
     assert new_amount != 1000000, "Amount should be changed"
 
 
-def test_names_are_anonymized(tmp_path):
-    """Names are replaced with fake names."""
+def test_names_are_anonymized(tmp_path: Path) -> None:
     xml_content = """<client id="1">
   <security id="2">
     <name>Real Company Name</name>
@@ -181,8 +200,7 @@ def test_names_are_anonymized(tmp_path):
     assert account_name != "My Personal Account", "Account name should be changed"
 
 
-def test_notes_are_anonymized(tmp_path):
-    """Notes are replaced with placeholder."""
+def test_notes_are_anonymized(tmp_path: Path) -> None:
     xml_content = """<client id="1">
   <account id="2">
     <name>Test</name>
@@ -203,8 +221,7 @@ def test_notes_are_anonymized(tmp_path):
     assert note != "This is my personal note with sensitive info", "Note should be replaced"
 
 
-def test_empty_notes_preserved(tmp_path):
-    """Empty notes remain empty."""
+def test_empty_notes_preserved(tmp_path: Path) -> None:
     xml_content = """<client id="1">
   <account id="2">
     <name>Test</name>
@@ -222,12 +239,10 @@ def test_empty_notes_preserved(tmp_path):
     tree = ET.parse(str(output_file))
     note = tree.find('.//note')
 
-    # Empty note should remain empty or None
     assert not note.text or not note.text.strip(), "Empty note should remain empty"
 
 
-def test_deterministic_anonymization(tmp_path):
-    """Same seed produces same output."""
+def test_deterministic_anonymization(tmp_path: Path) -> None:
     xml_content = """<client id="1">
   <security id="2">
     <name>Test Security</name>
@@ -239,7 +254,6 @@ def test_deterministic_anonymization(tmp_path):
     output_file2 = tmp_path / "output2.xml"
     input_file.write_text(xml_content)
 
-    # Anonymize twice with same seed
     anonymizer1 = XmlAnonymizer(seed=42)
     anonymizer1.anonymize_file(input_file, output_file1)
 
@@ -252,8 +266,7 @@ def test_deterministic_anonymization(tmp_path):
     assert content1 == content2, "Same seed should produce same output"
 
 
-def test_price_attributes_anonymized(tmp_path):
-    """Price element attributes (date and value) are anonymized."""
+def test_price_attributes_anonymized(tmp_path: Path) -> None:
     xml_content = """<client id="1">
   <security id="2">
     <name>Test</name>
@@ -275,3 +288,107 @@ def test_price_attributes_anonymized(tmp_path):
 
     assert price.get('t') != "2015-01-16", "Price date should be changed"
     assert price.get('v') != "1016776950000", "Price value should be changed"
+
+
+def test_attribute_anonymization_with_config(tmp_path: Path) -> None:
+    xml_content = """<client id="1">
+  <securities>
+    <security id="2">
+      <name>Test Security</name>
+      <attributes>
+        <map>
+          <entry>
+            <string>test-uuid-123</string>
+            <string>0.75</string>
+          </entry>
+        </map>
+      </attributes>
+    </security>
+  </securities>
+</client>"""
+
+    input_file = tmp_path / "test_input.xml"
+    output_file = tmp_path / "test_output.xml"
+    input_file.write_text(xml_content)
+
+    config = {
+        "attributes": {
+            "securities": {
+                "exemptionRate": "test-uuid-123"
+            }
+        },
+        "anonymization": {
+            "exemptionRate": {
+                "provider": "pyfloat",
+                "args": {"min_value": 0.0, "max_value": 1.0, "right_digits": 2}
+            }
+        }
+    }
+
+    anonymizer = XmlAnonymizer(seed=42, config=config)
+    anonymizer.anonymize_file(input_file, output_file)
+
+    tree = ET.parse(str(output_file))
+    entry = tree.find('.//entry')
+    strings = entry.findall('string')
+
+    assert strings[0].text == "test-uuid-123", "UUID should remain unchanged"
+    assert strings[1].text != "0.75", "Value should be changed"
+    assert 0.0 <= float(strings[1].text) <= 1.0, "Value should be between 0 and 1"
+
+
+def test_attribute_anonymization_without_config(tmp_path: Path) -> None:
+    xml_content = """<client id="1">
+  <securities>
+    <security id="2">
+      <name>Test</name>
+      <attributes>
+        <map>
+          <entry>
+            <string>unconfigured-uuid</string>
+            <string>original-value</string>
+          </entry>
+        </map>
+      </attributes>
+    </security>
+  </securities>
+</client>"""
+
+    input_file = tmp_path / "test_input.xml"
+    output_file = tmp_path / "test_output.xml"
+    input_file.write_text(xml_content)
+
+    anonymizer = XmlAnonymizer(seed=42)
+    anonymizer.anonymize_file(input_file, output_file)
+
+    tree = ET.parse(str(output_file))
+    entry = tree.find('.//entry')
+    strings = entry.findall('string')
+
+    assert strings[0].text == "unconfigured-uuid", "UUID should remain unchanged"
+    assert strings[1].text == "original-value", "Value should remain unchanged"
+
+
+def test_attribute_friendly_name_not_in_config_warning(tmp_path: Path) -> None:
+    xml_content = """<client id="1">
+  <security id="2">
+    <name>Test</name>
+  </security>
+</client>"""
+
+    input_file = tmp_path / "test_input.xml"
+    output_file = tmp_path / "test_output.xml"
+    input_file.write_text(xml_content)
+
+    config = {
+        "anonymization": {
+            "nonExistentAttribute": {
+                "provider": "pyfloat"
+            }
+        }
+    }
+
+    anonymizer = XmlAnonymizer(seed=42, config=config)
+
+    with pytest.raises(InputError):
+        anonymizer.anonymize_file(input_file, output_file)

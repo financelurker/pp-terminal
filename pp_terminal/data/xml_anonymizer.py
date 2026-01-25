@@ -20,12 +20,19 @@
 from pathlib import Path
 import random
 from datetime import datetime, timedelta
+import logging
+from typing import Any
 
 import lxml.etree as ET  # pylint: disable=c-extension-no-member
 from faker import Faker
 
+from pp_terminal.exceptions import InputError
+from pp_terminal.utils.attribute import get_attribute_id_by_name
 
-class XmlAnonymizer:
+log = logging.getLogger(__name__)
+
+
+class XmlAnonymizer:  # pylint: disable=too-many-instance-attributes,too-few-public-methods
     """Anonymizes Portfolio Performance XML files."""
 
     # Tags that should not be anonymized
@@ -38,6 +45,7 @@ class XmlAnonymizer:
     def __init__(
         self,
         seed: int,
+        config: dict[str, Any] | None = None,
         date_shift_days_range: tuple[int, int] = (-3650, -365),
         amount_factor_range: tuple[float, float] = (0.5, 2.0)
     ):
@@ -45,25 +53,29 @@ class XmlAnonymizer:
         self.date_shift_days_range = date_shift_days_range
         self.amount_factor_range = amount_factor_range
 
-        self.rng = random.Random(seed)
+        self.rng = random.Random(seed)  # nosec B311  # Used for data anonymization, not cryptography
         self.faker = Faker()
         Faker.seed(seed)
+
+        self.config = config if config is not None else {}
+
+        # Build UUID → anonymization config (populated during file processing)
+        self.attr_uuid_config: dict[str, dict[str, Any]] = {}
 
         # Caches for consistent anonymization
         self.amount_factors: dict[str, float] = {}
         self.date_offset: int | None = None
 
     def anonymize_file(self, input_path: Path, output_path: Path) -> None:
-        """Anonymize XML file."""
-        # Parse XML preserving formatting
-        parser = ET.XMLParser(remove_blank_text=False)
-        tree = ET.parse(str(input_path), parser)
+        parser = ET.XMLParser(remove_blank_text=False)  # pylint: disable=c-extension-no-member
+        tree = ET.parse(str(input_path), parser)  # pylint: disable=c-extension-no-member
         root = tree.getroot()
+
+        self._build_attr_uuid_config()
 
         self._init_date_offset()
         self._anonymize_element(root)
 
-        # Write output preserving original formatting
         tree.write(
             str(output_path),
             encoding='UTF-8',
@@ -71,12 +83,22 @@ class XmlAnonymizer:
             pretty_print=False
         )
 
+    def _build_attr_uuid_config(self) -> None:
+        anonymization_config = self.config.get('anonymization', {}) if self.config else {}
+
+        for friendly_name, anon_config in anonymization_config.items():
+            uuid = get_attribute_id_by_name(self.config, friendly_name)
+            if not uuid:
+                raise InputError(f"Unknown attribute '{friendly_name}'")
+
+            self.attr_uuid_config[uuid] = anon_config
+
     def _init_date_offset(self) -> None:
         """Initialize random date offset."""
         min_days, max_days = self.date_shift_days_range
         self.date_offset = self.rng.randint(min_days, max_days)
 
-    def _anonymize_element(self, element: ET.Element) -> None:
+    def _anonymize_element(self, element: ET.Element) -> None:  # pylint: disable=too-many-branches,c-extension-no-member
         """Recursively anonymize XML element and children."""
         tag = element.tag
 
@@ -111,13 +133,14 @@ class XmlAnonymizer:
                 )
         elif tag == 'source':
             element.text = self.faker.file_name(extension="pdf") if element.text else None
+        elif tag == 'entry' and element.getparent() is not None and element.getparent().tag == 'map':
+            self._anonymize_attribute_entry(element)
 
         for child in element:
             self._anonymize_element(child)
 
-    def _generate_name(self, element: ET.Element) -> str:  # pylint: disable=too-many-return-statements
+    def _generate_name(self, element: ET.Element) -> str:  # pylint: disable=too-many-return-statements,c-extension-no-member
         """Generate fake name based on parent context."""
-        # Get current text for fallback
         current_text = element.text
 
         if not current_text or not current_text.strip():
@@ -161,7 +184,7 @@ class XmlAnonymizer:
         except (ValueError, AttributeError):
             return date_str
 
-    def _randomize_amount(self, amount_str: str | None, element: ET.Element) -> str:
+    def _randomize_amount(self, amount_str: str | None, element: ET.Element) -> str:  # pylint: disable=c-extension-no-member
         """Randomize amount while preserving order of magnitude."""
         if not amount_str:
             return str(amount_str)
@@ -183,3 +206,29 @@ class XmlAnonymizer:
             return str(new_value)
         except (ValueError, AttributeError):
             return amount_str
+
+    def _anonymize_attribute_entry(self, entry: ET.Element) -> None:  # pylint: disable=c-extension-no-member
+        strings = entry.findall('string')
+        if len(strings) < 2:
+            return
+
+        attr_type_uuid = strings[0].text
+        current_value = strings[1].text
+
+        if not attr_type_uuid or not current_value:
+            return
+
+        # Check if this UUID has anonymization config
+        if attr_type_uuid in self.attr_uuid_config:
+            config = self.attr_uuid_config[attr_type_uuid]
+            provider = config.get('provider')
+            args = config.get('args', {})
+
+            if provider:
+                new_value = self._call_faker_provider(provider, args)
+                if new_value is not None:
+                    strings[1].text = new_value
+
+    def _call_faker_provider(self, provider: str, args: dict[str, Any]) -> str | None:
+        method = getattr(self.faker, provider)
+        return str(method(**args))

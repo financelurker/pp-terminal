@@ -104,10 +104,25 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
   },
   "attributes": {
     "securities": {
-      "exemptionRate": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"
+      "exemptionRate": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3",
+      "iban": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
     },
     "accounts": {
       "interestValidUntil": "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"
+    }
+  },
+  "anonymization": {
+    "iban": {
+      "provider": "iban",
+      "args": {}
+    },
+    "interestValidUntil": {
+      "provider": "pyfloat",
+      "args": {
+        "min_value": 0.0,
+        "max_value": 1.0,
+        "right_digits": 2
+      }
     }
   },
   "validation": {

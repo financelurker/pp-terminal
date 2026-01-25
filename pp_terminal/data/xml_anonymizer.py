@@ -61,7 +61,7 @@ class XmlAnonymizer:  # pylint: disable=too-many-instance-attributes,too-few-pub
         self.date_offset: int | None = None
 
     def anonymize_file(self, input_path: Path, output_path: Path) -> None:
-        parser = ET.XMLParser(remove_blank_text=False)  # pylint: disable=c-extension-no-member
+        parser = ET.XMLParser(remove_blank_text=False, resolve_entities=False, no_network=True)  # pylint: disable=c-extension-no-member
         tree = ET.parse(str(input_path), parser)  # pylint: disable=c-extension-no-member
         root = tree.getroot()
 

@@ -100,23 +100,14 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
     "rate": 26.375,
     "file": "vorabpauschale.csv",
     "exemption-rate": 30,
-    "exemption-rate-attribute": "exemptionRate"
-  },
-  "attributes": {
-    "securities": {
-      "exemptionRate": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3",
-      "iban": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-    },
-    "accounts": {
-      "interestValidUntil": "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"
-    }
+    "exemption-rate-attribute": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"
   },
   "anonymization": {
-    "iban": {
+    "a1b2c3d4-e5f6-7890-abcd-ef1234567890": {
       "provider": "iban",
       "args": {}
     },
-    "interestValidUntil": {
+    "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9": {
       "provider": "pyfloat",
       "args": {
         "min_value": 0.0,
@@ -139,7 +130,7 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
         },
         {
           "type": "date-passed-from-attribute",
-          "value": "interestValidUntil"
+          "value": "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"
         }
       ]
     },

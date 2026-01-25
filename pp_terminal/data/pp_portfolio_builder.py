@@ -169,11 +169,11 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
 
     def _get_attributes(self, entity: str) -> dict[str, str]:
         cursor = self._db.connection.cursor()
-        cursor.execute(f"""
+        cursor.execute("""
             SELECT id, name FROM attribute_type
-            WHERE target = '{entity}'
+            WHERE target = ?
             AND id NOT IN ('logo')
-        """)
+        """, (entity, ))
 
         return {str(row[0]): str(row[1]) for row in cursor.fetchall()}
 

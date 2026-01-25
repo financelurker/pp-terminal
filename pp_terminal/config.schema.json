@@ -41,43 +41,43 @@
       },
       "additionalProperties": false
     },
-    "validation": {
-      "description": "Validation rules for portfolio data",
-      "type": "object",
-      "properties": {
-        "accounts": {
-          "description": "Validation rules for deposit accounts",
-          "type": "object",
-          "properties": {
-            "rules": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/accountRule"
-              }
-            }
-          },
-          "additionalProperties": false
-        },
-        "securities": {
-          "description": "Validation rules for securities",
-          "type": "object",
-          "properties": {
-            "rules": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/securityRule"
-              }
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
     "commands": {
       "description": "Command-specific configuration",
       "type": "object",
       "properties": {
+        "validate": {
+          "description": "Validation rules for portfolio data",
+          "type": "object",
+          "properties": {
+            "accounts": {
+              "description": "Validation rules for deposit accounts",
+              "type": "object",
+              "properties": {
+                "rules": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/accountRule"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "securities": {
+              "description": "Validation rules for securities",
+              "type": "object",
+              "properties": {
+                "rules": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/securityRule"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
         "view": {
           "description": "Configuration for view commands",
           "type": "object",

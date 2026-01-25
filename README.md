@@ -103,6 +103,38 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
     "exemption-rate-attribute": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"
   },
   "commands": {
+    "validate": {
+      "accounts": {
+        "rules": [
+          {
+            "type": "balance-limit",
+            "value": 25000,
+            "applies-to": ["c9c57e01-7ea0-4e70-bed9-4656941f7687"]
+          },
+          {
+            "type": "balance-limit",
+            "value": 100000
+          },
+          {
+            "type": "date-passed-from-attribute",
+            "value": "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"
+          }
+        ]
+      },
+      "securities": {
+        "rules": [
+          {
+            "type": "price-staleness",
+            "value": 90
+          },
+          {
+            "type": "price-staleness",
+            "severity": "warning",
+            "value": 30
+          }
+        ]
+      }
+    },
     "view": {
       "accounts": {
         "columns": ["AccountId", "Name", "Balance"]
@@ -128,38 +160,6 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
           }
         }
       }
-    }
-  },
-  "validation": {
-    "accounts": {
-      "rules": [
-        {
-          "type": "balance-limit",
-          "value": 25000,
-          "applies-to": ["c9c57e01-7ea0-4e70-bed9-4656941f7687"]
-        },
-        {
-          "type": "balance-limit",
-          "value": 100000
-        },
-        {
-          "type": "date-passed-from-attribute",
-          "value": "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"
-        }
-      ]
-    },
-    "securities": {
-      "rules": [
-        {
-          "type": "price-staleness",
-          "value": 90
-        },
-        {
-          "type": "price-staleness",
-          "severity": "warning",
-          "value": 30
-        }
-      ]
     }
   }
 }

@@ -29,8 +29,8 @@ from pp_terminal.exceptions import ValidationError
 from pp_terminal.utils.helper import run_all_group_cmds
 from pp_terminal.output.strategy import Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.validation.engine import validate_accounts as validate_accounts_engine
-from pp_terminal.validation.engine import validate_securities as validate_securities_engine
+from pp_terminal.validation.engine import validate_accounts
+from pp_terminal.validation.engine import validate_securities
 
 app = typer.Typer()
 console = Console()
@@ -63,12 +63,12 @@ def catch_errors(func: CommandFunctionType) -> Callable[..., CommandFunctionType
 
 @validate_app.command(name="securities")
 @catch_errors
-def validate_securities(ctx: typer.Context) -> None:
-    """Validate the timeliness of security prices."""
+def log_validate_securities(ctx: typer.Context) -> None:
+    """Validate security prices."""
     portfolio = ctx.obj.portfolio
     config = ctx.obj.config
 
-    results = validate_securities_engine(portfolio, config)
+    results = validate_securities(portfolio, config)
 
     if not results:
         log.debug('No security validation rules configured or no securities to validate')
@@ -93,13 +93,13 @@ def validate_securities(ctx: typer.Context) -> None:
 
 @validate_app.command(name="accounts")
 @catch_errors
-def validate_accounts(ctx: typer.Context) -> None:
+def log_validate_accounts(ctx: typer.Context) -> None:
     """Validate deposit accounts using configured validation rules."""
     portfolio = ctx.obj.portfolio
     config = ctx.obj.config
 
     snapshot = PortfolioSnapshot(portfolio, datetime.now())
-    results = validate_accounts_engine(portfolio, snapshot, config)
+    results = validate_accounts(portfolio, snapshot, config)
 
     if not results:
         log.debug('No account validation rules configured or no accounts to validate')

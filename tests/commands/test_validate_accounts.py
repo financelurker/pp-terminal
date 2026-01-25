@@ -27,7 +27,7 @@ import pandas as pd
 import pytest
 import typer
 
-from pp_terminal.commands.validate import validate_accounts
+from pp_terminal.commands.validate import log_validate_accounts
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import AccountType
 
@@ -66,7 +66,7 @@ def test_no_validation_config(sample_portfolio_with_limits: Portfolio) -> None:
         portfolio=sample_portfolio_with_limits,
         config={}
     )
-    validate_accounts(ctx)
+    log_validate_accounts(ctx)
 
 
 def test_balance_limit_pass(sample_portfolio_with_limits: Portfolio) -> None:
@@ -75,11 +75,11 @@ def test_balance_limit_pass(sample_portfolio_with_limits: Portfolio) -> None:
     ctx.invoked_subcommand = None
     ctx.obj = SimpleNamespace(
         portfolio=sample_portfolio_with_limits,
-        config={'validation': {'accounts': {'rules': [
+        config={'commands': {'validate': {'accounts': {'rules': [
             {'type': 'balance-limit', 'value': 2000.0}
-        ]}}}
+        ]}}}}
     )
-    validate_accounts(ctx)
+    log_validate_accounts(ctx)
 
 
 def test_balance_limit_fail(sample_portfolio_with_limits: Portfolio) -> None:
@@ -88,13 +88,13 @@ def test_balance_limit_fail(sample_portfolio_with_limits: Portfolio) -> None:
     ctx.invoked_subcommand = None
     ctx.obj = SimpleNamespace(
         portfolio=sample_portfolio_with_limits,
-        config={'validation': {'accounts': {'rules': [
+        config={'commands': {'validate': {'accounts': {'rules': [
             {'type': 'balance-limit', 'value': 1000.0}
-        ]}}}
+        ]}}}}
     )
 
     with pytest.raises(typer.Exit) as exc_info:
-        validate_accounts(ctx)
+        log_validate_accounts(ctx)
 
     assert exc_info.value.exit_code == 1
 
@@ -105,13 +105,13 @@ def test_entity_specific_rule(sample_portfolio_with_limits: Portfolio) -> None:
     ctx.invoked_subcommand = None
     ctx.obj = SimpleNamespace(
         portfolio=sample_portfolio_with_limits,
-        config={'validation': {'accounts': {'rules': [
+        config={'commands': {'validate': {'accounts': {'rules': [
             {'type': 'balance-limit', 'value': 900.0, 'applies-to': ['account-1']}
-        ]}}}
+        ]}}}}
     )
 
     with pytest.raises(typer.Exit) as exc_info:
-        validate_accounts(ctx)
+        log_validate_accounts(ctx)
 
     assert exc_info.value.exit_code == 1
 
@@ -122,12 +122,12 @@ def test_first_match_wins(sample_portfolio_with_limits: Portfolio) -> None:
     ctx.invoked_subcommand = None
     ctx.obj = SimpleNamespace(
         portfolio=sample_portfolio_with_limits,
-        config={'validation': {'accounts': {'rules': [
+        config={'commands': {'validate': {'accounts': {'rules': [
             {'type': 'balance-limit', 'value': 1100.0, 'applies-to': ['account-1']},
             {'type': 'balance-limit', 'value': 900.0}
-        ]}}}
+        ]}}}}
     )
-    validate_accounts(ctx)
+    log_validate_accounts(ctx)
 
 
 def test_attribute_based_rule(sample_portfolio_with_limits: Portfolio) -> None:
@@ -142,13 +142,13 @@ def test_attribute_based_rule(sample_portfolio_with_limits: Portfolio) -> None:
     ctx.obj = SimpleNamespace(
         portfolio=sample_portfolio_with_limits,
         config={
-            'validation': {'accounts': {'rules': [
+            'commands': {'validate': {'accounts': {'rules': [
                 {'type': 'balance-limit-from-attribute', 'value': test_attr_uuid},
                 {'type': 'balance-limit', 'value': 900.0}
-            ]}}
+            ]}}}
         }
     )
-    validate_accounts(ctx)
+    log_validate_accounts(ctx)
 
 
 def test_warning_severity(sample_portfolio_with_limits: Portfolio) -> None:
@@ -157,11 +157,11 @@ def test_warning_severity(sample_portfolio_with_limits: Portfolio) -> None:
     ctx.invoked_subcommand = None
     ctx.obj = SimpleNamespace(
         portfolio=sample_portfolio_with_limits,
-        config={'validation': {'accounts': {'rules': [
+        config={'commands': {'validate': {'accounts': {'rules': [
             {'type': 'balance-limit', 'value': 1000.0, 'severity': 'warning'}
-        ]}}}
+        ]}}}}
     )
-    validate_accounts(ctx)
+    log_validate_accounts(ctx)
 
 
 def test_mixed_severities(sample_portfolio_with_limits: Portfolio) -> None:
@@ -170,14 +170,14 @@ def test_mixed_severities(sample_portfolio_with_limits: Portfolio) -> None:
     ctx.invoked_subcommand = None
     ctx.obj = SimpleNamespace(
         portfolio=sample_portfolio_with_limits,
-        config={'validation': {'accounts': {'rules': [
+        config={'commands': {'validate': {'accounts': {'rules': [
             {'type': 'balance-limit', 'value': 900.0, 'severity': 'warning', 'applies-to': ['account-2']},
             {'type': 'balance-limit', 'value': 750.0, 'applies-to': ['account-3']}
-        ]}}}
+        ]}}}}
     )
 
     with pytest.raises(typer.Exit) as exc_info:
-        validate_accounts(ctx)
+        log_validate_accounts(ctx)
 
     assert exc_info.value.exit_code == 1
 
@@ -190,13 +190,13 @@ def test_multiple_errors_logged(sample_portfolio_with_limits: Portfolio, caplog:
     ctx.invoked_subcommand = None
     ctx.obj = SimpleNamespace(
         portfolio=sample_portfolio_with_limits,
-        config={'validation': {'accounts': {'rules': [
+        config={'commands': {'validate': {'accounts': {'rules': [
             {'type': 'balance-limit', 'value': 800.0}
-        ]}}}
+        ]}}}}
     )
 
     with pytest.raises(typer.Exit) as exc_info:
-        validate_accounts(ctx)
+        log_validate_accounts(ctx)
 
     assert exc_info.value.exit_code == 1
     assert len(caplog.records) == 2
@@ -220,14 +220,14 @@ def test_date_passed_with_friendly_name(sample_portfolio_with_limits: Portfolio,
     ctx.obj = SimpleNamespace(
         portfolio=sample_portfolio_with_limits,
         config={
-            'validation': {'accounts': {'rules': [
+            'commands': {'validate': {'accounts': {'rules': [
                 {'type': 'date-passed-from-attribute', 'value': test_attr_uuid}
-            ]}}
+            ]}}}
         }
     )
 
     with pytest.raises(typer.Exit) as exc_info:
-        validate_accounts(ctx)
+        log_validate_accounts(ctx)
 
     assert exc_info.value.exit_code == 1
     assert len(caplog.records) == 1

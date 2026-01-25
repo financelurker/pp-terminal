@@ -25,6 +25,7 @@ import pandas as pd
 from pp_terminal.data.filters import filter_not_retired
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
+from pp_terminal.utils.config import get_command_config
 from .rules import ValidationRule, create_rule, get_applicable_rules
 
 
@@ -62,7 +63,7 @@ class ValidationResult:
         return cls(entity_id=entity_id, violations=[])
 
 
-def validate_entity(
+def _validate_entity(
     entity_id: str,
     entity: pd.Series,
     rules: list[ValidationRule],
@@ -86,11 +87,9 @@ def validate_accounts(
     config: dict[str, Any]
 ) -> dict[str, ValidationResult]:
     """Validates all deposit accounts. Returns dict mapping account_id -> ValidationResult."""
-    rules_config = config.get('validation', {}).get('accounts', {}).get('rules', [])
-    if not rules_config:
+    rules = [create_rule(rule_config) for rule_config in get_command_config(config, 'validate.accounts.rules', [])]
+    if not rules:
         return {}
-
-    rules = [create_rule(rule_config) for rule_config in rules_config]
 
     if snapshot.balances is None or snapshot.balances.empty:
         return {}
@@ -122,7 +121,7 @@ def validate_accounts(
             'portfolio': portfolio,
             'snapshot': snapshot,
         }
-        result = validate_entity(str(account_id), account, rules, context)
+        result = _validate_entity(str(account_id), account, rules, context)
         results[str(account_id)] = result
 
     return results
@@ -133,14 +132,12 @@ def validate_securities(
     config: dict[str, Any]
 ) -> dict[str, ValidationResult]:
     """Validates all securities. Returns dict mapping security_id -> ValidationResult."""
-    rules_config = config.get('validation', {}).get('securities', {}).get('rules', [])
-    if not rules_config:
-        return {}
-
     if portfolio.securities is None or portfolio.securities.empty:
         return {}
 
-    rules = [create_rule(rule_config) for rule_config in rules_config]
+    rules = [create_rule(rule_config) for rule_config in get_command_config(config, 'validate.securities.rules', [])]
+    if not rules:
+        return {}
 
     latest_prices = portfolio.prices.groupby(['securityId']).tail(1)
 
@@ -165,7 +162,7 @@ def validate_securities(
             'current_price': security.get('price') if pd.notna(security.get('price')) else None,
             'portfolio': portfolio,
         }
-        result = validate_entity(str(security_id), security, rules, context)
+        result = _validate_entity(str(security_id), security, rules, context)
         results[str(security_id)] = result
 
     return results

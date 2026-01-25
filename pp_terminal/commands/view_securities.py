@@ -30,6 +30,7 @@ from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.output.table_decorator import TableOptions
 from pp_terminal.validation.engine import validate_securities, ValidationResult
+from pp_terminal.utils.config import get_command_config
 
 app = typer.Typer()
 console = Console()
@@ -42,7 +43,7 @@ def print_securities(  # pylint: disable=too-many-locals
     by: datetime = datetime.now(),
     active: bool = False,
     in_stock: bool = False,
-    columns: str = 'SecurityId,Name,Wkn,Currency,Shares,Messages'
+    columns: str | None = None
 ) -> None:
     """
     Show a detailed table with all securities and their IDs.
@@ -51,6 +52,13 @@ def print_securities(  # pylint: disable=too-many-locals
     portfolio = ctx.obj.portfolio  # type: Portfolio
     output = ctx.obj.output  # type: OutputStrategy
     config = ctx.obj.config
+
+    if columns is None:
+        config_columns = get_command_config(config, 'view.securities.columns')
+        if config_columns:
+            columns = ','.join(config_columns)
+        else:
+            columns = 'SecurityId,Name,Wkn,Currency,Shares,Messages'
 
     securities = portfolio.securities
     if securities is None:

@@ -33,6 +33,7 @@ from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.schemas import AccountType
 from pp_terminal.output.table_decorator import TableOptions
 from pp_terminal.validation.engine import validate_accounts, ValidationResult
+from pp_terminal.utils.config import get_command_config
 
 app = typer.Typer()
 console = Console()
@@ -104,7 +105,7 @@ def print_accounts(  # pylint: disable=too-many-locals
     ctx: typer.Context,
     type: AccountType | None = None,  # pylint: disable=redefined-builtin
     by: datetime = datetime.now(),
-    columns: str = 'AccountId,Name,Type,Balance,Messages'
+    columns: str | None = None
 ) -> None:
     """
     Show a detailed table with the current balance per deposit account.
@@ -113,6 +114,13 @@ def print_accounts(  # pylint: disable=too-many-locals
     portfolio = ctx.obj.portfolio  # type: Portfolio
     output = ctx.obj.output  # type: OutputStrategy
     config = ctx.obj.config
+
+    if columns is None:
+        config_columns = get_command_config(config, 'view.accounts.columns')
+        if config_columns:
+            columns = ','.join(config_columns)
+        else:
+            columns = 'AccountId,Name,Type,Balance,Messages'
 
     snapshot = PortfolioSnapshot(portfolio, by)
 

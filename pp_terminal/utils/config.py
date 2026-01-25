@@ -92,5 +92,31 @@ def get_config() -> Dict[str, Any]:
     return _loaded_config
 
 
+def get_command_config(config: Dict[str, Any], path: str, default: Any = None) -> Any:
+    """
+    Retrieve command-specific configuration from nested path.
+
+    Args:
+        config: Configuration dictionary
+        path: Dot-separated path (e.g., 'view.accounts.columns')
+        default: Default value if path doesn't exist
+
+    Returns:
+        Configuration value at path, or default if not found
+    """
+    keys = ['commands'] + path.split('.')
+    value: Any = config
+
+    for key in keys:
+        if isinstance(value, dict):
+            value = value.get(key)
+            if value is None:
+                return default
+        else:
+            return default
+
+    return value if value is not None else default
+
+
 # Create the config callback for use with @use_config decorator
 validated_config_callback = conf_callback_factory(validated_json_loader)

@@ -100,6 +100,50 @@
         }
       },
       "additionalProperties": false
+    },
+    "commands": {
+      "description": "Command-specific configuration",
+      "type": "object",
+      "properties": {
+        "view": {
+          "description": "Configuration for view commands",
+          "type": "object",
+          "properties": {
+            "accounts": {
+              "description": "Configuration for view accounts command",
+              "type": "object",
+              "properties": {
+                "columns": {
+                  "description": "Default columns to display (e.g., [\"AccountId\", \"Name\", \"Balance\"])",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            "securities": {
+              "description": "Configuration for view securities command",
+              "type": "object",
+              "properties": {
+                "columns": {
+                  "description": "Default columns to display (e.g., [\"SecurityId\", \"Name\", \"Shares\"])",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false,

@@ -102,6 +102,16 @@ To persist the CLI options you can pass a configuration file with `pp-terminal -
     "exemption-rate": 30,
     "exemption-rate-attribute": "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"
   },
+  "commands": {
+    "view": {
+      "accounts": {
+        "columns": ["AccountId", "Name", "Balance"]
+      },
+      "securities": {
+        "columns": ["SecurityId", "Name", "Shares"]
+      }
+    }
+  },
   "anonymization": {
     "a1b2c3d4-e5f6-7890-abcd-ef1234567890": {
       "provider": "iban",

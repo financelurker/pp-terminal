@@ -23,25 +23,21 @@ from typing import Any
 import logging
 import pandas as pd
 
-from pp_terminal.utils.attribute import get_attribute_id_by_name
-
 log = logging.getLogger(__name__)
 
 
 class ValidationRule(ABC):
-    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def __init__(
         self,
         rule_type: str,
         value: Any,
         severity: str = 'error',
-        applies_to: list[str] | None = None,
-        attribute_name: str | None = None
+        applies_to: list[str] | None = None
     ):
         self.rule_type = rule_type
         self._value = value
         self.severity = severity
         self.applies_to = applies_to
-        self.attribute_name = attribute_name
 
     @abstractmethod
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
@@ -117,8 +113,7 @@ class DatePassedRule(ValidationRule):
 
         current_date = datetime.now()
         if date_value < current_date:
-            attr_label = self.attribute_name if self.attribute_name else 'date attribute'
-            message = f'{attr_label} has passed {date_value.strftime("%Y-%m-%d")}'
+            message = f'date attribute has passed {date_value.strftime("%Y-%m-%d")}'
             return (self.is_error(), message)
         return (False, None)
 
@@ -170,7 +165,7 @@ RULE_TYPES = {
 }
 
 
-def create_rule(rule_config: dict[str, Any], config: dict[str, Any]) -> ValidationRule:
+def create_rule(rule_config: dict[str, Any]) -> ValidationRule:
     rule_type = rule_config['type']
     if rule_type not in RULE_TYPES:
         raise ValueError(f'Unknown rule type: {rule_type}')
@@ -178,21 +173,13 @@ def create_rule(rule_config: dict[str, Any], config: dict[str, Any]) -> Validati
     value = rule_config['value']
     severity = rule_config.get('severity', 'error')
     applies_to = rule_config.get('applies-to', None)
-    attribute_name = None
-
-    if rule_type.endswith('-from-attribute'):
-        attribute_name = value
-        value = get_attribute_id_by_name(config, attribute_name)
-        if value is None:
-            raise ValueError(f'Invalid attribute reference "{attribute_name}"')
 
     rule_class = RULE_TYPES[rule_type]
     return rule_class(
         rule_type=rule_type,
         value=value,
         severity=severity,
-        applies_to=applies_to,
-        attribute_name=attribute_name
+        applies_to=applies_to
     )  # type: ignore[abstract]
 
 

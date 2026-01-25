@@ -90,7 +90,7 @@ def validate_accounts(
     if not rules_config:
         return {}
 
-    rules = [create_rule(rule_config, config) for rule_config in rules_config]
+    rules = [create_rule(rule_config) for rule_config in rules_config]
 
     if snapshot.balances is None or snapshot.balances.empty:
         return {}
@@ -140,7 +140,7 @@ def validate_securities(
     if portfolio.securities is None or portfolio.securities.empty:
         return {}
 
-    rules = [create_rule(rule_config, config) for rule_config in rules_config]
+    rules = [create_rule(rule_config) for rule_config in rules_config]
 
     latest_prices = portfolio.prices.groupby(['securityId']).tail(1)
 

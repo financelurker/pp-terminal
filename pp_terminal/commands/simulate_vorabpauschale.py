@@ -27,7 +27,6 @@ from typing_extensions import Annotated
 import numpy as np
 
 from pp_terminal.data.filters import filter_by_type, drop_empty_values
-from pp_terminal.utils.attribute import get_attribute_id_by_name
 from pp_terminal.utils.helper import get_last_year, footer
 from pp_terminal.utils.options import tax_rate_callback, exemption_rate_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
@@ -290,9 +289,7 @@ def print_tax_table(  # pylint: disable=too-many-locals
 
     exempt_rate_uuid = None
     if config:
-        exemption_attr_name = config.get('tax', {}).get('exemption-rate-attribute')
-        if exemption_attr_name:
-            exempt_rate_uuid = get_attribute_id_by_name(config, exemption_attr_name)
+        exempt_rate_uuid = config.get('tax', {}).get('exemption-rate-attribute')
 
     console.print(output.hint('You can define the exemption rate per each security individually by creating a custom security attribute of type "Percent Number" in Portfolio Performance and add it to pp-terminal configuration file.'))
 

@@ -26,9 +26,6 @@ from typing import Any
 import lxml.etree as ET  # pylint: disable=c-extension-no-member
 from faker import Faker
 
-from pp_terminal.exceptions import InputError
-from pp_terminal.utils.attribute import get_attribute_id_by_name
-
 log = logging.getLogger(__name__)
 
 
@@ -59,9 +56,6 @@ class XmlAnonymizer:  # pylint: disable=too-many-instance-attributes,too-few-pub
 
         self.config = config if config is not None else {}
 
-        # Build UUID → anonymization config (populated during file processing)
-        self.attr_uuid_config: dict[str, dict[str, Any]] = {}
-
         # Caches for consistent anonymization
         self.amount_factors: dict[str, float] = {}
         self.date_offset: int | None = None
@@ -70,8 +64,6 @@ class XmlAnonymizer:  # pylint: disable=too-many-instance-attributes,too-few-pub
         parser = ET.XMLParser(remove_blank_text=False)  # pylint: disable=c-extension-no-member
         tree = ET.parse(str(input_path), parser)  # pylint: disable=c-extension-no-member
         root = tree.getroot()
-
-        self._build_attr_uuid_config()
 
         self._init_date_offset()
         self._anonymize_element(root)
@@ -82,16 +74,6 @@ class XmlAnonymizer:  # pylint: disable=too-many-instance-attributes,too-few-pub
             xml_declaration=True,
             pretty_print=False
         )
-
-    def _build_attr_uuid_config(self) -> None:
-        anonymization_config = self.config.get('anonymization', {}) if self.config else {}
-
-        for friendly_name, anon_config in anonymization_config.items():
-            uuid = get_attribute_id_by_name(self.config, friendly_name)
-            if not uuid:
-                raise InputError(f"Unknown attribute '{friendly_name}'")
-
-            self.attr_uuid_config[uuid] = anon_config
 
     def _init_date_offset(self) -> None:
         """Initialize random date offset."""
@@ -139,31 +121,26 @@ class XmlAnonymizer:  # pylint: disable=too-many-instance-attributes,too-few-pub
         for child in element:
             self._anonymize_element(child)
 
-    def _generate_name(self, element: ET.Element) -> str:  # pylint: disable=too-many-return-statements,c-extension-no-member
-        """Generate fake name based on parent context."""
-        current_text = element.text
-
-        if not current_text or not current_text.strip():
-            return str(current_text)
+    def _generate_name(self, element: ET.Element) -> str:  # pylint: disable=c-extension-no-member
+        if not element.text or not element.text.strip():
+            return ''
 
         parent = element.getparent()
         if parent is None:
             return self.faker.company()
 
         parent_tag = parent.tag
-        if parent_tag in ('security', 'attribute-type'):
-            return str(element.text)
         if 'account' in parent_tag.lower():
             return f"{self.faker.word().capitalize()} Account"
         if 'portfolio' in parent_tag.lower():
             return f"{self.faker.word().capitalize()} Portfolio"
 
-        return self.faker.catch_phrase()
+        return str(element.text)
 
     def _shift_date(self, date_str: str | None) -> str:
         """Shift date by random offset."""
         if not date_str or not self.date_offset:
-            return str(date_str)
+            return ''
 
         try:
             if 'T' in date_str:
@@ -187,7 +164,7 @@ class XmlAnonymizer:  # pylint: disable=too-many-instance-attributes,too-few-pub
     def _randomize_amount(self, amount_str: str | None, element: ET.Element) -> str:  # pylint: disable=c-extension-no-member
         """Randomize amount while preserving order of magnitude."""
         if not amount_str:
-            return str(amount_str)
+            return ''
 
         try:
             # Build context key for consistency
@@ -218,9 +195,10 @@ class XmlAnonymizer:  # pylint: disable=too-many-instance-attributes,too-few-pub
         if not attr_type_uuid or not current_value:
             return
 
-        # Check if this UUID has anonymization config
-        if attr_type_uuid in self.attr_uuid_config:
-            config = self.attr_uuid_config[attr_type_uuid]
+        # Get anonymization config for this UUID
+        attr_configs = self.config.get('anonymization', {}).get('attributes', {})
+        if attr_type_uuid in attr_configs:
+            config = attr_configs[attr_type_uuid]
             provider = config.get('provider')
             args = config.get('args', {})
 

@@ -25,6 +25,7 @@ import typer
 
 from pp_terminal.data.xml_anonymizer import XmlAnonymizer
 from pp_terminal.exceptions import InputError
+from pp_terminal.utils.config import get_command_config
 
 app = typer.Typer()
 console = Console()
@@ -64,7 +65,7 @@ def export_anonymized(
 
     log.debug("Using seed value %s", seed)
 
-    anonymizer = XmlAnonymizer(seed=seed, config=config)
+    anonymizer = XmlAnonymizer(seed=seed, config=get_command_config(config, 'export.anonymized.attributes'))
 
     anonymizer.anonymize_file(input_file, output_file)
     console.print(output.text(f"Anonymized Portfolio Performance file saved to {output_file}"))

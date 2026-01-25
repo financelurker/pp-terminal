@@ -22,7 +22,7 @@ from datetime import datetime
 
 import typer
 
-from pp_terminal.output.column_utils import normalize_columns, rename_uuid_columns
+from pp_terminal.output.column_utils import normalize_columns
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import footer
 from pp_terminal.output.strategy import OutputStrategy, Console
@@ -59,8 +59,6 @@ def print_securities(  # pylint: disable=too-many-locals
     snapshot = PortfolioSnapshot(portfolio, by)
     shares = snapshot.shares
 
-    attribute_map = config.get('attributes', {}).get('securities', {})
-
     # Reset index to make SecurityId a column and rename columns
     df = securities.reset_index()
 
@@ -83,10 +81,10 @@ def print_securities(  # pylint: disable=too-many-locals
     )
 
     requested_columns = [col.strip() for col in columns.split(',')]
-    selected_columns = normalize_columns(requested_columns, list(df.columns), attribute_map)
+    selected_columns = normalize_columns(requested_columns, list(df.columns), portfolio.security_attributes)
 
     df = df[selected_columns]
-    df = rename_uuid_columns(df, attribute_map)
+    df = df.rename(columns=portfolio.security_attributes)
 
     if 'isRetired' in df.columns and 'isRetired' not in columns:
         df = df.drop(columns=['isRetired'])

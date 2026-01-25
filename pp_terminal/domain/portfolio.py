@@ -33,14 +33,16 @@ class Portfolio:
     _securities: DataFrame[SecuritySchema] | None = None
     _transactions: DataFrame[TransactionSchema] | None = None
     _prices: DataFrame[SecurityPriceSchema] | None = None
+    _attributes: dict[str, dict[str, str]] = {}
     base_currency: str = ''
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
             self,
             accounts: DataFrame[AccountSchema] | None = None,
             transactions: DataFrame[TransactionSchema] | None = None,
             securities: DataFrame[SecuritySchema] | None = None,
-            prices: DataFrame[SecurityPriceSchema] | None = None
+            prices: DataFrame[SecurityPriceSchema] | None = None,
+            attributes: dict[str, dict[str, str]] | None = None
     ):
         if accounts is not None:
             try:
@@ -65,6 +67,8 @@ class Portfolio:
                 self._prices = SecurityPriceSchema.validate(prices)
             except SchemaError as e:
                 log.error('security prices schema invalid: %s', e)
+
+        self._attributes = attributes if attributes is not None else {}
 
     @property
     def securities_accounts(self) -> DataFrame[AccountSchema] | None:
@@ -101,3 +105,15 @@ class Portfolio:
     @property
     def prices(self) -> DataFrame[SecurityPriceSchema]:
         return cast(DataFrame[SecurityPriceSchema], self._prices)
+
+    @property
+    def all_attributes(self) -> dict[str, str]:
+        return {uuid: name for attributes in self._attributes.values() for uuid,name in attributes.items()}
+
+    @property
+    def security_attributes(self) -> dict[str, str]:
+        return self._attributes.get('securities', {})
+
+    @property
+    def account_attributes(self) -> dict[str, str]:
+        return self._attributes.get('accounts', {})

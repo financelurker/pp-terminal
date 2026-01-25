@@ -21,10 +21,8 @@
 from pathlib import Path
 
 import lxml.etree as ET
-import pytest
 
 from pp_terminal.data.xml_anonymizer import XmlAnonymizer
-from pp_terminal.exceptions import InputError
 
 
 def test_date_shifting_preserves_order(tmp_path: Path) -> None:
@@ -312,15 +310,12 @@ def test_attribute_anonymization_with_config(tmp_path: Path) -> None:
     input_file.write_text(xml_content)
 
     config = {
-        "attributes": {
-            "securities": {
-                "exemptionRate": "test-uuid-123"
-            }
-        },
         "anonymization": {
-            "exemptionRate": {
-                "provider": "pyfloat",
-                "args": {"min_value": 0.0, "max_value": 1.0, "right_digits": 2}
+            "attributes": {
+                "test-uuid-123": {
+                    "provider": "pyfloat",
+                    "args": {"min_value": 0.0, "max_value": 1.0, "right_digits": 2}
+                }
             }
         }
     }
@@ -369,7 +364,8 @@ def test_attribute_anonymization_without_config(tmp_path: Path) -> None:
     assert strings[1].text == "original-value", "Value should remain unchanged"
 
 
-def test_attribute_friendly_name_not_in_config_warning(tmp_path: Path) -> None:
+def test_attribute_uuid_not_in_xml_no_error(tmp_path: Path) -> None:
+    """Test that specifying a non-existent UUID in anonymization config doesn't cause errors."""
     xml_content = """<client id="1">
   <security id="2">
     <name>Test</name>
@@ -382,13 +378,14 @@ def test_attribute_friendly_name_not_in_config_warning(tmp_path: Path) -> None:
 
     config = {
         "anonymization": {
-            "nonExistentAttribute": {
-                "provider": "pyfloat"
+            "attributes": {
+                "non-existent-uuid-123": {
+                    "provider": "pyfloat"
+                }
             }
         }
     }
 
     anonymizer = XmlAnonymizer(seed=42, config=config)
-
-    with pytest.raises(InputError):
-        anonymizer.anonymize_file(input_file, output_file)
+    # Should not raise an error, just silently doesn't match anything
+    anonymizer.anonymize_file(input_file, output_file)

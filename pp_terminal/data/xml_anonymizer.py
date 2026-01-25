@@ -92,7 +92,7 @@ class XmlAnonymizer:  # pylint: disable=too-many-instance-attributes,too-few-pub
 
         if tag == 'name':
             element.text = self._generate_name(element)
-        elif tag == 'note':
+        elif tag in ('note', 'details'):
             element.text = self.faker.sentence() if element.text else None
         elif tag == 'date':
             element.text = self._shift_date(element.text)

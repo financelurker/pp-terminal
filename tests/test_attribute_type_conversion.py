@@ -22,7 +22,7 @@ import numpy as np
 import pytest
 from _pytest.logging import LogCaptureFixture
 
-from pp_terminal.data.attribute_type_converter import convert_attribute_types
+from pp_terminal.data.attribute_type_converter import convert_attribute_types, get_converter_column_name
 
 
 def test_convert_percent_plain_converter() -> None:
@@ -32,7 +32,7 @@ def test_convert_percent_plain_converter() -> None:
         'name': ['ETF A', 'ETF B', 'ETF C'],
         'wkn': ['A1', 'B1', 'C1'],
         attr_uuid: ['30', '15', '100'],  # 30%, 15%, 100%
-        f'{attr_uuid}_converter': [
+        f'{get_converter_column_name(attr_uuid)}': [
             'name.abuchen.portfolio.model.AttributeType$PercentPlainConverter',
             'name.abuchen.portfolio.model.AttributeType$PercentPlainConverter',
             'name.abuchen.portfolio.model.AttributeType$PercentPlainConverter',
@@ -45,7 +45,7 @@ def test_convert_percent_plain_converter() -> None:
     assert result.loc[0, attr_uuid] == pytest.approx(0.30)
     assert result.loc[1, attr_uuid] == pytest.approx(0.15)
     assert result.loc[2, attr_uuid] == pytest.approx(1.0)
-    assert f'{attr_uuid}_converter' not in result.columns
+    assert f'{get_converter_column_name(attr_uuid)}' not in result.columns
 
 
 def test_convert_percent_converter() -> None:
@@ -55,7 +55,7 @@ def test_convert_percent_converter() -> None:
         'name': ['ETF A', 'ETF B', 'ETF C'],
         'wkn': ['A1', 'B1', 'C1'],
         attr_uuid: ['0.3', '0.15', '1.0'],  # 30%, 15%, 100%
-        f'{attr_uuid}_converter': [
+        f'{get_converter_column_name(attr_uuid)}': [
             'name.abuchen.portfolio.model.AttributeType$PercentConverter',
             'name.abuchen.portfolio.model.AttributeType$PercentConverter',
             'name.abuchen.portfolio.model.AttributeType$PercentConverter',
@@ -68,7 +68,7 @@ def test_convert_percent_converter() -> None:
     assert result.loc[0, attr_uuid] == pytest.approx(0.30)
     assert result.loc[1, attr_uuid] == pytest.approx(0.15)
     assert result.loc[2, attr_uuid] == pytest.approx(1.0)
-    assert f'{attr_uuid}_converter' not in result.columns
+    assert f'{get_converter_column_name(attr_uuid)}' not in result.columns
 
 
 def test_convert_date_converter() -> None:
@@ -77,7 +77,7 @@ def test_convert_date_converter() -> None:
     df = pd.DataFrame({
         'name': ['Account A', 'Account B'],
         attr_uuid: ['2025-12-31', '2026-01-15'],
-        f'{attr_uuid}_converter': [
+        f'{get_converter_column_name(attr_uuid)}': [
             'name.abuchen.portfolio.model.AttributeType$DateConverter',
             'name.abuchen.portfolio.model.AttributeType$DateConverter',
         ]
@@ -88,7 +88,7 @@ def test_convert_date_converter() -> None:
 
     assert pd.Timestamp(result.loc[0, attr_uuid]) == pd.Timestamp('2025-12-31')
     assert pd.Timestamp(result.loc[1, attr_uuid]) == pd.Timestamp('2026-01-15')
-    assert f'{attr_uuid}_converter' not in result.columns
+    assert f'{get_converter_column_name(attr_uuid)}' not in result.columns
 
 
 def test_convert_long_converter() -> None:
@@ -97,7 +97,7 @@ def test_convert_long_converter() -> None:
     df = pd.DataFrame({
         'name': ['Item A', 'Item B'],
         attr_uuid: ['100000', '250000'],
-        f'{attr_uuid}_converter': [
+        f'{get_converter_column_name(attr_uuid)}': [
             'name.abuchen.portfolio.model.AttributeType$LongConverter',
             'name.abuchen.portfolio.model.AttributeType$LongConverter',
         ]
@@ -108,7 +108,7 @@ def test_convert_long_converter() -> None:
 
     assert result.loc[0, attr_uuid] == pytest.approx(100000.0)
     assert result.loc[1, attr_uuid] == pytest.approx(250000.0)
-    assert f'{attr_uuid}_converter' not in result.columns
+    assert f'{get_converter_column_name(attr_uuid)}' not in result.columns
 
 
 def test_convert_string_converter() -> None:
@@ -117,7 +117,7 @@ def test_convert_string_converter() -> None:
     df = pd.DataFrame({
         'name': ['Item A', 'Item B'],
         attr_uuid: ['Value 1', 'Value 2'],
-        f'{attr_uuid}_converter': [
+        f'{get_converter_column_name(attr_uuid)}': [
             'name.abuchen.portfolio.model.AttributeType$StringConverter',
             'name.abuchen.portfolio.model.AttributeType$StringConverter',
         ]
@@ -128,7 +128,7 @@ def test_convert_string_converter() -> None:
 
     assert result.loc[0, attr_uuid] == 'Value 1'
     assert result.loc[1, attr_uuid] == 'Value 2'
-    assert f'{attr_uuid}_converter' not in result.columns
+    assert f'{get_converter_column_name(attr_uuid)}' not in result.columns
 
 
 def test_convert_unknown_converter(caplog: LogCaptureFixture) -> None:
@@ -138,7 +138,7 @@ def test_convert_unknown_converter(caplog: LogCaptureFixture) -> None:
         'name': ['ETF Unknown'],
         'wkn': ['UNK1'],
         attr_uuid: ['30'],
-        f'{attr_uuid}_converter': ['some.unknown.Converter'],
+        f'{get_converter_column_name(attr_uuid)}': ['some.unknown.Converter'],
     })
 
     attributes = {'test-unknown-attr': attr_uuid}
@@ -156,7 +156,7 @@ def test_convert_invalid_format(caplog: LogCaptureFixture) -> None:
         'name': ['ETF Invalid'],
         'wkn': ['INV1'],
         attr_uuid: ['invalid'],
-        f'{attr_uuid}_converter': ['name.abuchen.portfolio.model.AttributeType$PercentPlainConverter'],
+        f'{get_converter_column_name(attr_uuid)}': ['name.abuchen.portfolio.model.AttributeType$PercentPlainConverter'],
     })
 
     attributes = {'test-invalid-attr': attr_uuid}
@@ -173,7 +173,7 @@ def test_convert_missing_values(caplog: LogCaptureFixture) -> None:
     df = pd.DataFrame({
         'name': ['Item No Value', 'Item No Converter', 'Item Both Missing'],
         attr_uuid: [np.nan, '30', np.nan],
-        f'{attr_uuid}_converter': [
+        f'{get_converter_column_name(attr_uuid)}': [
             'name.abuchen.portfolio.model.AttributeType$PercentPlainConverter',
             np.nan,
             np.nan,
@@ -187,7 +187,7 @@ def test_convert_missing_values(caplog: LogCaptureFixture) -> None:
     assert pd.isna(result.loc[0, attr_uuid])  # No value -> stays NaN
     assert pd.isna(result.loc[1, attr_uuid])  # No converter -> set to NaN with warning
     assert pd.isna(result.loc[2, attr_uuid])  # Both missing -> stays NaN
-    assert f'{attr_uuid}_converter' not in result.columns
+    assert f'{get_converter_column_name(attr_uuid)}' not in result.columns
 
     # Warning should be logged for missing converter
     assert f"Missing converter type for attribute 'test-missing-attr' ({attr_uuid})" in caplog.text
@@ -202,12 +202,12 @@ def test_convert_multiple_attributes() -> None:
         'name': ['ETF A', 'ETF B'],
         'wkn': ['A1', 'B1'],
         attr1_uuid: ['30', '15'],
-        f'{attr1_uuid}_converter': [
+        f'{get_converter_column_name(attr1_uuid)}': [
             'name.abuchen.portfolio.model.AttributeType$PercentPlainConverter',
             'name.abuchen.portfolio.model.AttributeType$PercentPlainConverter',
         ],
         attr2_uuid: ['2025-12-31', '2026-01-15'],
-        f'{attr2_uuid}_converter': [
+        f'{get_converter_column_name(attr2_uuid)}': [
             'name.abuchen.portfolio.model.AttributeType$DateConverter',
             'name.abuchen.portfolio.model.AttributeType$DateConverter',
         ]

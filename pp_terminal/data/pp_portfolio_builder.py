@@ -29,7 +29,7 @@ from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema, TransactionType
 from pp_terminal.utils.cache import cleanup_old_cache_files, get_cache_path
 from pp_terminal.utils.helper import enum_list_to_values
-from .attribute_type_converter import convert_attribute_types
+from .attribute_type_converter import convert_attribute_types, get_converter_column_name
 from .ppxml2db_wrapper import Ppxml2dbWrapper, DB_NAME_IN_MEMORY
 
 log = logging.getLogger(__name__)
@@ -44,6 +44,8 @@ _NEGATIVE_DEPOSIT_ACCOUNT_TRANSACTION_TYPES = [
     TransactionType.TAXES,
     TransactionType.BUY,
 ]
+_ATTRIBUTE_TYPE_ACCOUNT = 'name.abuchen.portfolio.model.Account'
+_ATTRIBUTE_TYPE_SECURITY = 'name.abuchen.portfolio.model.Security'
 
 
 class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
@@ -61,7 +63,11 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
             accounts = self._parse_accounts(),
             transactions = self._parse_transactions(),
             securities = self._parse_securities(),
-            prices = self._parse_prices()
+            prices = self._parse_prices(),
+            attributes = {
+                'accounts': self._get_attributes(_ATTRIBUTE_TYPE_ACCOUNT),
+                'securities': self._get_attributes(_ATTRIBUTE_TYPE_SECURITY)
+            }
         )
 
         portfolio.base_currency = str(self._get_property('baseCurrency'))
@@ -71,40 +77,27 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
         return portfolio
 
     def _parse_securities(self) -> DataFrame[SecuritySchema]:
-        attributes = self._config.get('attributes', {}).get('securities', {})
-
-        if not attributes:
-            securities = (pd.read_sql_query('select * from security', self._db.connection, index_col='uuid')
-                              .rename_axis('securityId'))
-            return cast(DataFrame[SecuritySchema], securities)
-
-        security_attrs = self._get_attributes_by_target('name.abuchen.portfolio.model.Security', attributes)
-        if not security_attrs:
-            securities = (pd.read_sql_query('select * from security', self._db.connection, index_col='uuid')
-                              .rename_axis('securityId'))
-            return cast(DataFrame[SecuritySchema], securities)
+        security_attrs = self._get_attributes(_ATTRIBUTE_TYPE_SECURITY)
 
         # Build dynamic SQL with CASE statements for each attribute
         case_statements = []
         params = []
-        for attr_uuid in security_attrs.values():
+        for attr_uuid in security_attrs:
             case_statements.append(f'MAX(CASE WHEN at.id = ? THEN sa.value END) AS "{attr_uuid}"')
             params.append(attr_uuid)
-            case_statements.append(f'MAX(CASE WHEN at.id = ? THEN at.converterClass END) AS "{attr_uuid}_converter"')
+            case_statements.append(f'MAX(CASE WHEN at.id = ? THEN at.converterClass END) AS "{get_converter_column_name(attr_uuid)}"')
             params.append(attr_uuid)
 
         sql = f"""
             select s.*,
-                {', '.join(case_statements)}
+                {', '.join(case_statements) if case_statements else '""'}
             from security as s
             left join security_attr as sa on sa."security" = s.uuid
             left join attribute_type as at on sa.attr_uuid = at.id
             group by s.uuid
         """  # nosec B608 - case_statements contain only column names with ? placeholders, data passed via params
 
-        securities = (pd.read_sql_query(sql, self._db.connection, index_col='uuid', params=params)
-                          .rename_axis('securityId'))
-
+        securities = pd.read_sql_query(sql, self._db.connection, index_col='uuid', params=params).rename_axis('securityId')
         securities = convert_attribute_types(securities, security_attrs)
 
         return cast(DataFrame[SecuritySchema], securities)
@@ -136,31 +129,20 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
         return cast(DataFrame[TransactionSchema], transactions)
 
     def _parse_accounts(self) -> DataFrame[AccountSchema]:
-        attributes = self._config.get('attributes', {}).get('accounts', {})
-
-        if not attributes:
-            accounts = (pd.read_sql_query('select * from account', self._db.connection, index_col='uuid')
-                              .rename_axis('accountId'))
-            return cast(DataFrame[AccountSchema], accounts)
-
-        account_attrs = self._get_attributes_by_target('name.abuchen.portfolio.model.Account', attributes)
-        if not account_attrs:
-            accounts = (pd.read_sql_query('select * from account', self._db.connection, index_col='uuid')
-                              .rename_axis('accountId'))
-            return cast(DataFrame[AccountSchema], accounts)
+        account_attrs = self._get_attributes(_ATTRIBUTE_TYPE_ACCOUNT)
 
         # Build dynamic SQL with CASE statements for each attribute
         case_statements = []
         params = []
-        for attr_uuid in account_attrs.values():
+        for attr_uuid in account_attrs:
             case_statements.append(f'MAX(CASE WHEN at.id = ? THEN aa.value END) AS "{attr_uuid}"')
             params.append(attr_uuid)
-            case_statements.append(f'MAX(CASE WHEN at.id = ? THEN at.converterClass END) AS "{attr_uuid}_converter"')
+            case_statements.append(f'MAX(CASE WHEN at.id = ? THEN at.converterClass END) AS "{get_converter_column_name(attr_uuid)}"')
             params.append(attr_uuid)
 
         sql = f"""
             select a.*,
-                {', '.join(case_statements)}
+                {', '.join(case_statements) if case_statements else '""'}
             from account as a
             left join account_attr as aa on aa."account" = a.uuid
             left join attribute_type as at on aa.attr_uuid = at.id
@@ -175,32 +157,6 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
 
         return cast(DataFrame[AccountSchema], accounts)
 
-    def _get_attributes_by_target(self, target: str, attributes: Dict[str, str]) -> Dict[str, str]:
-        """
-        Filter attributes to only those targeting the specified entity type.
-
-        Args:
-            target: Target entity class (e.g., 'name.abuchen.portfolio.model.Account')
-            attributes: Dictionary mapping friendly names to attribute UUIDs
-
-        Returns:
-            Filtered dictionary of attributes that target the specified entity
-        """
-        if not attributes:
-            return {}
-
-        cursor = self._db.connection.cursor()
-        placeholders = ','.join('?' * len(attributes))
-        cursor.execute(
-            f'SELECT id FROM attribute_type WHERE target = ? AND id IN ({placeholders})',  # nosec B608 - placeholders is just ?,?,? string, data passed via params
-            [target] + list(attributes.values())
-        )
-
-        valid_uuids = {row[0] for row in cursor.fetchall()}
-
-        # Return only attributes that match the target
-        return {name: uuid for name, uuid in attributes.items() if uuid in valid_uuids}
-
     def _get_property(self, name: str) -> str | None:
         cursor = self._db.connection.cursor()
         cursor.execute('select value from property where name = ?', (name, ))
@@ -210,6 +166,16 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
             return None
 
         return str(result[0])
+
+    def _get_attributes(self, entity: str) -> dict[str, str]:
+        cursor = self._db.connection.cursor()
+        cursor.execute(f"""
+            SELECT id, name FROM attribute_type
+            WHERE target = '{entity}'
+            AND id NOT IN ('logo')
+        """)
+
+        return {str(row[0]): str(row[1]) for row in cursor.fetchall()}
 
 
 class CachedPpPortfolioBuilder:  # pylint: disable=too-few-public-methods
@@ -240,7 +206,6 @@ class CachedPpPortfolioBuilder:  # pylint: disable=too-few-public-methods
             cache_path = None
             use_cache_file = False
 
-        # Delegate to core builder
         builder = PpPortfolioBuilder(db, self._config)
 
         # Override the open behavior for cache hits

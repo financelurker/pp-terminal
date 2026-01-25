@@ -23,7 +23,7 @@ from datetime import datetime
 import pandas as pd
 import typer
 
-from pp_terminal.output.column_utils import normalize_columns, rename_uuid_columns
+from pp_terminal.output.column_utils import normalize_columns
 from pp_terminal.data.filters import unstack_column_by_currency
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import footer
@@ -43,7 +43,6 @@ def _prepare_df_for_display(
     df: pd.DataFrame,
     selected_columns_preunstack: list[str],
     snapshot: PortfolioSnapshot,
-    attribute_map: dict[str, str] | None,
     unstack_balance: bool
 ) -> pd.DataFrame:
     """Prepare DataFrame for display with optional balance unstacking."""
@@ -68,7 +67,7 @@ def _prepare_df_for_display(
             selected_columns.append(col)
 
     df = df[selected_columns]
-    df = rename_uuid_columns(df, attribute_map)
+    df = df.rename(columns=snapshot.portfolio.account_attributes)
 
     if 'accountId' in df.columns:
         df = df.set_index('accountId')
@@ -115,8 +114,6 @@ def print_accounts(  # pylint: disable=too-many-locals
     output = ctx.obj.output  # type: OutputStrategy
     config = ctx.obj.config
 
-    attribute_map = config.get('attributes', {}).get('accounts', {})
-
     snapshot = PortfolioSnapshot(portfolio, by)
 
     df1 = None
@@ -139,7 +136,6 @@ def print_accounts(  # pylint: disable=too-many-locals
         lambda aid: validation_results.get(str(aid), ValidationResult.empty()).messages or ''
     )
 
-    # Parse requested columns
     requested_columns = [col.strip() for col in columns.split(',')]
 
     # Available columns before unstacking - need to account for accountId which will be from the index
@@ -147,10 +143,10 @@ def print_accounts(  # pylint: disable=too-many-locals
     if 'balance' in df.columns:
         available_before_unstack.append('balance')
 
-    selected_columns_preunstack = normalize_columns(requested_columns, available_before_unstack, attribute_map)
+    selected_columns_preunstack = normalize_columns(requested_columns, available_before_unstack, portfolio.account_attributes)
 
     df = _prepare_df_for_display(
-        df, selected_columns_preunstack, snapshot, attribute_map,
+        df, selected_columns_preunstack, snapshot,
         unstack_balance='balance' in selected_columns_preunstack and 'balance' in df.columns
     )
 

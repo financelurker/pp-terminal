@@ -110,7 +110,7 @@ def convert_attribute_types(df: pd.DataFrame, attributes: Dict[str, str]) -> pd.
     """
     for attr_name, attr_uuid in attributes.items():
         value_col = attr_uuid
-        converter_col = f"{attr_uuid}_converter"
+        converter_col = get_converter_column_name(attr_uuid)
 
         if value_col not in df.columns:
             continue
@@ -130,3 +130,6 @@ def convert_attribute_types(df: pd.DataFrame, attributes: Dict[str, str]) -> pd.
             df = df.drop(columns=[converter_col])
 
     return df
+
+def get_converter_column_name(attr_uuid: str) -> str:
+    return f"_{attr_uuid}_converter"

@@ -142,13 +142,8 @@ def test_attribute_based_rule(sample_portfolio_with_limits: Portfolio) -> None:
     ctx.obj = SimpleNamespace(
         portfolio=sample_portfolio_with_limits,
         config={
-            'attributes': {
-                'accounts': {
-                    'test_limit_attr': test_attr_uuid
-                }
-            },
             'validation': {'accounts': {'rules': [
-                {'type': 'balance-limit-from-attribute', 'value': 'test_limit_attr'},
+                {'type': 'balance-limit-from-attribute', 'value': test_attr_uuid},
                 {'type': 'balance-limit', 'value': 900.0}
             ]}}
         }
@@ -225,13 +220,8 @@ def test_date_passed_with_friendly_name(sample_portfolio_with_limits: Portfolio,
     ctx.obj = SimpleNamespace(
         portfolio=sample_portfolio_with_limits,
         config={
-            'attributes': {
-                'accounts': {
-                    'expiry-date': test_attr_uuid
-                }
-            },
             'validation': {'accounts': {'rules': [
-                {'type': 'date-passed-from-attribute', 'value': 'expiry-date'}
+                {'type': 'date-passed-from-attribute', 'value': test_attr_uuid}
             ]}}
         }
     )
@@ -241,4 +231,4 @@ def test_date_passed_with_friendly_name(sample_portfolio_with_limits: Portfolio,
 
     assert exc_info.value.exit_code == 1
     assert len(caplog.records) == 1
-    assert 'expiry-date has passed 2020-01-01' in caplog.text
+    assert 'date attribute has passed 2020-01-01' in caplog.text

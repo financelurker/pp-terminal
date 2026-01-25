@@ -19,9 +19,11 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 import logging
 import pandas as pd
+
+from pp_terminal.domain.portfolio import Portfolio
 
 log = logging.getLogger(__name__)
 
@@ -91,8 +93,8 @@ class BalanceLimitRule(ValidationRule):
 
         if balance > limit:
             message = f'balance {balance:.2f} exceeds limit {limit:.2f}'
-            return (self.is_error(), message)
-        return (False, None)
+            return self.is_error(), message
+        return False, None
 
 
 class DatePassedRule(ValidationRule):
@@ -102,20 +104,25 @@ class DatePassedRule(ValidationRule):
         date_value = self._get_value(entity)
 
         if pd.isna(date_value):
-            return (False, None)
+            return False, None
 
         if not isinstance(date_value, datetime):
             try:
                 date_value = pd.to_datetime(date_value)
             except (ValueError, TypeError):
                 log.warning('Account "%s" has invalid date value: %s', entity["name"], date_value)
-                return (False, None)
+                return False, None
+
+        attribute_name = 'date attribute'
+        portfolio = cast(Portfolio, context.get('portfolio')) if context else None
+        if portfolio is not None:
+            attribute_name = portfolio.all_attributes.get(self._value, attribute_name)
 
         current_date = datetime.now()
         if date_value < current_date:
-            message = f'date attribute has passed {date_value.strftime("%Y-%m-%d")}'
-            return (self.is_error(), message)
-        return (False, None)
+            message = f'{attribute_name} has passed {date_value.strftime("%Y-%m-%d")}'
+            return self.is_error(), message
+        return False, None
 
 
 class PriceStalenessRule(ValidationRule):
@@ -127,15 +134,15 @@ class PriceStalenessRule(ValidationRule):
 
         if pd.isna(latest_price_date) or latest_price_date is None:
             message = 'no price data'
-            return (self.is_error(), message)
+            return self.is_error(), message
 
         current_date = datetime.now()
         days_old = (current_date - latest_price_date).days
 
         if days_old > max_days:
             message = f'price is {days_old} days old (latest: {latest_price_date.strftime("%Y-%m-%d")})'
-            return (self.is_error(), message)
-        return (False, None)
+            return self.is_error(), message
+        return False, None
 
 
 class PriceLimitRule(ValidationRule):
@@ -147,12 +154,12 @@ class PriceLimitRule(ValidationRule):
 
         if pd.isna(current_price):
             message = 'no price data'
-            return (self.is_error(), message)
+            return self.is_error(), message
 
         if current_price >= limit:
             message = f'price {current_price:.2f} has reached limit {limit:.2f}'
-            return (self.is_error(), message)
-        return (False, None)
+            return self.is_error(), message
+        return False, None
 
 
 RULE_TYPES = {

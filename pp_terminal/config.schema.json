@@ -206,13 +206,13 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["price-staleness", "price-limit", "price-limit-from-attribute"]
+          "enum": ["price-staleness", "price-limit", "price-limit-from-attribute", "purchase-cost-limit", "purchase-cost-limit-from-attribute"]
         },
         "value": {
-          "description": "For price-staleness/price-limit: a number. For *-from-attribute rules: Portfolio Performance attribute UUID.",
+          "description": "For price-staleness: an integer (days). For price-limit/purchase-cost-limit: a number. For *-from-attribute rules: Portfolio Performance attribute UUID.",
           "oneOf": [
             {
-              "type": "integer",
+              "type": "number",
               "minimum": 0
             },
             {

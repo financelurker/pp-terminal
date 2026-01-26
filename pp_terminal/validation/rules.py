@@ -162,6 +162,62 @@ class PriceLimitRule(ValidationRule):
         return False, None
 
 
+class PurchaseCostLimitRule(ValidationRule):
+    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
+        super().validate(entity, entity_id, context)
+
+        limit = self._get_value(entity)
+        portfolio = cast(Portfolio, context.get('portfolio'))
+
+        if portfolio is None:
+            log.warning('No portfolio in context for purchase-cost-limit validation')
+            return False, None
+
+        # Load tax CSV and calculate cost basis
+        tax_csv_data = self._load_tax_csv(context)
+        current_cost = self._calculate_cost_basis(portfolio, entity_id, tax_csv_data)
+
+        if current_cost > limit:
+            currency = entity.get('currency', 'EUR')
+            tax_note = ' (net of taxes paid)' if tax_csv_data is not None else ''
+            message = f'current cost basis {current_cost:.2f} {currency}{tax_note} exceeds limit {limit:.2f} {currency}'
+            return self.is_error(), message
+
+        return False, None
+
+    @staticmethod
+    def _load_tax_csv(context: dict[str, Any]) -> Any:
+        """Load tax credit CSV from config if available."""
+        config = context.get('config', {})
+        tax_config = config.get('tax', {})
+        tax_csv_path = tax_config.get('file')
+
+        if not tax_csv_path:
+            return None
+
+        # pylint: disable=import-outside-toplevel
+        from pathlib import Path
+        from pp_terminal.commands.simulate_share_sell import _load_vorabpauschale_csv
+
+        try:
+            return _load_vorabpauschale_csv(Path(tax_csv_path))
+        except Exception as e:  # pylint: disable=broad-except
+            log.warning('Failed to load tax CSV from %s: %s', tax_csv_path, e)
+            return None
+
+    @staticmethod
+    def _calculate_cost_basis(portfolio: Portfolio, entity_id: str, tax_csv_data: Any) -> float:
+        """Calculate current cost basis for security."""
+        # pylint: disable=import-outside-toplevel
+        from pp_terminal.data.cost_basis import calculate_current_cost_basis
+
+        return calculate_current_cost_basis(
+            portfolio,
+            entity_id,
+            tax_csv_data=tax_csv_data
+        )
+
+
 RULE_TYPES = {
     'balance-limit': BalanceLimitRule,
     'balance-limit-from-attribute': BalanceLimitRule,
@@ -169,6 +225,8 @@ RULE_TYPES = {
     'price-staleness': PriceStalenessRule,
     'price-limit': PriceLimitRule,
     'price-limit-from-attribute': PriceLimitRule,
+    'purchase-cost-limit': PurchaseCostLimitRule,
+    'purchase-cost-limit-from-attribute': PurchaseCostLimitRule,
 }
 
 

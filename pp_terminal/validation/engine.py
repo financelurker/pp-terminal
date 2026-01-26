@@ -161,6 +161,7 @@ def validate_securities(
             'latest_price_date': security.get('date') if pd.notna(security.get('date')) else None,
             'current_price': security.get('price') if pd.notna(security.get('price')) else None,
             'portfolio': portfolio,
+            'config': config,
         }
         result = _validate_entity(str(security_id), security, rules, context)
         results[str(security_id)] = result

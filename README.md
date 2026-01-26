@@ -48,10 +48,17 @@ columns = ["SecurityId", "Name", "Shares"]
 | Command                   | Description                                                                                        |
 |---------------------------|----------------------------------------------------------------------------------------------------|
 | `simulate interest`       | Calculate how much interest you should have been earned per account and compare with actual values |
-| `simulate share-sell`     | Calculate gains and taxes if a security would be sold (based on FIFO capital gains)                |
-| `simulate vorabpauschale` | Run a simulation for the German preliminary tax ("Vorabpauschale") on the portfolio                |
+| `simulate share-sell`     | Calculate gains and taxes if a security would be sold in future (based on FIFO capital gains)      |
+| `simulate vorabpauschale` | Run a simulation for the expected German preliminary tax ("Vorabpauschale") on the portfolio       |
 
 ### Validate Data
+
+**Sample Use Cases**:
+- Verify that bank account balances are within deposit insurance limits ("Einlagensicherung")
+- Verify security purchase costs are below exit taxation thresholds ("Wegzugsbesteuerung")
+- Verify that all bank account balances are below custody fee thresholds (e.g. "Verwahrentgelt")
+- Verify all security prices are up-to-date
+- and much more
 
 | Command               | Description                                                 |
 |-----------------------|-------------------------------------------------------------|

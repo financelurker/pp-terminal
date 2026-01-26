@@ -16,6 +16,7 @@
     You should have received a copy of the GNU General Public License
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
+# pylint: disable=duplicate-code
 
 from datetime import datetime
 
@@ -69,7 +70,10 @@ def provide_portfolio_with_purchases() -> Portfolio:
 @pytest.fixture(name='portfolio_with_sales')
 def provide_portfolio_with_sales(portfolio_with_purchases: Portfolio) -> Portfolio:
     """Portfolio with purchases and sales."""
-    transactions = portfolio_with_purchases._transactions.copy()  # pylint: disable=protected-access
+    if not isinstance(portfolio_with_purchases.securities_account_transactions, pd.DataFrame):
+        raise TypeError("transactions must be a DataFrame")
+
+    transactions = portfolio_with_purchases.securities_account_transactions.copy()
 
     # Add sales: SELL amounts are positive (cash inflow)
     sales = pd.DataFrame([
@@ -81,7 +85,7 @@ def provide_portfolio_with_sales(portfolio_with_purchases: Portfolio) -> Portfol
     transactions = pd.concat([transactions, sales])
 
     return Portfolio(
-        accounts=portfolio_with_purchases._accounts,  # pylint: disable=protected-access
+        accounts=portfolio_with_purchases.securities_accounts,
         transactions=transactions,
         securities=portfolio_with_purchases.securities,
         prices=None
@@ -582,8 +586,11 @@ class TestCalculateCurrentCostBasis:
 
     def test_all_shares_sold(self, portfolio_with_sales: Portfolio) -> None:
         """Test that cost basis is zero when all shares are sold."""
+        if not isinstance(portfolio_with_sales.securities_account_transactions, pd.DataFrame):
+            raise TypeError('transactions must be a DataFrame')
+
         # Add more sales to sell everything
-        transactions = portfolio_with_sales._transactions.copy()  # pylint: disable=protected-access
+        transactions = portfolio_with_sales.securities_account_transactions.copy()
 
         more_sales = pd.DataFrame([
             [datetime(2024, 1, 1), 'acc-1', 'sec-1', TransactionType.SELL.value, 5000.0, 33.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # Sell remaining 33 shares
@@ -594,7 +601,7 @@ class TestCalculateCurrentCostBasis:
         transactions = pd.concat([transactions, more_sales])
 
         portfolio = Portfolio(
-            accounts=portfolio_with_sales._accounts,  # pylint: disable=protected-access
+            accounts=portfolio_with_sales.securities_accounts,
             transactions=transactions,
             securities=portfolio_with_sales.securities,
             prices=None

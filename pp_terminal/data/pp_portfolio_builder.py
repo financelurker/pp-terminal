@@ -169,11 +169,7 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
 
     def _get_attributes(self, entity: str) -> dict[str, str]:
         cursor = self._db.connection.cursor()
-        cursor.execute("""
-            SELECT id, name FROM attribute_type
-            WHERE target = ?
-            AND id NOT IN ('logo')
-        """, (entity, ))
+        cursor.execute("SELECT id, name FROM attribute_type WHERE target = ? AND id NOT IN ('logo')", (entity, ))
 
         return {str(row[0]): str(row[1]) for row in cursor.fetchall()}
 
@@ -191,10 +187,10 @@ class CachedPpPortfolioBuilder:  # pylint: disable=too-few-public-methods
             cache_path = get_cache_path(file)
 
             if cache_path.exists():
-                log.debug('Using cache from "%s"', cache_path)
+                log.debug('Using cache database "%s"', cache_path)
                 use_cache_file = True
             else:
-                log.debug('Cache not found, will create at "%s"', cache_path)
+                log.debug('Cache file not found, will create at "%s"', cache_path)
 
             db = Ppxml2dbWrapper(dbname=str(cache_path))
         except Exception as e:  # pylint: disable=broad-exception-caught

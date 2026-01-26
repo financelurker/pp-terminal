@@ -16,6 +16,7 @@
     You should have received a copy of the GNU General Public License
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
+# pylint: disable=duplicate-code
 
 import logging
 from datetime import datetime
@@ -253,7 +254,7 @@ def test_with_tax_csv_reduces_cost(portfolio_with_purchases_and_sales: Portfolio
     from pathlib import Path
 
     # Write tax CSV to temp file
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, dir=tmp_path) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, dir=str(tmp_path)) as f:
         f.write('date;account_id;security_id;tax_per_share\n')
         f.write('2020;acc-1;sec-a;0.10\n')
         f.write('2021;acc-1;sec-a;0.12\n')
@@ -378,10 +379,7 @@ def test_purchase_cost_limit_rule_direct(caplog: pytest.LogCaptureFixture) -> No
         'currency': 'EUR'
     })
 
-    # Context without portfolio
-    context = {}
-
-    is_error, message = rule.validate(entity, 'sec-1', context)
+    is_error, message = rule.validate(entity, 'sec-1', {})
 
     assert not is_error
     assert message is None

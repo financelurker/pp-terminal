@@ -181,7 +181,7 @@ def test_empty_portfolio_error() -> None:
 
     snapshot = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))
 
-    with pytest.raises(InputError, match="No transactions found in portfolio"):
+    with pytest.raises(InputError, match="No (purchase )?transactions found"):
         _calculate_fifo_lots(snapshot, 'depot1', 'sec1', 10.0, 100.0)
 
 
@@ -251,7 +251,7 @@ def test_snapshot_at_different_dates(partial_sell_portfolio: Portfolio) -> None:
 
     # Before any purchases
     snapshot_before = PortfolioSnapshot(partial_sell_portfolio, datetime(2023, 12, 29))
-    with pytest.raises(InputError):
+    with pytest.raises(InputError, match="No purchase transactions found"):
         _calculate_fifo_lots(snapshot_before, account_id, security_id, 10.0, 50.0)
 
     # After purchase, before sell - should have 100 shares

@@ -26,6 +26,7 @@ import pandas as pd
 import typer
 from typing_extensions import Annotated
 
+from pp_terminal.data.cost_basis import match_sales_to_lots, FifoLot
 from pp_terminal.data.filters import filter_by_type
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import format_money, footer
@@ -48,6 +49,7 @@ def _load_vorabpauschale_csv(csv_path: Path) -> pd.DataFrame:
     Returns DataFrame indexed by (year, account_id, security_id) with tax_per_share values.
     """
     try:
+        log.debug('Loading paid tax data from "%s"', csv_path)
         df = pd.read_csv(csv_path, sep=';', parse_dates=['date'])
     except FileNotFoundError as e:
         raise InputError(f"Vorabpauschale CSV file not found: {csv_path}") from e
@@ -65,20 +67,12 @@ def _load_vorabpauschale_csv(csv_path: Path) -> pd.DataFrame:
     return df[['tax_per_share']]
 
 
-class FifoLot(TypedDict):
-    purchase_date: datetime
-    shares: float
-    purchase_price: Money
-    cost_basis: Money
-    capital_gain: Money
-
-
 class TaxBreakdown(TypedDict):
     taxable_gain: Money
     total_tax: Money
 
 
-def _calculate_fifo_lots(
+def _calculate_fifo_lots(  # pylint: disable=too-many-locals
         snapshot: PortfolioSnapshot,
         account_id: str,
         security_id: str,
@@ -93,7 +87,7 @@ def _calculate_fifo_lots(
     if transactions is None:
         raise InputError("No transactions found in portfolio")
 
-    # Filter to BUY and DELIVERY_INBOUND for this account/security
+    # Step 1: Get purchase transactions for this account/security from snapshot
     purchase_txns = transactions[
         (transactions.index.get_level_values('accountId') == account_id) &
         (transactions.index.get_level_values('securityId') == security_id)
@@ -102,27 +96,53 @@ def _calculate_fifo_lots(
     if purchase_txns.empty:
         raise InputError(f"No purchase transactions found for security {security_id} in account {account_id}")
 
-    # Sort by date (FIFO)
-    purchase_txns = purchase_txns.sort_index(level='date')
+    # Step 2: Convert purchase transactions to lots using shared logic pattern
+    purchase_txns_sorted = purchase_txns.sort_index(level='date')
+    account_lots: list[FifoLot] = []
 
-    lots: list[FifoLot] = []
+    for (date, _, _), row in purchase_txns_sorted.iterrows():
+        shares = float(row['shares'])
+        if shares <= 0:
+            continue
+
+        # BUY transactions have negative amounts (cash outflow), use absolute value
+        purchase_price = abs(float(row['amount']) / shares)
+
+        account_lots.append({
+            'purchase_date': date,
+            'account_id': account_id,
+            'shares': shares,
+            'purchase_price': purchase_price,
+            'cost_basis': shares * purchase_price,
+            'capital_gain': 0.0
+        })
+
+    # Step 3: Get historical sales for this account/security
+    historical_sales = transactions[
+        (transactions.index.get_level_values('accountId') == account_id) &
+        (transactions.index.get_level_values('securityId') == security_id)
+    ].pipe(filter_by_type, transaction_types=[TransactionType.SELL, TransactionType.DELIVERY_OUTBOUND])
+
+    # Step 4: Match historical sales to lots using shared FIFO logic
+    remaining_lots = match_sales_to_lots(account_lots, historical_sales)
+
+    # Step 5: Match the hypothetical sale against remaining lots
+    lots_to_return: list[FifoLot] = []
     shares_remaining = shares_to_sell
 
-    for (date, _, _), row in purchase_txns.iterrows():
+    for lot in remaining_lots:
         if shares_remaining <= 0:
             break
 
-        shares_from_lot = min(shares_remaining, row['shares'])
-        # BUY transactions have negative amounts (cash outflow), use absolute value for cost basis
-        purchase_price = abs(row['amount'] / row['shares']) if row['shares'] > 0 else 0
-        cost_basis = shares_from_lot * purchase_price
-        capital_gain = shares_from_lot * (sale_price - purchase_price)
+        shares_from_lot = min(shares_remaining, lot['shares'])
+        capital_gain = shares_from_lot * (sale_price - lot['purchase_price'])
 
-        lots.append({
-            'purchase_date': date,
+        lots_to_return.append({
+            'purchase_date': lot['purchase_date'],
+            'account_id': lot['account_id'],
             'shares': shares_from_lot,
-            'purchase_price': purchase_price,
-            'cost_basis': cost_basis,
+            'purchase_price': lot['purchase_price'],
+            'cost_basis': shares_from_lot * lot['purchase_price'],
             'capital_gain': capital_gain
         })
 
@@ -131,7 +151,7 @@ def _calculate_fifo_lots(
     if shares_remaining > 0.0001:  # Allow small floating point errors
         raise InputError(f"Insufficient shares available. Requested: {shares_to_sell}, Available: {shares_to_sell - shares_remaining}")
 
-    return lots
+    return lots_to_return
 
 
 def _calculate_vorabpauschale_for_lot(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -234,24 +254,19 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, callback=tax_rate_callback)] = None,  # type: ignore
         shares: Annotated[float | None, typer.Option(help="Number of shares to sell (defaults to all available shares)", min=0.0001)] = None,
         price: Annotated[Money | None, typer.Option(help="Sale price per share (defaults to latest market price)")] = None,
-        tax_csv: Annotated[Path | None, typer.Option(help="CSV file with Vorabpauschale tax per share data", callback=tax_csv_callback)] = None
+        tax_csv: Annotated[Path | None, typer.Option(help="CSV file with paid tax per share data", callback=tax_csv_callback)] = None
 ) -> None:
     """
     Simulate selling shares: calculate fees, taxes (Abgeltungssteuer + Soli), and net proceeds.
-    Uses FIFO cost basis and accounts for Vorabpauschale already paid.
+    Uses FIFO cost basis and accounts for taxes already paid.
     """
     portfolio = ctx.obj.portfolio  # type: Portfolio
     output = ctx.obj.output  # type: OutputStrategy
 
-    # Set default date if not provided
     if date is None:
         date = get_today()
 
-    # Load Vorabpauschale CSV if provided
-    vorab_csv_data = None
-    if tax_csv is not None:
-        log.debug('Loading Vorabpauschale tax data from "%s"', tax_csv)
-        vorab_csv_data = _load_vorabpauschale_csv(tax_csv)
+    vorab_csv_data = _load_vorabpauschale_csv(tax_csv) if tax_csv else None
 
     # Look up security by WKN
     if portfolio.securities is None:
@@ -273,7 +288,6 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     account_info = portfolio.securities_accounts.loc[account_id]
     account_name = account_info['name']
 
-    # Create snapshot at sale date
     snapshot = PortfolioSnapshot(portfolio, date)
 
     # Determine sale price
@@ -352,7 +366,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         'Purchase Price': [lot['purchase_price'] for lot in fifo_lots],
         'Cost Basis': [lot['cost_basis'] for lot in fifo_lots],
         'Capital Gain': [lot['capital_gain'] for lot in fifo_lots],
-        'Vorabpauschale': [
+        'Taxes Already Paid': [
             _calculate_vorabpauschale_for_lot(lot, date, account_id, security_id, vorab_csv_data)
             for lot in fifo_lots
         ],
@@ -363,7 +377,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     # Custom formatter for FIFO lots - exclude currency for Shares, skip Purchase Price total
     def format_lots_value(value: Any, col_name: str, row: pd.Series) -> str:
         # Skip Purchase Price total (summing prices is meaningless)
-        if col_name == 'Purchase Price' and 'name' in row and row['name'] == 'Total':
+        if col_name == 'Purchase Price' and 'Purchase Date' in row and row['Purchase Date'] == 'Total':
             return ''
         # Don't format shares with currency
         if col_name == 'Shares':

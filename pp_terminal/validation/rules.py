@@ -164,6 +164,17 @@ class PriceLimitRule(ValidationRule):
 
 class PurchaseCostLimitRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
+        """
+        Validates the **current cost basis** of each security using FIFO lot matching, optionally net of taxes already paid (e.g., Vorabpauschale).
+
+        **How it works**:
+        1. Tracks all purchase lots (BUY + DELIVERY_INBOUND) by date and account
+        2. Matches sales (SELL + DELIVERY_OUTBOUND) to lots using FIFO (first-in, first-out)
+        3. Calculates cost basis of remaining shares
+        4. If `tax.file` is configured, reduces cost basis by taxes already paid per share
+        5. Aggregates cost across all accounts for the same security
+        6. Validates against configured limit
+        """
         super().validate(entity, entity_id, context)
 
         limit = self._get_value(entity)

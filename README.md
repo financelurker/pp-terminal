@@ -17,7 +17,7 @@ too many edge-cases, etc.
 > I am not a tax consultant. All results of this application are just a non-binding indication and without guarantee.
 > They may deviate from the actual values.
 
-## Commands
+## Available Commands
 
 Code completion for commands and options is available.  
 You can choose between different output formats like JSON or CSV with the `--format` option.
@@ -37,7 +37,7 @@ By default, `pp-terminal --help` provides the following commands:
 The commands can be customized in the [configuration file](#configuration-file):
 ```toml
 [commands.view.accounts]
-columns = ["AccountId", "Name", "Balance"]
+columns = ["AccountId", "Name", "Balance"]  # call with --columns=xx to see a list of all available columns
 
 [commands.view.securities]
 columns = ["SecurityId", "Name", "Shares"]
@@ -53,44 +53,47 @@ columns = ["SecurityId", "Name", "Shares"]
 
 ### Validate Data
 
-**Sample Use Cases**:
-- Verify that bank account balances are within deposit insurance limits ("Einlagensicherung")
-- Verify security purchase costs are below exit taxation thresholds ("Wegzugsbesteuerung")
-- Verify that all bank account balances are below custody fee thresholds (e.g. "Verwahrentgelt")
-- Verify all security prices are up-to-date
-- and much more
-
 | Command               | Description                                                 |
 |-----------------------|-------------------------------------------------------------|
 | `validate`            | Run all validation checks on the portfolio data             |
 | `validate accounts`   | Run configured accounts validations, e.g. balance limits    |
 | `validate securities` | Run configured security validations, e.g. prices up-to-date |
 
-The commands can be customized in the [configuration file](#configuration-file):
+This is a sample of validation rules that can be configured in the [configuration file](#configuration-file):
 ```toml
-# Note: order of rules is relevant
+# Note: the rules are processed in this order
 
+# Validate a certain bank account does not have more than a certain custody fee threshold
 [[commands.validate.accounts.rules]]
 type = "balance-limit"
 value = 25000
-applies-to = ["c9c57e01-7ea0-4e70-bed9-4656941f7687"]
+applies-to = ["c9c57e01-7ea0-4e70-bed9-4656941f7687"]  # Portfolio Performance account id from the XML file
 
+# Validate that each bank account is within the EU deposit insurance limit
 [[commands.validate.accounts.rules]]
 type = "balance-limit"
 value = 100000
 
+# Use date attributes in Portfolio Performance to validate against (e.g. when special interest rate offers end)
 [[commands.validate.accounts.rules]]
 type = "date-passed-from-attribute"
-value = "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"
+value = "fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"  # Portfolio Performance date attribute id from the XML file
 
+# Verify security prices are up-to-date
 [[commands.validate.securities.rules]]
 type = "price-staleness"
+severy = "error"  # default, can be omitted
 value = 90
-
 [[commands.validate.securities.rules]]
 type = "price-staleness"
 severity = "warning"
 value = 30
+
+# Validate current cost basis (FIFO) against limit, e.g. for exit taxation thresholds ("Wegzugsbesteuerung")
+[[commands.validate.securities.rules]]
+type = "purchase-cost-limit"
+value = 500000.0
+severity = "warning"
 ```
 
 ### Export
@@ -102,8 +105,7 @@ value = 30
 The command can be customized in the [configuration file](#configuration-file):
 ```toml
 [commands.export.anonymized.attributes."a1b2c3d4-e5f6-7890-abcd-ef1234567890"]
-provider = "iban"
-
+provider = "iban"  # for all available providers see https://faker.readthedocs.io/en/master/providers.html
 [commands.export.anonymized.attributes."fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"]
 provider = "pyfloat"
 args = { min_value = 0.0, max_value = 1.0, right_digits = 2 }
@@ -143,19 +145,18 @@ or use a configuration file (see below).
 To view all available arguments you can always use the `--help` option.
 
 ### Configuration File
-To persist the CLI options you can pass a configuration file with `pp-terminal --config=config.toml --help`.
-
-The TOML format supports comments and is more readable than JSON for complex configurations.
+To persist the CLI options you can pass a configuration file in [TOML format](https://toml.io/en/) with `pp-terminal --config=config.toml --help`.  
+The CLI options always overwrite the settings in the configuration file.
 
 ```toml
 file = "portfolio_performance.xml"
 precision = 4
 
 [tax]
-rate = 26.375
-file = "vorabpauschale.csv"
-exemption-rate = 30
-exemption-rate-attribute = "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"
+rate = 26.375  # percentage
+file = "taxes_paid.csv"  # Format: date;account_id;security_id;tax_per_share
+exemption-rate = 30  # percentage
+exemption-rate-attribute = "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"  # for per-security exemption rates 
 ```
 
 ### Customize Number Formats

@@ -138,13 +138,16 @@ def match_sales_to_lots(
 
     sales_sorted = sales_transactions.sort_index(level='date')
 
-    for (_date, _account_id, _security_id), row in sales_sorted.iterrows():
+    for (_date, account_id, _security_id), row in sales_sorted.iterrows():
         shares_to_match = float(row['shares'])
 
-        # Match against lots in FIFO order
+        # Match against lots in FIFO order (only from same account)
         for lot in remaining_lots:
             if shares_to_match <= 0:
                 break
+
+            if lot['account_id'] != account_id:
+                continue
 
             # Consume shares from this lot
             shares_from_lot = min(shares_to_match, lot['shares'])

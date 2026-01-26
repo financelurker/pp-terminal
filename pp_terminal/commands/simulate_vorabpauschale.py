@@ -154,7 +154,7 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
 
 
 def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
-    transactions = snapshot_end.transactions
+    transactions = snapshot_end.securities_account_transactions
     if transactions is None:
         return None
 
@@ -172,7 +172,7 @@ def _calculate_minimum_shares_during_year(snapshot_end: PortfolioSnapshot) -> pd
     This detects if a position went to zero (complete sell) and was then rebought.
     Returns minimum shares held at any point during the year.
     """
-    transactions = snapshot_end.transactions
+    transactions = snapshot_end.securities_account_transactions
     if transactions is None:
         return None
 
@@ -228,7 +228,7 @@ def _calculate_minimum_shares_during_year(snapshot_end: PortfolioSnapshot) -> pd
 
 
 def _calculate_prorata_shares_for_inyear_buys(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
-    transactions = snapshot_end.transactions
+    transactions = snapshot_end.securities_account_transactions
     if transactions is None:
         return None
 

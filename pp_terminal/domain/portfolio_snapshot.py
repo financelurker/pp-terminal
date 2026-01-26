@@ -65,7 +65,7 @@ class PortfolioSnapshot:
 
     @property
     @pa.check_types()
-    def transactions(self) -> DataFrame[TransactionSchema] | None:  # @todo rename
+    def securities_account_transactions(self) -> DataFrame[TransactionSchema] | None:
         transactions = self._portfolio.securities_account_transactions
         if transactions is None:
             return None
@@ -84,7 +84,7 @@ class PortfolioSnapshot:
     @property
     @pa.check_types()
     def shares(self) -> pd.Series | None:
-        transactions = self.transactions
+        transactions = self.securities_account_transactions
         if transactions is None:
             return None
 

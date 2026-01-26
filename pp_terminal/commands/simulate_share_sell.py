@@ -83,7 +83,7 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals
     Calculate FIFO lots for shares being sold.
     Returns list of lots with purchase info and capital gains.
     """
-    transactions = snapshot.transactions
+    transactions = snapshot.securities_account_transactions
     if transactions is None:
         raise InputError("No transactions found in portfolio")
 

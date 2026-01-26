@@ -61,7 +61,7 @@ columns = ["SecurityId", "Name", "Shares"]
 
 This is a sample of validation rules that can be configured in the [configuration file](#configuration-file):
 ```toml
-# Note: the rules are processed in this order
+# Note: the rules are processed in this order, each rule type only triggers once for each entity
 
 # Validate a certain bank account does not have more than a certain custody fee threshold
 [[commands.validate.accounts.rules]]

@@ -70,15 +70,14 @@ def _validate_entity(
     context: dict[str, Any]
 ) -> ValidationResult:
     """Validates single entity against applicable rules."""
-    applicable_rules = get_applicable_rules(entity_id, entity, rules)
-    violations = []
+    violations = {}
 
-    for rule in applicable_rules:
+    for rule in get_applicable_rules(entity_id, entity, rules):
         _, message = rule.validate(entity, entity_id, context)
-        if message:  # Violation occurred
-            violations.append((rule, message))
+        if message and str(rule) not in violations:  # record only first occurrence for each violation
+            violations[str(rule)] = (rule, message)
 
-    return ValidationResult(entity_id=entity_id, violations=violations)
+    return ValidationResult(entity_id=entity_id, violations=list(violations.values()))
 
 
 def validate_accounts(

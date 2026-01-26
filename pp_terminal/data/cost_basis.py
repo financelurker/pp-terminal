@@ -23,10 +23,11 @@ import logging
 import copy
 
 import pandas as pd
+from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_by_type
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.schemas import TransactionType, Money
+from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema
 
 log = logging.getLogger(__name__)
 
@@ -112,7 +113,7 @@ def calculate_purchase_lots(
 
 def match_sales_to_lots(
     lots: list[FifoLot],
-    sales_transactions: pd.DataFrame
+    sales_transactions: DataFrame[TransactionSchema]
 ) -> list[FifoLot]:
     """
     Apply FIFO matching of sales to purchase lots.
@@ -126,7 +127,7 @@ def match_sales_to_lots(
         Each lot's 'shares' field represents remaining quantity.
         Exhausted lots (shares = 0) are removed.
     """
-    if sales_transactions is None or sales_transactions.empty:
+    if sales_transactions.empty:
         return lots
 
     # Make deep copy to avoid mutating input
@@ -159,9 +160,8 @@ def match_sales_to_lots(
                 # Lot fully consumed
                 lot['cost_basis'] = 0.0
 
-        # Warn if we couldn't match all shares
         if shares_to_match > 0.0001:  # Allow small floating point errors
-            log.warning('Sale of %.8f shares could not be fully matched to purchase lots', shares_to_match)
+            log.warning('Sale of %.8f shares for security %s could not be fully matched to purchase lots', shares_to_match, _security_id)
 
     # Filter out exhausted lots
     remaining_lots = [lot for lot in remaining_lots if lot['shares'] > 0.0001]

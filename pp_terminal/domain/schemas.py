@@ -60,6 +60,7 @@ class TransactionSchema(pa.DataFrameModel):
     shares: Series[float]
     accountType: Series[str]
     taxes: Series[Money]
+    currency: Series[str] = pa.Field(nullable=True)
 
 
 class AccountSchema(pa.DataFrameModel):

@@ -37,7 +37,7 @@ def test_empty_portfolio() -> None:
 
     result = calculate_interest(snapshot_begin, snapshot_end, 2.3)
 
-    assert result is None
+    assert result.empty
 
 
 def test_no_deposit_accounts(sample_accounts: pd.DataFrame, sample_transactions: pd.DataFrame) -> None:

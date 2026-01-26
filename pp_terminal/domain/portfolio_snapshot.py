@@ -65,19 +65,15 @@ class PortfolioSnapshot:
 
     @property
     @pa.check_types()
-    def securities_account_transactions(self) -> DataFrame[TransactionSchema] | None:
+    def securities_account_transactions(self) -> DataFrame[TransactionSchema]:
         transactions = self._portfolio.securities_account_transactions
-        if transactions is None:
-            return None
 
         return cast(DataFrame[TransactionSchema], transactions.pipe(filter_earlier_than, target_date=self._per_date))
 
     @property
     @pa.check_types()
-    def deposit_account_transactions(self) -> DataFrame[TransactionSchema] | None:
+    def deposit_account_transactions(self) -> DataFrame[TransactionSchema]:
         transactions = self.portfolio.deposit_account_transactions
-        if transactions is None:
-            return None
 
         return cast(DataFrame[TransactionSchema], transactions.pipe(filter_earlier_than, target_date=self._per_date))
 
@@ -85,9 +81,6 @@ class PortfolioSnapshot:
     @pa.check_types()
     def shares(self) -> pd.Series | None:
         transactions = self.securities_account_transactions
-        if transactions is None:
-            return None
-
         transactions['shares'] = transactions.apply(
             lambda row: -1 if row['type'] in enum_list_to_values(_NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES) else 1,
             axis=1
@@ -117,10 +110,8 @@ class PortfolioSnapshot:
         return values.groupby(['accountId', 'securityId', 'currency']).sum()
 
     @property
-    def balances(self) -> pd.Series | None:
+    def balances(self) -> pd.Series:
         transactions = self.deposit_account_transactions
-        if transactions is None:
-            return None
 
         balances = transactions.groupby(['accountId', 'currency'])['amount'].sum()
         balances.name = 'balance'

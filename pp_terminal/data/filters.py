@@ -49,6 +49,9 @@ def filter_by_type(df: pd.DataFrame, transaction_types: TransactionType| list[Tr
 
 
 def filter_not_retired(df: pd.DataFrame) -> pd.DataFrame:
+    if 'isRetired' not in df.columns:
+        return df
+
     return df[~df['isRetired']]
 
 

@@ -116,7 +116,7 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
     vorabpauschale = vorabpauschale * tax_rate_percent / 100
 
     # Apply exemption rate if configured
-    if exempt_rate_attr_uuid and snapshot_period_end.portfolio.securities is not None and exempt_rate_attr_uuid in snapshot_period_end.portfolio.securities.columns:
+    if exempt_rate_attr_uuid and exempt_rate_attr_uuid in snapshot_period_end.portfolio.securities.columns:
         exempt_rate_per_security = (1 - snapshot_period_end.portfolio.securities[[exempt_rate_attr_uuid]]
                                     .astype(float)
                                     .fillna(default_exemption_rate_percent / 100)
@@ -130,13 +130,13 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
             vorabpauschale.columns = [col[1] if len(col) > 1 else col[0] for col in vorabpauschale.columns]
 
     vorabpauschale = vorabpauschale.pipe(drop_empty_values)
-    if vorabpauschale.empty or snapshot_period_end.portfolio.securities is None or snapshot_period_end.portfolio.securities_accounts is None:
+    if vorabpauschale.empty:
         return None
 
     vorabpauschale = pd.merge(snapshot_period_end.portfolio.securities[['wkn', 'name', 'currency']], vorabpauschale, left_index=True, right_index=True, how='right', validate='one_to_one').sort_values(by='name')
 
     securities_accounts = snapshot_period_end.portfolio.securities_accounts
-    if securities_accounts is not None and 'referenceAccount' in securities_accounts and snapshot_period_end.balances is not None:
+    if not securities_accounts.empty and 'referenceAccount' in securities_accounts:
         # add the reference account balance
         vorabpauschale.loc[len(vorabpauschale)] = (
             pd.merge(
@@ -153,11 +153,8 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
     return vorabpauschale.rename(columns=securities_accounts['name'])
 
 
-def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
+def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series:
     transactions = snapshot_end.securities_account_transactions
-    if transactions is None:
-        return None
-
     transactions = transactions[transactions.index.get_level_values('date').year == snapshot_end.date.year] if not transactions.index.get_level_values('date').empty else transactions
 
     payouts = transactions.pipe(filter_by_type, transaction_types=TransactionType.DIVIDENDS).groupby(['accountId', 'securityId'])['amount'].sum()
@@ -173,8 +170,6 @@ def _calculate_minimum_shares_during_year(snapshot_end: PortfolioSnapshot) -> pd
     Returns minimum shares held at any point during the year.
     """
     transactions = snapshot_end.securities_account_transactions
-    if transactions is None:
-        return None
 
     # Get year-start position
     year_start = datetime(snapshot_end.date.year, 1, 2)
@@ -229,8 +224,6 @@ def _calculate_minimum_shares_during_year(snapshot_end: PortfolioSnapshot) -> pd
 
 def _calculate_prorata_shares_for_inyear_buys(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
     transactions = snapshot_end.securities_account_transactions
-    if transactions is None:
-        return None
 
     transactions_inyear = transactions[transactions.index.get_level_values('date').year == snapshot_end.date.year] if not transactions.index.get_level_values('date').empty else None
     if transactions_inyear is None:

@@ -95,7 +95,9 @@ def provide_tax_csv_data_df() -> pd.DataFrame:
 def test_no_validation_config(portfolio_with_purchases_and_sales: Portfolio) -> None:
     """Test that validation completes successfully when no validation config exists."""
     results = validate_securities(portfolio_with_purchases_and_sales, {})
-    assert len(results) == 0
+
+    assert len(results) == 3
+    assert all(not result.has_errors for result in results.values())
 
 
 def test_purchase_cost_limit_pass(portfolio_with_purchases_and_sales: Portfolio) -> None:
@@ -173,7 +175,7 @@ def test_attribute_based_rule(portfolio_with_purchases_and_sales: Portfolio) -> 
     test_attr_uuid = 'test-attr-uuid-12345'
 
     # Add custom attribute with limit for sec-a
-    portfolio_with_purchases_and_sales._securities[test_attr_uuid] = pd.Series({  # type: ignore[index]  # pylint: disable=protected-access
+    portfolio_with_purchases_and_sales.securities[test_attr_uuid] = pd.Series({
         'sec-a': 5000.0,  # sec-a will pass (cost €4500 < limit €5000)
         'sec-b': 1500.0,  # sec-b will fail (cost €2000 > limit €1500)
     })
@@ -315,13 +317,13 @@ def test_multiple_accounts_aggregated(portfolio_with_purchases_and_sales: Portfo
     ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
     additional_transactions = additional_transactions.set_index(['date', 'accountId', 'securityId'])
 
-    transactions = pd.concat([portfolio_with_purchases_and_sales._transactions, additional_transactions])  # pylint: disable=protected-access
+    transactions = pd.concat([portfolio_with_purchases_and_sales.securities_account_transactions, additional_transactions])
 
     portfolio = Portfolio(
-        accounts=portfolio_with_purchases_and_sales._accounts,  # pylint: disable=protected-access
+        accounts=portfolio_with_purchases_and_sales.securities_accounts,
         transactions=transactions,
         securities=portfolio_with_purchases_and_sales.securities,
-        prices=portfolio_with_purchases_and_sales._prices  # pylint: disable=protected-access
+        prices=portfolio_with_purchases_and_sales.prices
     )
 
     config = {

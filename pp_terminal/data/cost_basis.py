@@ -74,10 +74,6 @@ def calculate_purchase_lots(
         - capital_gain: Initialized to 0.0 (can be set later for sale simulations)
     """
     transactions = portfolio.securities_account_transactions
-    if transactions is None or transactions.empty:
-        log.debug('No securities transactions found in portfolio')
-        return []
-
     purchase_txns = transactions[
         transactions.index.get_level_values('securityId') == security_id
     ].pipe(filter_by_type, transaction_types=[TransactionType.BUY, TransactionType.DELIVERY_INBOUND])
@@ -279,12 +275,9 @@ def calculate_current_cost_basis(
 
     # Step 2: Get all sales transactions for this security
     transactions = portfolio.securities_account_transactions
-    if transactions is None or transactions.empty:
-        sales_transactions = pd.DataFrame()
-    else:
-        sales_transactions = transactions[
-            transactions.index.get_level_values('securityId') == security_id
-        ].pipe(filter_by_type, transaction_types=[TransactionType.SELL, TransactionType.DELIVERY_OUTBOUND])
+    sales_transactions = transactions[
+        transactions.index.get_level_values('securityId') == security_id
+    ].pipe(filter_by_type, transaction_types=[TransactionType.SELL, TransactionType.DELIVERY_OUTBOUND])
 
     # Step 3: Match sales to lots (FIFO)
     remaining_lots = match_sales_to_lots(purchase_lots, sales_transactions)

@@ -88,14 +88,6 @@ def validate_accounts(
 ) -> dict[str, ValidationResult]:
     """Validates all deposit accounts. Returns dict mapping account_id -> ValidationResult."""
     rules = [create_rule(rule_config) for rule_config in get_command_config(config, 'validate.accounts.rules', [])]
-    if not rules:
-        return {}
-
-    if snapshot.balances is None or snapshot.balances.empty:
-        return {}
-
-    if portfolio.deposit_accounts is None:
-        return {}
 
     total_balances = snapshot.balances.groupby('accountId').sum()
     total_balances.name = 'TotalBalance'
@@ -110,9 +102,6 @@ def validate_accounts(
     )
 
     accounts_with_balances = accounts_with_balances.pipe(filter_not_retired)
-
-    if accounts_with_balances.empty:
-        return {}
 
     results = {}
     for account_id, account in accounts_with_balances.iterrows():
@@ -132,12 +121,7 @@ def validate_securities(
     config: dict[str, Any]
 ) -> dict[str, ValidationResult]:
     """Validates all securities. Returns dict mapping security_id -> ValidationResult."""
-    if portfolio.securities is None or portfolio.securities.empty:
-        return {}
-
     rules = [create_rule(rule_config) for rule_config in get_command_config(config, 'validate.securities.rules', [])]
-    if not rules:
-        return {}
 
     latest_prices = portfolio.prices.groupby(['securityId']).tail(1)
 
@@ -151,9 +135,6 @@ def validate_securities(
     ).set_index('securityId')
 
     securities_with_prices = securities_with_prices.pipe(filter_not_retired)
-
-    if securities_with_prices.empty:
-        return {}
 
     results = {}
     for security_id, security in securities_with_prices.iterrows():

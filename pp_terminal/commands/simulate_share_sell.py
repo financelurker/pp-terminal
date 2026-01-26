@@ -84,8 +84,6 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals
     Returns list of lots with purchase info and capital gains.
     """
     transactions = snapshot.securities_account_transactions
-    if transactions is None:
-        raise InputError("No transactions found in portfolio")
 
     # Step 1: Get purchase transactions for this account/security from snapshot
     purchase_txns = transactions[
@@ -269,9 +267,6 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     vorab_csv_data = _load_vorabpauschale_csv(tax_csv) if tax_csv else None
 
     # Look up security by WKN
-    if portfolio.securities is None:
-        raise InputError("No securities found in portfolio")
-
     security_match = portfolio.securities[portfolio.securities['wkn'] == wkn]
     if security_match.empty:
         raise InputError(f"Security with WKN '{wkn}' not found in portfolio")
@@ -282,7 +277,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     security_wkn = security_info['wkn']
 
     # Validate account exists and is a securities account
-    if portfolio.securities_accounts is None or account_id not in portfolio.securities_accounts.index:
+    if account_id not in portfolio.securities_accounts.index:
         raise InputError(f"Securities account '{account_id}' not found in portfolio")
 
     account_info = portfolio.securities_accounts.loc[account_id]

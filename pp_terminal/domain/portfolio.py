@@ -29,10 +29,10 @@ log = logging.getLogger(__name__)
 
 
 class Portfolio:
-    _accounts: DataFrame[AccountSchema] | None = None
-    _securities: DataFrame[SecuritySchema] | None = None
-    _transactions: DataFrame[TransactionSchema] | None = None
-    _prices: DataFrame[SecurityPriceSchema] | None = None
+    _accounts: DataFrame[AccountSchema] = AccountSchema.empty()
+    _securities: DataFrame[SecuritySchema] = SecuritySchema.empty()
+    _transactions: DataFrame[TransactionSchema] = TransactionSchema.empty()
+    _prices: DataFrame[SecurityPriceSchema] = SecurityPriceSchema.empty()
     _attributes: dict[str, dict[str, str]] = {}
     base_currency: str = ''
 
@@ -71,40 +71,28 @@ class Portfolio:
         self._attributes = attributes if attributes is not None else {}
 
     @property
-    def securities_accounts(self) -> DataFrame[AccountSchema] | None:
-        if self._accounts is None:
-            return None
-
+    def securities_accounts(self) -> DataFrame[AccountSchema]:
         return cast(DataFrame[AccountSchema], self._accounts[self._accounts['type'] == AccountType.SECURITIES.value])
 
     @property
-    def deposit_accounts(self) -> DataFrame[AccountSchema] | None:
-        if self._accounts is None:
-            return None
-
+    def deposit_accounts(self) -> DataFrame[AccountSchema]:
         return cast(DataFrame[AccountSchema], self._accounts[self._accounts['type'] == AccountType.DEPOSIT.value])
 
     @property
-    def securities_account_transactions(self) -> DataFrame[TransactionSchema] | None:
-        if self._transactions is None:
-            return None
-
+    def securities_account_transactions(self) -> DataFrame[TransactionSchema]:
         return cast(DataFrame[TransactionSchema], self._transactions[self._transactions['accountType'] == AccountType.SECURITIES.value].sort_values(by=['date']))
 
     @property
-    def deposit_account_transactions(self) -> DataFrame[TransactionSchema] | None:
-        if self._transactions is None:
-            return None
-
+    def deposit_account_transactions(self) -> DataFrame[TransactionSchema]:
         return cast(DataFrame[TransactionSchema], self._transactions[self._transactions['accountType'] == AccountType.DEPOSIT.value].sort_values(by=['date']))
 
     @property
-    def securities(self) -> DataFrame[SecuritySchema] | None:
+    def securities(self) -> DataFrame[SecuritySchema]:
         return self._securities
 
     @property
     def prices(self) -> DataFrame[SecurityPriceSchema]:
-        return cast(DataFrame[SecurityPriceSchema], self._prices)
+        return self._prices
 
     @property
     def all_attributes(self) -> dict[str, str]:

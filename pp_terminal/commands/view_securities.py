@@ -23,7 +23,6 @@ from datetime import datetime
 import typer
 
 from pp_terminal.output.column_utils import normalize_columns
-from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import footer
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio import Portfolio
@@ -61,9 +60,6 @@ def print_securities(  # pylint: disable=too-many-locals
             columns = 'SecurityId,Name,Wkn,Currency,Shares,Messages'
 
     securities = portfolio.securities
-    if securities is None:
-        raise InputError("No securities found in portfolio")
-
     snapshot = PortfolioSnapshot(portfolio, by)
     shares = snapshot.shares
 

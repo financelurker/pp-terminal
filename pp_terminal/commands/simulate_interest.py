@@ -42,10 +42,8 @@ log = logging.getLogger(__name__)
 _DAYS_PER_YEAR = 360
 
 
-def calculate_interest(snapshot_begin: PortfolioSnapshot, snapshot_end: PortfolioSnapshot, interest_rate: Percent) -> pd.DataFrame | None:
+def calculate_interest(snapshot_begin: PortfolioSnapshot, snapshot_end: PortfolioSnapshot, interest_rate: Percent) -> pd.DataFrame:
     transactions = snapshot_end.deposit_account_transactions
-    if transactions is None:
-        return None
 
     df = transactions.reset_index(level='date').sort_values(by=['accountId', 'currency', 'date'])
     df = df.groupby(['accountId', 'currency', 'date']).agg({'date': 'min', 'amount': 'sum'})

@@ -22,12 +22,11 @@ from typing import TypedDict
 import logging
 import copy
 
-import pandas as pd
 from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_by_type
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema
+from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema
 
 log = logging.getLogger(__name__)
 
@@ -173,10 +172,10 @@ def calculate_tax_credit_for_lots(
     lots: list[FifoLot],
     security_id: str,
     current_date: datetime,
-    tax_csv_data: pd.DataFrame | None
+    tax_csv_data: DataFrame[TaxPaidSchema] | None
 ) -> Money:
     """
-    Calculate total tax credit on current lots (e.g., Vorabpauschale already paid).
+    Calculate total tax credit on current lots (e.g. Vorabpauschale already paid).
 
     Args:
         lots: Current FIFO lots (after matching sales)
@@ -222,12 +221,11 @@ def calculate_tax_credit_for_lots(
         # Calculate credit for each year
         # pylint: disable=duplicate-code
         # Note: This logic is intentionally shared with simulate_share_sell.py
-        # The simulate_share_sell.py file will be refactored to use this module later
+        # @todo The simulate_share_sell.py file will be refactored to use this module later
         for year in range(first_year, last_year + 1):
             try:
                 tax_per_share = tax_csv_data.loc[(year, account_id, security_id), 'tax_per_share']
             except KeyError:
-                # No data for this year/account/security - use 0.0 silently
                 continue
 
             # For purchase year, prorate by months held
@@ -248,7 +246,7 @@ def calculate_tax_credit_for_lots(
 def calculate_current_cost_basis(
     portfolio: Portfolio,
     security_id: str,
-    tax_csv_data: pd.DataFrame | None = None,
+    tax_csv_data: DataFrame[TaxPaidSchema] | None = None,
     evaluation_date: datetime | None = None
 ) -> Money:
     """

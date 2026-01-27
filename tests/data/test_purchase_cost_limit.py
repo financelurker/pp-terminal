@@ -19,7 +19,9 @@
 # pylint: disable=duplicate-code
 
 import logging
+import tempfile
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -251,11 +253,6 @@ def test_mixed_severities(portfolio_with_purchases_and_sales: Portfolio) -> None
 
 def test_with_tax_csv_reduces_cost(portfolio_with_purchases_and_sales: Portfolio, tmp_path: pytest.TempPathFactory) -> None:
     """Test that tax CSV reduces cost basis calculation."""
-    # pylint: disable=import-outside-toplevel
-    import tempfile
-    from pathlib import Path
-
-    # Write tax CSV to temp file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, dir=str(tmp_path)) as f:
         f.write('date;account_id;security_id;tax_per_share\n')
         f.write('2020;acc-1;sec-a;0.10\n')

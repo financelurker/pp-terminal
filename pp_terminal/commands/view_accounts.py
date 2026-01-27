@@ -117,10 +117,7 @@ def print_accounts(  # pylint: disable=too-many-locals
 
     if columns is None:
         config_columns = get_command_config(config, 'view.accounts.columns')
-        if config_columns:
-            columns = ','.join(config_columns)
-        else:
-            columns = 'AccountId,Name,Type,Balance,Messages'
+        columns = ','.join(config_columns) if config_columns else 'AccountId,Name,Type,Balance,Messages'
 
     snapshot = PortfolioSnapshot(portfolio, by)
 

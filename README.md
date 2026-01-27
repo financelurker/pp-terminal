@@ -17,6 +17,17 @@ too many edge-cases, etc.
 > I am not a tax consultant. All results of this application are just a non-binding indication and without guarantee.
 > They may deviate from the actual values.
 
+1. [Available Commands](#available-commands)
+2. [Requirements](#requirements)
+3. [Installing](#installing)
+4. [Usage](#usage-)
+5. [Contributing](#contributing)
+6. [Known Limitations](#known-limitations-)
+7. [License](#license)
+
+> [!TIP]
+> Using MoneyMoney for managing your finances? Check out my [Sankey Charts Extension](https://github.com/ma4nn/moneymoney-sankey).
+
 ## Available Commands
 
 Code completion for commands and options is available.  

@@ -84,3 +84,11 @@ class SecurityPriceSchema(pa.DataFrameModel):
     date: Index[pa.DateTime]
     securityId: Index[str]
     price: Series[Money]
+
+
+class TaxPaidSchema(pa.DataFrameModel):
+    year: Index[int] = pa.Field(coerce=True)
+    account_id: Index[str]
+    security_id: Index[str]
+    date: Series[pa.DateTime]
+    tax_per_share: Series[Money]

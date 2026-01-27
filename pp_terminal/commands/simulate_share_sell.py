@@ -24,47 +24,24 @@ from typing import TypedDict, Any
 
 import pandas as pd
 import typer
+from pandera.typing import DataFrame
 from typing_extensions import Annotated
 
 from pp_terminal.data.cost_basis import match_sales_to_lots, FifoLot
 from pp_terminal.data.filters import filter_by_type
+from pp_terminal.data.tax import load_paid_taxes_from_csv
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import format_money, footer
 from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.schemas import TransactionType, Percent, Money
+from pp_terminal.domain.schemas import TransactionType, Percent, Money, TaxPaidSchema
 from pp_terminal.output.table_decorator import TableOptions
 
 app = typer.Typer()
 console = Console()
 log = logging.getLogger(__name__)
-
-
-def _load_vorabpauschale_csv(csv_path: Path) -> pd.DataFrame:
-    """
-    Load Vorabpauschale tax data from CSV.
-    Expected format: date;account_id;security_id;tax_per_share
-    Returns DataFrame indexed by (year, account_id, security_id) with tax_per_share values.
-    """
-    try:
-        log.debug('Loading paid tax data from "%s"', csv_path)
-        df = pd.read_csv(csv_path, sep=';', parse_dates=['date'])
-    except FileNotFoundError as e:
-        raise InputError(f"Vorabpauschale CSV file not found: {csv_path}") from e
-    except Exception as e:
-        raise InputError(f"Failed to read Vorabpauschale CSV: {e}") from e
-
-    required_columns = {'date', 'account_id', 'security_id', 'tax_per_share'}
-    if not required_columns.issubset(df.columns):
-        raise InputError(f"CSV missing required columns. Expected: {required_columns}, Got: {set(df.columns)}")
-
-    # Extract year from date and create multi-index
-    df['year'] = df['date'].dt.year
-    df = df.set_index(['year', 'account_id', 'security_id'])
-
-    return df[['tax_per_share']]
 
 
 class TaxBreakdown(TypedDict):
@@ -152,18 +129,18 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals
     return lots_to_return
 
 
-def _calculate_vorabpauschale_for_lot(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+def _calculate_paid_taxes_for_lot(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         lot: FifoLot,
         sale_date: datetime,
         account_id: str,
         security_id: str,
-        vorab_csv_data: pd.DataFrame | None
+        tax_csv_data: DataFrame[TaxPaidSchema] | None
 ) -> Money:
     """
     Calculate Vorabpauschale credit for a single FIFO lot.
     Uses per-share tax data from CSV, prorated by months held in purchase year.
     """
-    if vorab_csv_data is None or vorab_csv_data.empty:
+    if tax_csv_data is None or tax_csv_data.empty:
         return 0.0
 
     purchase_date = lot['purchase_date']
@@ -183,9 +160,8 @@ def _calculate_vorabpauschale_for_lot(  # pylint: disable=too-many-arguments,too
     for year in range(first_year, last_year + 1):
         # Look up tax_per_share for this year/account/security
         try:
-            tax_per_share = vorab_csv_data.loc[(year, account_id, security_id), 'tax_per_share']
+            tax_per_share = tax_csv_data.loc[(year, account_id, security_id), 'tax_per_share']
         except KeyError:
-            # No data for this year/account/security - use 0.0 silently
             continue
 
         # For purchase year, prorate by months held
@@ -207,7 +183,7 @@ def _calculate_vorabpauschale_credit_for_lots(  # pylint: disable=too-many-argum
         security_id: str,
         fifo_lots: list[FifoLot],
         sale_date: datetime,
-        vorab_csv_data: pd.DataFrame | None
+        vorab_csv_data: DataFrame[TaxPaidSchema] | None
 ) -> Money:
     """
     Calculate total Vorabpauschale credit for all lots being sold.
@@ -216,7 +192,7 @@ def _calculate_vorabpauschale_credit_for_lots(  # pylint: disable=too-many-argum
         return 0.0
 
     return sum(
-        _calculate_vorabpauschale_for_lot(lot, sale_date, account_id, security_id, vorab_csv_data)
+        _calculate_paid_taxes_for_lot(lot, sale_date, account_id, security_id, vorab_csv_data)
         for lot in fifo_lots
     )
 
@@ -264,7 +240,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     if date is None:
         date = get_today()
 
-    vorab_csv_data = _load_vorabpauschale_csv(tax_csv) if tax_csv else None
+    vorab_csv_data = load_paid_taxes_from_csv(tax_csv) if tax_csv else None
 
     # Look up security by WKN
     security_match = portfolio.securities[portfolio.securities['wkn'] == wkn]
@@ -362,7 +338,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         'Cost Basis': [lot['cost_basis'] for lot in fifo_lots],
         'Capital Gain': [lot['capital_gain'] for lot in fifo_lots],
         'Taxes Already Paid': [
-            _calculate_vorabpauschale_for_lot(lot, date, account_id, security_id, vorab_csv_data)
+            _calculate_paid_taxes_for_lot(lot, date, account_id, security_id, vorab_csv_data)
             for lot in fifo_lots
         ],
         'currency': [currency] * len(fifo_lots)

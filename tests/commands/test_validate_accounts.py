@@ -116,25 +116,11 @@ def test_entity_specific_rule(sample_portfolio_with_limits: Portfolio) -> None:
     assert exc_info.value.exit_code == 1
 
 
-def test_first_match_wins(sample_portfolio_with_limits: Portfolio) -> None:
-    """Test that rules are evaluated in array order (first match wins)."""
-    ctx = Mock()
-    ctx.invoked_subcommand = None
-    ctx.obj = SimpleNamespace(
-        portfolio=sample_portfolio_with_limits,
-        config={'commands': {'validate': {'accounts': {'rules': [
-            {'type': 'balance-limit', 'value': 1100.0, 'applies-to': ['account-1']},
-            {'type': 'balance-limit', 'value': 900.0}
-        ]}}}}
-    )
-    log_validate_accounts(ctx)
-
-
 def test_attribute_based_rule(sample_portfolio_with_limits: Portfolio) -> None:
     """Test balance-limit-from-attribute rule type."""
     test_attr_uuid = 'test-attr-uuid-12345'
-    sample_portfolio_with_limits._accounts[test_attr_uuid] = pd.Series({  # type: ignore[index]  # pylint: disable=protected-access
-        'account-1': 1200.0,
+    sample_portfolio_with_limits._accounts[test_attr_uuid] = pd.Series({  # pylint: disable=protected-access
+        'account-1': 1000.0,
     })
 
     ctx = Mock()
@@ -143,12 +129,15 @@ def test_attribute_based_rule(sample_portfolio_with_limits: Portfolio) -> None:
         portfolio=sample_portfolio_with_limits,
         config={
             'commands': {'validate': {'accounts': {'rules': [
-                {'type': 'balance-limit-from-attribute', 'value': test_attr_uuid},
-                {'type': 'balance-limit', 'value': 900.0}
+                {'type': 'balance-limit-from-attribute', 'value': test_attr_uuid}
             ]}}}
         }
     )
-    log_validate_accounts(ctx)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        log_validate_accounts(ctx)
+
+    assert exc_info.value.exit_code == 1
 
 
 def test_warning_severity(sample_portfolio_with_limits: Portfolio) -> None:
@@ -211,7 +200,7 @@ def test_date_passed_with_friendly_name(sample_portfolio_with_limits: Portfolio,
     caplog.set_level(logging.ERROR)
 
     test_attr_uuid = 'test-date-attr-uuid-12345'
-    sample_portfolio_with_limits._accounts[test_attr_uuid] = pd.Series({  # type: ignore[index]  # pylint: disable=protected-access
+    sample_portfolio_with_limits._accounts[test_attr_uuid] = pd.Series({  # pylint: disable=protected-access
         'account-1': datetime(2020, 1, 1),
     })
 

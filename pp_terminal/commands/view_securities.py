@@ -54,10 +54,7 @@ def print_securities(  # pylint: disable=too-many-locals
 
     if columns is None:
         config_columns = get_command_config(config, 'view.securities.columns')
-        if config_columns:
-            columns = ','.join(config_columns)
-        else:
-            columns = 'SecurityId,Name,Wkn,Currency,Shares,Messages'
+        columns = ','.join(config_columns) if config_columns else 'SecurityId,Name,Wkn,Currency,Shares,Messages'
 
     securities = portfolio.securities
     snapshot = PortfolioSnapshot(portfolio, by)

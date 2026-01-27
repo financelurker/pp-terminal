@@ -19,11 +19,16 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
+from pathlib import Path
 from typing import Any, cast
 import logging
 import pandas as pd
+from pandera.typing import DataFrame
 
+from pp_terminal.data.cost_basis import calculate_current_cost_basis
+from pp_terminal.data.tax import load_paid_taxes_from_csv
 from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.schemas import TaxPaidSchema
 
 log = logging.getLogger(__name__)
 
@@ -186,7 +191,7 @@ class PurchaseCostLimitRule(ValidationRule):
 
         # Load tax CSV and calculate cost basis
         tax_csv_data = self._load_tax_csv(context)
-        current_cost = self._calculate_cost_basis(portfolio, entity_id, tax_csv_data)
+        current_cost = calculate_current_cost_basis(portfolio, entity_id, tax_csv_data)
 
         if current_cost > limit:
             currency = entity.get('currency', 'EUR')
@@ -197,36 +202,15 @@ class PurchaseCostLimitRule(ValidationRule):
         return False, None
 
     @staticmethod
-    def _load_tax_csv(context: dict[str, Any]) -> Any:
+    def _load_tax_csv(context: dict[str, Any]) -> DataFrame[TaxPaidSchema] | None:
         """Load tax credit CSV from config if available."""
         config = context.get('config', {})
-        tax_config = config.get('tax', {})
-        tax_csv_path = tax_config.get('file')
+        tax_csv_path = config.get('tax', {}).get('file')
 
         if not tax_csv_path:
             return None
 
-        # pylint: disable=import-outside-toplevel
-        from pathlib import Path
-        from pp_terminal.commands.simulate_share_sell import _load_vorabpauschale_csv
-
-        try:
-            return _load_vorabpauschale_csv(Path(tax_csv_path))
-        except Exception as e:  # pylint: disable=broad-except
-            log.warning('Failed to load tax CSV from %s: %s', tax_csv_path, e)
-            return None
-
-    @staticmethod
-    def _calculate_cost_basis(portfolio: Portfolio, entity_id: str, tax_csv_data: Any) -> float:
-        """Calculate current cost basis for security."""
-        # pylint: disable=import-outside-toplevel
-        from pp_terminal.data.cost_basis import calculate_current_cost_basis
-
-        return calculate_current_cost_basis(
-            portfolio,
-            entity_id,
-            tax_csv_data=tax_csv_data
-        )
+        return load_paid_taxes_from_csv(Path(tax_csv_path))
 
 
 RULE_TYPES = {

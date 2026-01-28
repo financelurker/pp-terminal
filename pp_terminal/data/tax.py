@@ -23,39 +23,38 @@ from typing import cast
 
 import pandas as pd
 import typer
+from pandera.errors import SchemaError
 from pandera.typing import DataFrame
 
 from pp_terminal.exceptions import InputError
 from pp_terminal.output.strategy import Console
-from pp_terminal.domain.schemas import TaxPaidSchema
+from pp_terminal.domain.schemas import TaxPaidSchema, Percent
 
 app = typer.Typer()
 console = Console()
 log = logging.getLogger(__name__)
 
 
-def load_paid_taxes_from_csv(csv_path: Path) -> DataFrame[TaxPaidSchema]:
+def load_prepaid_tax_data_from_csv(csv_path: Path, tax_rate: Percent) -> DataFrame[TaxPaidSchema]:
     """
     Load paid tax data from CSV (e.g. "Vorabpauschale").
-    Expected format: date;account_id;security_id;tax_per_share
     """
     log.debug('Loading paid tax data from "%s"', csv_path)
 
     try:
         df = pd.read_csv(csv_path, sep=';', parse_dates=['date'])
     except FileNotFoundError as e:
-        raise InputError(f"Paid tax data CSV file not found: {csv_path}") from e
+        raise InputError(f"Prepaid tax data CSV file not found: {csv_path}") from e
     except Exception as e:
-        raise InputError(f"Failed to read paid tax data CSV: {e}") from e
+        raise InputError(f"Failed to read prepaid tax data CSV: {e}") from e
 
-    required_columns = {'date', 'account_id', 'security_id', 'tax_per_share'}
-    if not required_columns.issubset(df.columns):
-        raise InputError(f"CSV missing required columns. Expected: {required_columns}, Got: {set(df.columns)}")
-
-    # Extract year from date and create multi-index
     df['year'] = df['date'].dt.year
+    df['tax_per_share'] = df['deemed_income_base_per_share'] * tax_rate
     df = df.set_index(['year', 'account_id', 'security_id'])
 
-    TaxPaidSchema.validate(df)
+    try:
+        TaxPaidSchema.validate(df)
+    except SchemaError as e:
+        raise InputError(f"Prepaid tax data CSV is missing required columns: {e}") from e
 
-    return cast(DataFrame[TaxPaidSchema], df[['tax_per_share']])
+    return cast(DataFrame[TaxPaidSchema], df[['tax_per_share', 'tax_free_allowance']])

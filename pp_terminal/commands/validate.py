@@ -20,12 +20,14 @@
 import logging
 from datetime import datetime
 from functools import wraps
-from typing import Callable, Any
+from typing import Callable, Any, cast
 
 import typer
 from typer.models import CommandFunctionType
 
+from pp_terminal.domain.portfolio import Portfolio, get_security_by_id
 from pp_terminal.exceptions import ValidationError
+from pp_terminal.utils.config import Config
 from pp_terminal.utils.helper import run_all_group_cmds
 from pp_terminal.output.strategy import Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
@@ -65,8 +67,8 @@ def catch_errors(func: CommandFunctionType) -> Callable[..., CommandFunctionType
 @catch_errors
 def log_validate_securities(ctx: typer.Context) -> None:
     """Validate security prices."""
-    portfolio = ctx.obj.portfolio
-    config = ctx.obj.config
+    portfolio = cast(Portfolio, ctx.obj.portfolio)
+    config = cast(Config, ctx.obj.config)
 
     results = validate_securities(portfolio, config)
 
@@ -79,10 +81,10 @@ def log_validate_securities(ctx: typer.Context) -> None:
         if not result.violations:
             continue
 
-        security_name = portfolio.securities.loc[security_id, 'name']
+        security = get_security_by_id(portfolio, security_id)
 
         for rule, message in result.violations:
-            full_message = f'Security "{security_name}" ({security_id}) {message}'
+            full_message = f'Security "{security.name}" ({security_id}) {message}'
             rule.log_violation(full_message)
             if rule.is_error():
                 has_errors = True
@@ -95,8 +97,8 @@ def log_validate_securities(ctx: typer.Context) -> None:
 @catch_errors
 def log_validate_accounts(ctx: typer.Context) -> None:
     """Validate deposit accounts using configured validation rules."""
-    portfolio = ctx.obj.portfolio
-    config = ctx.obj.config
+    portfolio = cast(Portfolio, ctx.obj.portfolio)
+    config = cast(Config, ctx.obj.config)
 
     snapshot = PortfolioSnapshot(portfolio, datetime.now())
     results = validate_accounts(portfolio, snapshot, config)

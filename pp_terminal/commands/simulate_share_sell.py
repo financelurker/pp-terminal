@@ -20,7 +20,7 @@
 from datetime import datetime
 import logging
 from pathlib import Path
-from typing import TypedDict, Any
+from typing import TypedDict, cast
 
 import pandas as pd
 import typer
@@ -29,13 +29,13 @@ from typing_extensions import Annotated
 
 from pp_terminal.data.cost_basis import match_sales_to_lots, FifoLot
 from pp_terminal.data.filters import filter_by_type
-from pp_terminal.data.tax import load_paid_taxes_from_csv
+from pp_terminal.data.tax import load_prepaid_tax_data_from_csv
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import format_money, footer
 from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.portfolio import Portfolio, get_securities_account_by_id, get_security_by_id
 from pp_terminal.domain.schemas import TransactionType, Percent, Money, TaxPaidSchema
 from pp_terminal.output.table_decorator import TableOptions
 
@@ -129,7 +129,7 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals
     return lots_to_return
 
 
-def _calculate_paid_taxes_for_lot(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+def _calculate_prepaid_taxes_for_lot(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         lot: FifoLot,
         sale_date: datetime,
         account_id: str,
@@ -158,7 +158,6 @@ def _calculate_paid_taxes_for_lot(  # pylint: disable=too-many-arguments,too-man
 
     # Calculate credit for each year
     for year in range(first_year, last_year + 1):
-        # Look up tax_per_share for this year/account/security
         try:
             tax_per_share = tax_csv_data.loc[(year, account_id, security_id), 'tax_per_share']
         except KeyError:
@@ -178,12 +177,12 @@ def _calculate_paid_taxes_for_lot(  # pylint: disable=too-many-arguments,too-man
     return credit
 
 
-def _calculate_vorabpauschale_credit_for_lots(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+def _calculate_prepaid_taxes_for_lots(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         account_id: str,
         security_id: str,
         fifo_lots: list[FifoLot],
         sale_date: datetime,
-        vorab_csv_data: DataFrame[TaxPaidSchema] | None
+        tax_csv_data: DataFrame[TaxPaidSchema] | None
 ) -> Money:
     """
     Calculate total Vorabpauschale credit for all lots being sold.
@@ -192,7 +191,7 @@ def _calculate_vorabpauschale_credit_for_lots(  # pylint: disable=too-many-argum
         return 0.0
 
     return sum(
-        _calculate_paid_taxes_for_lot(lot, sale_date, account_id, security_id, vorab_csv_data)
+        _calculate_prepaid_taxes_for_lot(lot, sale_date, account_id, security_id, tax_csv_data)
         for lot in fifo_lots
     )
 
@@ -222,7 +221,7 @@ def get_today() -> datetime:
 @app.command(name="share-sell")
 def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-statements,too-many-branches
         ctx: typer.Context,
-        wkn: Annotated[str, typer.Option(help="Security WKN (Wertpapierkennnummer)", prompt="Security WKN", prompt_required=True)],
+        security_id: Annotated[str, typer.Option(prompt="Security ID", prompt_required=True)],
         account_id: Annotated[str, typer.Option(help="Securities account ID", prompt="Account ID", prompt_required=True)],
         date: Annotated[datetime | None, typer.Option(formats=["%Y-%m-%d"], help="Sale date (defaults to today)", prompt="Sale date (YYYY-MM-DD)", prompt_required=False)] = None,
         tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, callback=tax_rate_callback)] = None,  # type: ignore
@@ -234,35 +233,19 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     Simulate selling shares: calculate fees, taxes (Abgeltungssteuer + Soli), and net proceeds.
     Uses FIFO cost basis and accounts for taxes already paid.
     """
-    portfolio = ctx.obj.portfolio  # type: Portfolio
-    output = ctx.obj.output  # type: OutputStrategy
+    portfolio = cast(Portfolio, ctx.obj.portfolio)
+    output = cast(OutputStrategy, ctx.obj.output)
 
     if date is None:
         date = get_today()
 
-    vorab_csv_data = load_paid_taxes_from_csv(tax_csv) if tax_csv else None
+    tax_csv_data = load_prepaid_tax_data_from_csv(tax_csv, tax_rate) if tax_csv else None
 
-    # Look up security by WKN
-    security_match = portfolio.securities[portfolio.securities['wkn'] == wkn]
-    if security_match.empty:
-        raise InputError(f"Security with WKN '{wkn}' not found in portfolio")
-
-    security_id = security_match.index[0]
-    security_info = security_match.iloc[0]
-    security_name = security_info['name']
-    security_wkn = security_info['wkn']
-
-    # Validate account exists and is a securities account
-    if account_id not in portfolio.securities_accounts.index:
-        raise InputError(f"Securities account '{account_id}' not found in portfolio")
-
-    account_info = portfolio.securities_accounts.loc[account_id]
-    account_name = account_info['name']
-
+    security = get_security_by_id(portfolio, security_id)
+    account = get_securities_account_by_id(portfolio, account_id)
     snapshot = PortfolioSnapshot(portfolio, date)
 
     # Determine sale price
-    currency = security_info['currency']
     if price is None:
         latest_prices = snapshot.latest_prices
         if security_id not in latest_prices.index:
@@ -286,7 +269,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
             break
 
     if holding_key is None:
-        raise InputError(f"No shares of '{security_name}' found in account '{account_name}' on {date.strftime('%Y-%m-%d')}")
+        raise InputError(f"No shares of '{security.name}' found in account '{account.name}' on {date.strftime('%Y-%m-%d')}")
 
     available_shares = shares_available[holding_key]
 
@@ -302,16 +285,16 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     total_capital_gain = sum(lot['capital_gain'] for lot in fifo_lots)
     gross_proceeds = shares * sale_price
 
-    vorabpauschale_credit = _calculate_vorabpauschale_credit_for_lots(
-        account_id, security_id, fifo_lots, date, vorab_csv_data
+    taxes_paid = _calculate_prepaid_taxes_for_lots(
+        account_id, security_id, fifo_lots, date, tax_csv_data
     )
 
-    taxes = _calculate_taxes(total_capital_gain, vorabpauschale_credit, tax_rate)
+    taxes = _calculate_taxes(total_capital_gain, taxes_paid, tax_rate)
     net_proceeds = gross_proceeds - taxes['total_tax']
 
     effective_tax_rate = (taxes['total_tax'] / gross_proceeds * 100) if gross_proceeds > 0 else 0
 
-    summary_data = {
+    summary_df = pd.DataFrame({
         'Description': [
             'Gross Proceeds',
             'Total Cost Basis',
@@ -322,47 +305,32 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         'amount': [
             gross_proceeds,
             -total_cost_basis,
-            -vorabpauschale_credit,
+            -taxes_paid,
             taxes['total_tax'],
             net_proceeds
         ],
-        'currency': [currency] * 5
-    }
-    summary_df = pd.DataFrame(summary_data)
+        'currency': [security.currency] * 5
+    })
 
     # Format output - FIFO Lots (use numeric types for proper alignment and totals)
-    lots_data = {
+    lots_df = pd.DataFrame({
         'Purchase Date': [lot['purchase_date'].strftime('%Y-%m-%d') for lot in fifo_lots],
         'Shares': [lot['shares'] for lot in fifo_lots],
         'Purchase Price': [lot['purchase_price'] for lot in fifo_lots],
         'Cost Basis': [lot['cost_basis'] for lot in fifo_lots],
         'Capital Gain': [lot['capital_gain'] for lot in fifo_lots],
         'Taxes Already Paid': [
-            _calculate_paid_taxes_for_lot(lot, date, account_id, security_id, vorab_csv_data)
+            _calculate_prepaid_taxes_for_lot(lot, date, account_id, security_id, tax_csv_data)
             for lot in fifo_lots
         ],
-        'currency': [currency] * len(fifo_lots)
-    }
-    lots_df = pd.DataFrame(lots_data)
+        'currency': [security.currency] * len(fifo_lots)
+    })
 
-    # Custom formatter for FIFO lots - exclude currency for Shares, skip Purchase Price total
-    def format_lots_value(value: Any, col_name: str, row: pd.Series) -> str:
-        # Skip Purchase Price total (summing prices is meaningless)
-        if col_name == 'Purchase Price' and 'Purchase Date' in row and row['Purchase Date'] == 'Total':
-            return ''
-        # Don't format shares with currency
-        if col_name == 'Shares':
-            return f"{float(value):.2f}"
-        # Regular currency formatting for other columns
-        if col_name in ['Purchase Price', 'Cost Basis', 'Capital Gain', 'Vorabpauschale']:
-            return format_money(float(value), row['currency'])
-        return str(value)
-
-    console.print(output.text(f"\n[bold]Security:[/bold] {security_name} ({security_wkn})"))
-    console.print(output.text(f"[bold]Account:[/bold] {account_name}"))
+    console.print(output.text(f"\n[bold]Security:[/bold] {security.name} ({security.wkn})"))
+    console.print(output.text(f"[bold]Account:[/bold] {account.name}"))
     console.print(output.text(f"[bold]Shares:[/bold] {shares}"))
     console.print(output.text(f"[bold]Sale Date:[/bold] {date.strftime('%Y-%m-%d')}"))
-    console.print(output.text(f"[bold]Sale Price (per share):[/bold] {format_money(sale_price, currency)}"))
+    console.print(output.text(f"[bold]Sale Price (per share):[/bold] {format_money(sale_price, security.currency)}"))
 
     console.print(*output.result_table(
         summary_df,
@@ -371,8 +339,8 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
 
     console.print(*output.result_table(
         lots_df,
-        TableOptions(title="FIFO Lots Breakdown", show_index=False, show_total=True, value_formatter=format_lots_value)
+        TableOptions(title="FIFO Lots Breakdown", show_index=False, show_total=True)
     ))
 
-    console.print(output.warning(f'This simulation assumes all values are in security currency ({currency}) excl. Sparerpauschbetrag.'))
+    console.print(output.warning(f'This simulation assumes all values are in security currency ({security.currency}) excl. Sparerpauschbetrag.'))
     console.print(output.text(footer()), style="dim")

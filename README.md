@@ -222,9 +222,15 @@ and efficiently held in [pandas dataframes](https://pandas.pydata.org/).
 
 If your command makes sense for a broader audience, I'm happy to accept a [pull request](#propose-changes).
 
-## Known Limitations 🚧
+## Issues 🚧
 
-- The script is still in beta version, so there might be Portfolio Performance files that are not compatible with and also public APIs can change
+> [!INFO]
+> The script is still in beta version, so there might be Portfolio Performance files that are not compatible with and also public APIs can change.
+
+In case you are experiencing any problems: 
+1. Create an anonymized version of your portfolio with `pp-terminal export anonymized` (verify!)
+2. Add the `--verbose` option to the command that is causing the issue
+3. And [submit a new issue](https://github.com/ma4nn/pp-terminal/issues/new) and include the results from steps 1. and 2.
 
 ## License
 

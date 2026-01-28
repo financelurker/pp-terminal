@@ -42,7 +42,7 @@ app.add_typer(typer.Typer(no_args_is_help=True), name="simulate")
 app.add_typer(typer.Typer(no_args_is_help=True), name="view")
 app.add_typer(typer.Typer(no_args_is_help=True), name="export")
 
-# init default logging (this is e.g. import for errors during command plugin load
+# init default logging (this is e.g. import for errors during command plugin load)
 logging.basicConfig(level=logging.WARN, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=False, show_time=False, show_path=False)])
 log = logging.getLogger(__name__)
 

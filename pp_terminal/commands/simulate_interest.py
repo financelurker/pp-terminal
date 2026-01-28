@@ -19,7 +19,7 @@
 
 import logging
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 import numpy as np
 import pandas as pd
@@ -88,8 +88,8 @@ def simulate_interest_rate(
     Simulate a given interest rate for a deposit account.
     """
 
-    portfolio = ctx.obj.portfolio  # type: Portfolio
-    output = ctx.obj.output  # type: OutputStrategy
+    portfolio = cast(Portfolio, ctx.obj.portfolio)
+    output = cast(OutputStrategy, ctx.obj.output)
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(year.year, 1, 1))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(year.year, 12, 31))

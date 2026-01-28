@@ -19,12 +19,15 @@
 
 import logging
 from pathlib import Path
+from typing import cast
 
 from rich.console import Console
 import typer
 
 from pp_terminal.data.xml_anonymizer import XmlAnonymizer
 from pp_terminal.exceptions import InputError
+from pp_terminal.output.strategy import OutputStrategy
+from pp_terminal.utils.config import Config
 from pp_terminal.utils.config import get_command_config
 
 app = typer.Typer()
@@ -56,9 +59,9 @@ def export_anonymized(
     Use the same seed to get reproducible anonymization.
     """
 
-    input_file = ctx.obj.file_path
-    output = ctx.obj.output
-    config = ctx.obj.config
+    input_file = cast(Path, ctx.obj.file_path)
+    output = cast(OutputStrategy, ctx.obj.output)
+    config = cast(Config, ctx.obj.config)
 
     if output_file.exists():
         raise InputError(f"Output file {output_file} already exists")

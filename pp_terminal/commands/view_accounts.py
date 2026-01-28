@@ -19,21 +19,22 @@
 
 import logging
 from datetime import datetime
+from typing import cast
 
 import pandas as pd
 import typer
 
+from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.output.column_utils import normalize_columns
 from pp_terminal.data.filters import unstack_column_by_currency
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import footer
 from pp_terminal.output.strategy import OutputStrategy, Console
-from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.schemas import AccountType
 from pp_terminal.output.table_decorator import TableOptions
 from pp_terminal.validation.engine import validate_accounts, ValidationResult
-from pp_terminal.utils.config import get_command_config
+from pp_terminal.utils.config import get_command_config, Config
 
 app = typer.Typer()
 console = Console()
@@ -111,9 +112,9 @@ def print_accounts(  # pylint: disable=too-many-locals
     Show a detailed table with the current balance per deposit account.
     """
 
-    portfolio = ctx.obj.portfolio  # type: Portfolio
-    output = ctx.obj.output  # type: OutputStrategy
-    config = ctx.obj.config
+    portfolio = cast(Portfolio, ctx.obj.portfolio)
+    output = cast(OutputStrategy, ctx.obj.output)
+    config = cast(Config, ctx.obj.config)
 
     if columns is None:
         config_columns = get_command_config(config, 'view.accounts.columns')

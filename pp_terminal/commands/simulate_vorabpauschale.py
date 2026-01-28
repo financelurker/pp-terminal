@@ -19,7 +19,7 @@
 
 from datetime import datetime
 import logging
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 import typer
@@ -27,6 +27,7 @@ from typing_extensions import Annotated
 import numpy as np
 
 from pp_terminal.data.filters import filter_by_type, drop_empty_values
+from pp_terminal.utils.config import Config
 from pp_terminal.utils.helper import get_last_year, footer
 from pp_terminal.utils.options import tax_rate_callback, exemption_rate_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
@@ -276,9 +277,9 @@ def print_tax_table(  # pylint: disable=too-many-locals
     Print a detailed table with calculated German preliminary tax values ("Vorabpauschale") for a specified year, per each security and account.
     """
 
-    portfolio = ctx.obj.portfolio  # type: Portfolio
-    output = ctx.obj.output  # type: OutputStrategy
-    config = ctx.obj.config
+    portfolio = cast(Portfolio, ctx.obj.portfolio)
+    output = cast(OutputStrategy, ctx.obj.output)
+    config = cast(Config, ctx.obj.config)
 
     exempt_rate_uuid = None
     if config:

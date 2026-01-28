@@ -27,7 +27,7 @@ from pp_terminal.domain.schemas import AccountType
 from pp_terminal.commands.simulate_share_sell import (
     _calculate_fifo_lots,
     _calculate_taxes,
-    _calculate_vorabpauschale_credit_for_lots
+    _calculate_prepaid_taxes_for_lots
 )
 from pp_terminal.exceptions import InputError
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
@@ -108,7 +108,7 @@ def test_no_vorabpauschale_credit_same_year_sale(partial_sell_portfolio: Portfol
     lots = _calculate_fifo_lots(snapshot, account_id, security_id, 10.0, 50.0)
 
     # No Vorabpauschale credit for same-year sale (no CSV provided)
-    credit = _calculate_vorabpauschale_credit_for_lots(
+    credit = _calculate_prepaid_taxes_for_lots(
         account_id, security_id, lots, datetime(2023, 12, 30), None
     )
 
@@ -284,7 +284,7 @@ def test_vorabpauschale_csv_calculation(partial_sell_portfolio: Portfolio) -> No
     lots = _calculate_fifo_lots(snapshot, account_id, security_id, 50.0, 60.0)
 
     # Calculate credit
-    credit = _calculate_vorabpauschale_credit_for_lots(
+    credit = _calculate_prepaid_taxes_for_lots(
         account_id, security_id, lots, datetime(2025, 3, 1), csv_data
     )
 
@@ -313,7 +313,7 @@ def test_vorabpauschale_csv_missing_data(partial_sell_portfolio: Portfolio) -> N
 
     lots = _calculate_fifo_lots(snapshot, account_id, security_id, 50.0, 60.0)
 
-    credit = _calculate_vorabpauschale_credit_for_lots(
+    credit = _calculate_prepaid_taxes_for_lots(
         account_id, security_id, lots, datetime(2025, 3, 1), csv_data
     )
 

@@ -61,10 +61,16 @@ def camel_case_to_title(column_name: str) -> str:
 
 
 def format_value(value: Any, column_name: str, row: pd.Series) -> str:
-    if column_name == 'shares' and isinstance(value, float):
+    if column_name.lower() == 'shares' and isinstance(value, float):
         return format_shares(value)
+
+    # Skip Purchase Price total (summing prices is meaningless)
+    if column_name == 'Purchase Price' and 'Purchase Date' in row and row['Purchase Date'] == 'Total':
+        return ''
+
     if isinstance(value, Money):
         return format_money(float(value), row['currency'] if 'currency' in row else column_name)
+
     return str(value)
 
 

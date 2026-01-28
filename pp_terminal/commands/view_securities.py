@@ -19,10 +19,12 @@
 
 import logging
 from datetime import datetime
+from typing import cast
 
 import typer
 
 from pp_terminal.output.column_utils import normalize_columns
+from pp_terminal.utils.config import Config
 from pp_terminal.utils.helper import footer
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio import Portfolio
@@ -48,9 +50,9 @@ def print_securities(  # pylint: disable=too-many-locals
     Show a detailed table with all securities and their IDs.
     """
 
-    portfolio = ctx.obj.portfolio  # type: Portfolio
-    output = ctx.obj.output  # type: OutputStrategy
-    config = ctx.obj.config
+    portfolio = cast(Portfolio, ctx.obj.portfolio)
+    output = cast(OutputStrategy, ctx.obj.output)
+    config = cast(Config, ctx.obj.config)
 
     if columns is None:
         config_columns = get_command_config(config, 'view.securities.columns')

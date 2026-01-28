@@ -92,3 +92,5 @@ class TaxPaidSchema(pa.DataFrameModel):
     security_id: Index[str]
     date: Series[pa.DateTime]
     tax_per_share: Series[Money]
+    deemed_income_base_per_share: Series[Money]
+    tax_free_allowance: Series[Money] = pa.Field(nullable=True, coerce=True)

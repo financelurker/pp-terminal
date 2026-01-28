@@ -26,7 +26,7 @@ import pandas as pd
 from pandera.typing import DataFrame
 
 from pp_terminal.data.cost_basis import calculate_current_cost_basis
-from pp_terminal.data.tax import load_paid_taxes_from_csv
+from pp_terminal.data.tax import load_prepaid_tax_data_from_csv
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TaxPaidSchema
 
@@ -186,10 +186,8 @@ class PurchaseCostLimitRule(ValidationRule):
         portfolio = cast(Portfolio, context.get('portfolio'))
 
         if portfolio is None:
-            log.warning('No portfolio in context for purchase-cost-limit validation')
-            return False, None
+            raise RuntimeError('No portfolio in context for purchase-cost-limit validation')
 
-        # Load tax CSV and calculate cost basis
         tax_csv_data = self._load_tax_csv(context)
         current_cost = calculate_current_cost_basis(portfolio, entity_id, tax_csv_data)
 
@@ -206,11 +204,12 @@ class PurchaseCostLimitRule(ValidationRule):
         """Load tax credit CSV from config if available."""
         config = context.get('config', {})
         tax_csv_path = config.get('tax', {}).get('file')
+        tax_rate = config.get('tax', {}).get('rate', 0)
 
         if not tax_csv_path:
             return None
 
-        return load_paid_taxes_from_csv(Path(tax_csv_path))
+        return load_prepaid_tax_data_from_csv(Path(tax_csv_path), tax_rate)
 
 
 RULE_TYPES = {

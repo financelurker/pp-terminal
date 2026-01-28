@@ -22,16 +22,18 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
+from pandera.typing import DataFrame
 
 from pp_terminal.data.cost_basis import (
     calculate_purchase_lots,
     match_sales_to_lots,
-    calculate_tax_credit_for_lots,
+    calculate_prepaid_tax_for_lots,
     calculate_current_cost_basis,
     FifoLot
 )
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.schemas import AccountType, TransactionType
+from pp_terminal.domain.schemas import AccountType, TransactionType, TaxPaidSchema, AccountSchema, SecuritySchema, \
+    TransactionSchema
 
 
 @pytest.fixture(name='portfolio_with_purchases')
@@ -93,36 +95,36 @@ def provide_portfolio_with_sales(portfolio_with_purchases: Portfolio) -> Portfol
 
 
 @pytest.fixture(name='tax_csv_data')
-def provide_tax_csv_data() -> pd.DataFrame:
+def provide_tax_csv_data() -> DataFrame[TaxPaidSchema]:
     """Tax CSV data with taxes paid per share."""
-    data = pd.DataFrame([
-        [2020, 'acc-1', 'sec-1', 0.05],  # €0.05 per share in 2020
-        [2021, 'acc-1', 'sec-1', 0.06],  # €0.06 per share in 2021
-        [2021, 'acc-2', 'sec-1', 0.06],  # €0.06 per share in 2021
-        [2022, 'acc-1', 'sec-1', 0.07],  # €0.07 per share in 2022
-    ], columns=['year', 'account_id', 'security_id', 'tax_per_share'])
-    return data.set_index(['year', 'account_id', 'security_id'])
+    data = DataFrame[TaxPaidSchema]([
+        [0.05, 0],
+        [0.06, 0],
+        [0.06, 0],
+        [0.07, 0],
+    ], columns=['deemed_income_base_per_share', 'tax_free_allowance'],
+        index=pd.MultiIndex.from_arrays([[2020, 2021, 2021, 2022], ['acc-1', 'acc-1', 'acc-2', 'acc-1'], ['sec-1', 'sec-1', 'sec-1', 'sec-1']]))
+
+    return data
 
 
-class TestCalculatePurchaseLots:
-    """Test calculate_purchase_lots() function."""
-
+class TestCalculatePurchaseLots:  # @todo separate file
     def test_single_purchase(self) -> None:
         """Test with single purchase transaction."""
-        accounts = pd.DataFrame([
+        accounts = DataFrame[AccountSchema]([
             ['Account 1', AccountType.SECURITIES.value, None, False, 'EUR'],
         ], columns=['name', 'type', 'referenceAccount', 'isRetired', 'currency'], index=['acc-1'])
         accounts.index.name = 'accountId'
 
-        securities = pd.DataFrame([
+        securities = DataFrame[SecuritySchema]([
             ['Test Security', 'XXX', 'ISIN123', None, False, 'EUR'],
         ], columns=['name', 'wkn', 'isin', 'note', 'isRetired', 'currency'], index=['sec-1'])
         securities.index.name = 'securityId'
 
-        transactions = pd.DataFrame([
-            [datetime(2020, 1, 15), 'acc-1', 'sec-1', TransactionType.BUY.value, -1000.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0],
-        ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
-        transactions = transactions.set_index(['date', 'accountId', 'securityId'])
+        transactions = DataFrame[TransactionSchema]([
+            [TransactionType.BUY.value, -1000.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0],
+        ], columns=['type', 'amount', 'shares', 'accountType', 'currency', 'taxes'],
+            index=pd.MultiIndex.from_arrays([[datetime(2020, 1, 15)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 
         portfolio = Portfolio(accounts=accounts, transactions=transactions, securities=securities, prices=None)
 
@@ -206,8 +208,7 @@ class TestCalculatePurchaseLots:
         assert len(lots) == 0
 
 
-class TestMatchSalesToLots:
-    """Test match_sales_to_lots() function."""
+class TestMatchSalesToLots:  # @todo separate file
 
     def test_partial_lot_consumption(self) -> None:
         """Test that sales partially consume lots in FIFO order."""
@@ -379,9 +380,7 @@ class TestMatchSalesToLots:
         assert lots[0]['shares'] == original_shares  # Original not mutated
 
 
-class TestCalculateTaxCreditForLots:
-    """Test calculate_tax_credit_for_lots() function."""
-
+class TestCalculateTaxCreditForLots:  # @todo separate file
     def test_single_year_full_year(self, tax_csv_data: pd.DataFrame) -> None:
         """Test tax credit for single lot held full year."""
         lots: list[FifoLot] = [
@@ -397,7 +396,7 @@ class TestCalculateTaxCreditForLots:
 
         # Current date 2022-12-31: years held = 2020, 2021 (not 2022 because last_year = current_year - 1)
         current_date = datetime(2022, 12, 31)
-        credit = calculate_tax_credit_for_lots(lots, 'sec-1', current_date, tax_csv_data)
+        credit = calculate_prepaid_tax_for_lots(lots, 'sec-1', current_date, tax_csv_data)
 
         # 2020: 100 shares * €0.05 = €5.00 (full year)
         # 2021: 100 shares * €0.06 = €6.00 (full year)
@@ -418,7 +417,7 @@ class TestCalculateTaxCreditForLots:
         ]
 
         current_date = datetime(2022, 12, 31)
-        credit = calculate_tax_credit_for_lots(lots, 'sec-1', current_date, tax_csv_data)
+        credit = calculate_prepaid_tax_for_lots(lots, 'sec-1', current_date, tax_csv_data)
 
         # 2020: 100 shares * €0.05 * (13-6)/12 = 100 * 0.05 * 7/12 = €2.92
         # 2021: 100 shares * €0.06 * 1.0 = €6.00
@@ -447,7 +446,7 @@ class TestCalculateTaxCreditForLots:
         ]
 
         current_date = datetime(2022, 12, 31)
-        credit = calculate_tax_credit_for_lots(lots, 'sec-1', current_date, tax_csv_data)
+        credit = calculate_prepaid_tax_for_lots(lots, 'sec-1', current_date, tax_csv_data)
 
         # Lot 1 (acc-1):
         #   2020: 50 * €0.05 = €2.50
@@ -471,7 +470,7 @@ class TestCalculateTaxCreditForLots:
         ]
 
         current_date = datetime(2022, 12, 31)
-        credit = calculate_tax_credit_for_lots(lots, 'sec-1', current_date, tax_csv_data)
+        credit = calculate_prepaid_tax_for_lots(lots, 'sec-1', current_date, tax_csv_data)
 
         # Purchased in 2022, evaluated in 2022 -> last_year = 2021 < first_year = 2022
         assert credit == 0.0
@@ -490,7 +489,7 @@ class TestCalculateTaxCreditForLots:
         ]
 
         current_date = datetime(2022, 12, 31)
-        credit = calculate_tax_credit_for_lots(lots, 'sec-1', current_date, tax_csv_data)
+        credit = calculate_prepaid_tax_for_lots(lots, 'sec-1', current_date, tax_csv_data)
 
         # 2019: No data in CSV -> €0.00
         # 2020: 100 * €0.05 = €5.00
@@ -512,13 +511,12 @@ class TestCalculateTaxCreditForLots:
         ]
 
         current_date = datetime(2022, 12, 31)
-        credit = calculate_tax_credit_for_lots(lots, 'sec-1', current_date, None)
+        credit = calculate_prepaid_tax_for_lots(lots, 'sec-1', current_date, None)
 
         assert credit == 0.0
 
 
-class TestCalculateCurrentCostBasis:
-    """Test calculate_current_cost_basis() function (end-to-end)."""
+class TestCalculateCurrentCostBasis:  # @todo remove
 
     def test_only_purchases_no_sales(self, portfolio_with_purchases: Portfolio) -> None:
         """Test cost basis with only purchases (no sales)."""
@@ -634,8 +632,8 @@ class TestCalculateCurrentCostBasis:
         """Test that net cost basis is capped at 0 (not negative)."""
         # Create tax CSV with very high tax credits
         high_tax_csv = pd.DataFrame([
-            [2020, 'acc-1', 'sec-1', 500.0],  # €500 per share (unrealistically high)
-        ], columns=['year', 'account_id', 'security_id', 'tax_per_share'])
+            [2020, 'acc-1', 'sec-1', 500.0, 0],  # €500 per share (unrealistically high)
+        ], columns=['year', 'account_id', 'security_id', 'deemed_income_base_per_share', 'tax_free_allowance'])
         high_tax_csv = high_tax_csv.set_index(['year', 'account_id', 'security_id'])
 
         evaluation_date = datetime(2022, 12, 31)

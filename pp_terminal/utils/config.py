@@ -27,9 +27,11 @@ from typer_config import conf_callback_factory
 from typer_config.loaders import toml_loader
 
 log = logging.getLogger(__name__)
+type Config = Dict[str, Any]
 
 # Global storage for the loaded config
-_loaded_config: Dict[str, Any] = {}
+_loaded_config: Config = {}
+
 
 
 def _load_schema() -> dict[str, Any]:
@@ -38,7 +40,7 @@ def _load_schema() -> dict[str, Any]:
         return cast(dict[str, Any], json.load(f))
 
 
-def validated_toml_loader(config_path: str) -> Dict[str, Any]:
+def validated_toml_loader(config_path: str) -> Config:
     """
     Load and validate TOML configuration file for use with typer-config.
 
@@ -82,7 +84,7 @@ def validated_toml_loader(config_path: str) -> Dict[str, Any]:
     return config
 
 
-def get_config() -> Dict[str, Any]:
+def get_config() -> Config:
     """
     Get the currently loaded configuration - should only be used with prior @use_config(validated_config_callback).
 
@@ -92,7 +94,7 @@ def get_config() -> Dict[str, Any]:
     return _loaded_config
 
 
-def get_command_config(config: Dict[str, Any], path: str, default: Any = None) -> Any:
+def get_command_config(config: Config, path: str, default: Any = None) -> Any:
     """
     Retrieve command-specific configuration from nested path.
 

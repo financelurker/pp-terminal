@@ -254,9 +254,9 @@ def test_mixed_severities(portfolio_with_purchases_and_sales: Portfolio) -> None
 def test_with_tax_csv_reduces_cost(portfolio_with_purchases_and_sales: Portfolio, tmp_path: pytest.TempPathFactory) -> None:
     """Test that tax CSV reduces cost basis calculation."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, dir=str(tmp_path)) as f:
-        f.write('date;account_id;security_id;tax_per_share\n')
-        f.write('2020;acc-1;sec-a;0.10\n')
-        f.write('2021;acc-1;sec-a;0.12\n')
+        f.write('date;account_id;security_id;deemed_income_base_per_share;tax_free_allowance\n')
+        f.write('2020;acc-1;sec-a;0.10;0\n')
+        f.write('2021;acc-1;sec-a;0.12;0\n')
         tax_file_path = Path(f.name)
 
     config = {
@@ -363,7 +363,6 @@ def test_all_shares_sold_no_violation(portfolio_with_purchases_and_sales: Portfo
 
 
 def test_purchase_cost_limit_rule_direct(caplog: pytest.LogCaptureFixture) -> None:
-    """Test PurchaseCostLimitRule directly for missing portfolio warning."""
     caplog.set_level(logging.WARNING)
 
     rule = PurchaseCostLimitRule(
@@ -378,8 +377,5 @@ def test_purchase_cost_limit_rule_direct(caplog: pytest.LogCaptureFixture) -> No
         'currency': 'EUR'
     })
 
-    is_error, message = rule.validate(entity, 'sec-1', {})
-
-    assert not is_error
-    assert message is None
-    assert 'No portfolio in context' in caplog.text
+    with pytest.raises(RuntimeError):
+        rule.validate(entity, 'sec-1', {})

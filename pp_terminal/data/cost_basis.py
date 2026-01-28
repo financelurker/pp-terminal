@@ -32,23 +32,12 @@ log = logging.getLogger(__name__)
 
 
 class FifoLot(TypedDict):
-    """
-    Represents a FIFO lot for cost basis tracking.
-
-    Attributes:
-        purchase_date: Date when the lot was purchased
-        account_id: Account identifier where the lot is held
-        shares: Number of shares in the lot
-        purchase_price: Price per share at purchase
-        cost_basis: Total cost (shares × purchase_price)
-        capital_gain: Capital gain (optional, for share-sell simulation)
-    """
     purchase_date: datetime
     account_id: str
     shares: float
     purchase_price: Money
     cost_basis: Money
-    capital_gain: Money  # Optional, for compatibility with share-sell
+    capital_gain: Money  # @todo Optional, for compatibility with share-sell
 
 
 def calculate_purchase_lots(
@@ -100,7 +89,7 @@ def calculate_purchase_lots(
             'shares': shares,
             'purchase_price': purchase_price,
             'cost_basis': cost_basis,
-            'capital_gain': 0.0  # Initialize, can be set later
+            'capital_gain': 0.0  # @todo initialize, can be set later
         })
 
     # Sort by date if requested (FIFO order)
@@ -168,14 +157,14 @@ def match_sales_to_lots(
     return remaining_lots
 
 
-def calculate_tax_credit_for_lots(
+def calculate_prepaid_tax_for_lots(
     lots: list[FifoLot],
     security_id: str,
     current_date: datetime,
     tax_csv_data: DataFrame[TaxPaidSchema] | None
 ) -> Money:
     """
-    Calculate total tax credit on current lots (e.g. Vorabpauschale already paid).
+    Calculate total prepaid tax on current lots (e.g. Vorabpauschale).
 
     Args:
         lots: Current FIFO lots (after matching sales)
@@ -184,63 +173,41 @@ def calculate_tax_credit_for_lots(
         tax_csv_data: CSV data with taxes paid per share, indexed by (year, account_id, security_id)
 
     Returns:
-        Total tax credit to reduce cost basis.
-
-    Note:
-        The CSV contains "taxes already paid per share" which typically includes:
-        - Vorabpauschale (German advance tax on unrealized gains)
-        - Could be extended for foreign withholding tax, etc.
-
-    Algorithm:
-        For each lot:
-        1. Calculate years held: from purchase_year to current_year - 1
-        2. For each year in range:
-           - Look up tax_per_share from CSV via (year, lot.account_id, security_id)
-           - Apply month proration for purchase year
-           - Credit: lot.shares × tax_per_share × month_factor
-        3. Sum credits across all lots
+        Total prepaid tax to reduce cost basis.
     """
     if tax_csv_data is None or tax_csv_data.empty:
         return 0.0
 
-    total_credit = 0.0
+    total_tax = 0.0
 
     for lot in lots:
-        purchase_date = lot['purchase_date']
-        shares = lot['shares']
-        account_id = lot['account_id']
-
-        # Determine years to include: from purchase year to current year - 1
-        first_year = purchase_date.year
+        first_year = lot['purchase_date'].year
         last_year = current_date.year - 1
 
         if last_year < first_year:
-            # Purchased in current year - no tax credit yet
+            # Purchased in current year - no prepaid tax yet
             continue
 
-        # Calculate credit for each year
-        # pylint: disable=duplicate-code
-        # Note: This logic is intentionally shared with simulate_share_sell.py
-        # @todo The simulate_share_sell.py file will be refactored to use this module later
+        # Calculate tax for each year
         for year in range(first_year, last_year + 1):
             try:
-                tax_per_share = tax_csv_data.loc[(year, account_id, security_id), 'tax_per_share']
+                deemed_income_base_per_share = tax_csv_data.loc[(year, lot['account_id'], security_id), 'deemed_income_base_per_share']
+                tax_free_allowance_per_year = tax_csv_data.loc[(year, lot['account_id'], security_id), 'tax_free_allowance']
             except KeyError:
                 continue
 
             # For purchase year, prorate by months held
             if year == first_year:
                 # Months held = 13 - purchase_month (e.g., June = month 6 -> 13-6 = 7 months)
-                months_held = 13 - purchase_date.month
+                months_held = 13 - lot['purchase_date'].month
                 month_factor = months_held / 12.0
             else:
                 # Full year
                 month_factor = 1.0
 
-            total_credit += shares * float(tax_per_share) * month_factor
-        # pylint: enable=duplicate-code
+            total_tax += lot['shares'] * float(deemed_income_base_per_share) * month_factor - float(tax_free_allowance_per_year)
 
-    return total_credit
+    return total_tax
 
 
 def calculate_current_cost_basis(
@@ -289,7 +256,7 @@ def calculate_current_cost_basis(
     # Step 5: Calculate tax credit (if CSV provided)
     tax_credit = 0.0
     if tax_csv_data is not None:
-        tax_credit = calculate_tax_credit_for_lots(
+        tax_credit = calculate_prepaid_tax_for_lots(
             remaining_lots,
             security_id,
             evaluation_date,

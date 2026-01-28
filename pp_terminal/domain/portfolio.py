@@ -24,6 +24,7 @@ from pandera.errors import SchemaError
 from pandera.typing import DataFrame
 
 from .schemas import AccountType, TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema
+from ..exceptions import InputError
 
 log = logging.getLogger(__name__)
 
@@ -105,3 +106,17 @@ class Portfolio:
     @property
     def account_attributes(self) -> dict[str, str]:
         return self._attributes.get('accounts', {})
+
+
+def get_securities_account_by_id(portfolio: Portfolio, account_id: str) -> AccountSchema:
+    if account_id not in portfolio.securities_accounts.index:
+        raise InputError(f"Securities account '{account_id}' not found in portfolio")
+
+    return cast(AccountSchema, portfolio.securities_accounts.loc[account_id])
+
+
+def get_security_by_id(portfolio: Portfolio, security_id: str) -> SecuritySchema:
+    if security_id not in portfolio.securities.index:
+        raise InputError(f"Security '{security_id}' not found in portfolio")
+
+    return cast(SecuritySchema, portfolio.securities.loc[security_id])

@@ -27,9 +27,9 @@ import typer
 from pandera.typing import DataFrame
 from typing_extensions import Annotated
 
-from pp_terminal.data.cost_basis import match_sales_to_lots, FifoLot
+from pp_terminal.data.cost_basis import match_sales_to_lots
 from pp_terminal.data.filters import filter_by_type
-from pp_terminal.data.tax import load_prepaid_tax_data_from_csv
+from pp_terminal.data.tax import load_prepaid_tax_data_from_csv, calculate_prepaid_tax_for_lots, FifoLot
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import format_money, footer
 from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
@@ -129,71 +129,14 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals
     return lots_to_return
 
 
-def _calculate_prepaid_taxes_for_lot(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-        lot: FifoLot,
-        sale_date: datetime,
-        account_id: str,
-        security_id: str,
-        tax_csv_data: DataFrame[TaxPaidSchema] | None
-) -> Money:
-    """
-    Calculate Vorabpauschale credit for a single FIFO lot.
-    Uses per-share tax data from CSV, prorated by months held in purchase year.
-    """
-    if tax_csv_data is None or tax_csv_data.empty:
-        return 0.0
-
-    purchase_date = lot['purchase_date']
-    shares_from_lot = lot['shares']
-
-    # Determine years to include: from purchase year to sale year - 1
-    first_year = purchase_date.year
-    last_year = sale_date.year - 1
-
-    if last_year < first_year:
-        # Sold in same year as purchase - no Vorabpauschale
-        return 0.0
-
-    credit = 0.0
-
-    # Calculate credit for each year
-    for year in range(first_year, last_year + 1):
-        try:
-            tax_per_share = tax_csv_data.loc[(year, account_id, security_id), 'tax_per_share']
-        except KeyError:
-            continue
-
-        # For purchase year, prorate by months held
-        if year == first_year:
-            # Months held = 13 - purchase_month (e.g., June = month 6 -> 13-6 = 7 months)
-            months_held = 13 - purchase_date.month
-            month_factor = months_held / 12.0
-        else:
-            # Full year
-            month_factor = 1.0
-
-        credit += shares_from_lot * tax_per_share * month_factor
-
-    return credit
-
-
 def _calculate_prepaid_taxes_for_lots(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-        account_id: str,
+        account_id: str,  # pylint: disable=unused-argument
         security_id: str,
         fifo_lots: list[FifoLot],
         sale_date: datetime,
         tax_csv_data: DataFrame[TaxPaidSchema] | None
 ) -> Money:
-    """
-    Calculate total Vorabpauschale credit for all lots being sold.
-    """
-    if not fifo_lots:
-        return 0.0
-
-    return sum(
-        _calculate_prepaid_taxes_for_lot(lot, sale_date, account_id, security_id, tax_csv_data)
-        for lot in fifo_lots
-    )
+    return calculate_prepaid_tax_for_lots(fifo_lots, security_id, sale_date, tax_csv_data)
 
 
 def _calculate_taxes(
@@ -285,9 +228,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     total_capital_gain = sum(lot['capital_gain'] for lot in fifo_lots)
     gross_proceeds = shares * sale_price
 
-    taxes_paid = _calculate_prepaid_taxes_for_lots(
-        account_id, security_id, fifo_lots, date, tax_csv_data
-    )
+    taxes_paid = calculate_prepaid_tax_for_lots(fifo_lots, security_id, date, tax_csv_data)
 
     taxes = _calculate_taxes(total_capital_gain, taxes_paid, tax_rate)
     net_proceeds = gross_proceeds - taxes['total_tax']
@@ -319,10 +260,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         'Purchase Price': [lot['purchase_price'] for lot in fifo_lots],
         'Cost Basis': [lot['cost_basis'] for lot in fifo_lots],
         'Capital Gain': [lot['capital_gain'] for lot in fifo_lots],
-        'Taxes Already Paid': [
-            _calculate_prepaid_taxes_for_lot(lot, date, account_id, security_id, tax_csv_data)
-            for lot in fifo_lots
-        ],
+        'Taxes Already Paid': calculate_prepaid_tax_for_lots(fifo_lots, security_id, date, tax_csv_data),
         'currency': [security.currency] * len(fifo_lots)
     })
 

@@ -27,10 +27,9 @@ from pandera.typing import DataFrame
 from pp_terminal.data.cost_basis import (
     calculate_purchase_lots,
     match_sales_to_lots,
-    calculate_prepaid_tax_for_lots,
-    calculate_current_cost_basis,
-    FifoLot
+    calculate_current_cost_basis
 )
+from pp_terminal.data.tax import FifoLot, calculate_prepaid_tax_for_lots
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import AccountType, TransactionType, TaxPaidSchema, AccountSchema, SecuritySchema, \
     TransactionSchema
@@ -102,7 +101,7 @@ def provide_tax_csv_data() -> DataFrame[TaxPaidSchema]:
         [0.06, 0],
         [0.06, 0],
         [0.07, 0],
-    ], columns=['deemed_income_base_per_share', 'tax_free_allowance'],
+    ], columns=['tax_per_share', 'tax_free_allowance'],
         index=pd.MultiIndex.from_arrays([[2020, 2021, 2021, 2022], ['acc-1', 'acc-1', 'acc-2', 'acc-1'], ['sec-1', 'sec-1', 'sec-1', 'sec-1']]))
 
     return data
@@ -633,7 +632,7 @@ class TestCalculateCurrentCostBasis:  # @todo remove
         # Create tax CSV with very high tax credits
         high_tax_csv = pd.DataFrame([
             [2020, 'acc-1', 'sec-1', 500.0, 0],  # €500 per share (unrealistically high)
-        ], columns=['year', 'account_id', 'security_id', 'deemed_income_base_per_share', 'tax_free_allowance'])
+        ], columns=['year', 'account_id', 'security_id', 'tax_per_share', 'tax_free_allowance'])
         high_tax_csv = high_tax_csv.set_index(['year', 'account_id', 'security_id'])
 
         evaluation_date = datetime(2022, 12, 31)

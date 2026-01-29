@@ -49,27 +49,27 @@ def test_single_purchase() -> None:
     lots = calculate_purchase_lots(portfolio, 'sec-1')
 
     assert len(lots) == 1
-    assert lots[0]['account_id'] == 'acc-1'
-    assert lots[0]['shares'] == 10.0
-    assert lots[0]['purchase_price'] == 100.0
-    assert lots[0]['cost_basis'] == 1000.0
+    assert lots.iloc[0]['account_id'] == 'acc-1'
+    assert lots.iloc[0]['shares'] == 10.0
+    assert lots.iloc[0]['purchase_price'] == 100.0
+    assert lots.iloc[0]['cost_basis'] == 1000.0
 
 def test_multiple_purchases_sorted_by_date(portfolio_with_purchases: Portfolio) -> None:
     """Test that multiple purchases are sorted by date (FIFO order)."""
     lots = calculate_purchase_lots(portfolio_with_purchases, 'sec-1', sort_by_date=True)
 
     assert len(lots) == 4
-    assert lots[0]['purchase_date'] == datetime(2020, 1, 15)
-    assert lots[1]['purchase_date'] == datetime(2020, 6, 20)
-    assert lots[2]['purchase_date'] == datetime(2021, 3, 10)
-    assert lots[3]['purchase_date'] == datetime(2022, 1, 5)
+    assert lots.iloc[0]['purchase_date'] == datetime(2020, 1, 15)
+    assert lots.iloc[1]['purchase_date'] == datetime(2020, 6, 20)
+    assert lots.iloc[2]['purchase_date'] == datetime(2021, 3, 10)
+    assert lots.iloc[3]['purchase_date'] == datetime(2022, 1, 5)
 
 def test_multiple_accounts(portfolio_with_purchases: Portfolio) -> None:
     """Test purchases across multiple accounts."""
     lots = calculate_purchase_lots(portfolio_with_purchases, 'sec-1')
 
-    acc1_lots = [lot for lot in lots if lot['account_id'] == 'acc-1']
-    acc2_lots = [lot for lot in lots if lot['account_id'] == 'acc-2']
+    acc1_lots = lots[lots['account_id'] == 'acc-1']
+    acc2_lots = lots[lots['account_id'] == 'acc-2']
 
     assert len(acc1_lots) == 3
     assert len(acc2_lots) == 1
@@ -78,7 +78,7 @@ def test_delivery_inbound_included(portfolio_with_purchases: Portfolio) -> None:
     """Test that DELIVERY_INBOUND transactions are included."""
     lots = calculate_purchase_lots(portfolio_with_purchases, 'sec-1')
 
-    delivery_lot = [lot for lot in lots if lot['purchase_date'] == datetime(2021, 3, 10)][0]
+    delivery_lot = lots[lots['purchase_date'] == datetime(2021, 3, 10)].iloc[0]
     assert delivery_lot['shares'] == 5.0
     assert delivery_lot['purchase_price'] == 0.0
     assert delivery_lot['cost_basis'] == 0.0
@@ -94,13 +94,13 @@ def test_no_transactions() -> None:
 
     lots = calculate_purchase_lots(portfolio, 'sec-1')
 
-    assert len(lots) == 0
+    assert lots.empty
 
 def test_no_purchases_for_security(portfolio_with_purchases: Portfolio) -> None:
     """Test with security that has no purchases."""
     lots = calculate_purchase_lots(portfolio_with_purchases, 'non-existent-security')
 
-    assert len(lots) == 0
+    assert lots.empty
 
 def test_zero_shares_skipped() -> None:
     """Test that transactions with zero shares are skipped."""
@@ -123,4 +123,4 @@ def test_zero_shares_skipped() -> None:
 
     lots = calculate_purchase_lots(portfolio, 'sec-1')
 
-    assert len(lots) == 0
+    assert lots.empty

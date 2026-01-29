@@ -36,7 +36,8 @@ from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio, get_securities_account_by_id, get_security_by_id
-from pp_terminal.domain.schemas import TransactionType, Percent, Money, TaxPaidSchema, Account, Security, FifoLotSchema
+from pp_terminal.domain.schemas import TransactionType, Percent, Money, TaxPaidSchema, Account, Security, FifoLotSchema, \
+    TransactionSchema
 from pp_terminal.output.table_decorator import TableOptions
 
 app = typer.Typer()
@@ -62,7 +63,7 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals
     transactions = snapshot.securities_account_transactions
 
     # Step 1: Get purchase transactions for this account/security from snapshot
-    purchase_txns = transactions[
+    purchase_txns : DataFrame[TransactionSchema] = transactions[
         (transactions.index.get_level_values('accountId') == account_id) &
         (transactions.index.get_level_values('securityId') == security_id)
     ].pipe(filter_by_type, transaction_types=[TransactionType.BUY, TransactionType.DELIVERY_INBOUND])
@@ -98,7 +99,14 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals
     ].pipe(filter_by_type, transaction_types=[TransactionType.SELL, TransactionType.DELIVERY_OUTBOUND])
 
     # Step 4: Match historical sales to lots using shared FIFO logic
-    remaining_lots = match_sales_to_lots(account_lots, historical_sales)
+    # Convert list to DataFrame for match_sales_to_lots
+    account_lots_df = pd.DataFrame(account_lots)
+    if not account_lots_df.empty:
+        account_lots_df['security_id'] = security_id
+    remaining_lots_df = match_sales_to_lots(account_lots_df, historical_sales)
+
+    # Convert DataFrame back to list for iteration
+    remaining_lots = remaining_lots_df.to_dict('records') if not remaining_lots_df.empty else []
 
     # Step 5: Match the hypothetical sale against remaining lots
     lots_to_return: list[FifoLot] = []
@@ -127,6 +135,9 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals
 
     df = pd.DataFrame(lots_to_return)
     df['security_id'] = security_id
+    df['salePrice'] = sale_price
+    df['grossProceeds'] = df['shares'] * sale_price
+
     return FifoLotSchema.validate(df)
 
 
@@ -138,23 +149,6 @@ def _calculate_prepaid_taxes_for_lots(  # pylint: disable=too-many-arguments,too
         tax_csv_data: DataFrame[TaxPaidSchema] | None
 ) -> Money:
     return calculate_prepaid_tax_for_lots(fifo_lots, security_id, sale_date, tax_csv_data)
-
-
-def _calculate_taxes(
-        capital_gain: Money,
-        vorabpauschale_credit: Money,
-        tax_rate: Percent
-) -> TaxBreakdown:
-    """
-    Calculate taxes on capital gains after Vorabpauschale credit.
-    """
-    taxable_gain = max(0, capital_gain - vorabpauschale_credit)
-    total_tax = taxable_gain * (tax_rate / 100)
-
-    return {
-        'taxable_gain': taxable_gain,
-        'total_tax': total_tax
-    }
 
 
 def get_today() -> datetime:
@@ -225,49 +219,13 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         raise InputError(f"Insufficient shares. Available: {available_shares:.8f}, Requested: {shares:.8f}")
 
     fifo_lots = _calculate_fifo_lots(snapshot, account_id, security_id, shares, sale_price)
-    fifo_lots['salePrice'] = sale_price
-    fifo_lots['grossProceeds'] = fifo_lots['shares'] * sale_price
     fifo_lots['currency'] = security.currency
-
-    total_cost_basis = fifo_lots['cost_basis'].sum()
-    total_capital_gain = fifo_lots['capital_gain'].sum()
-    gross_proceeds = shares * sale_price
-
-    taxes_paid = calculate_prepaid_tax_for_lots(fifo_lots, security_id, date, tax_csv_data)
-
-    taxes = _calculate_taxes(total_capital_gain, taxes_paid, tax_rate)
-    net_proceeds = gross_proceeds - taxes['total_tax']
-
-    effective_tax_rate = (taxes['total_tax'] / gross_proceeds * 100) if gross_proceeds > 0 else 0
-
-    summary_df = pd.DataFrame({
-        'Description': [
-            'Gross Proceeds',
-            'Total Cost Basis',
-            'Taxes Already Paid',
-            f'Total Tax ({effective_tax_rate:.3f}%)',
-            'Net Proceeds'
-        ],
-        'amount': [
-            gross_proceeds,
-            -total_cost_basis,
-            -taxes_paid,
-            taxes['total_tax'],
-            net_proceeds
-        ],
-        'currency': [security.currency] * 5
-    })
 
     console.print(output.text(f"\n[bold]Security:[/bold] {security.name} ({security.wkn})"))
     console.print(output.text(f"[bold]Account:[/bold] {account.name}"))
     console.print(output.text(f"[bold]Shares:[/bold] {shares}"))
     console.print(output.text(f"[bold]Sale Date:[/bold] {date.strftime('%Y-%m-%d')}"))
     console.print(output.text(f"[bold]Sale Price (per share):[/bold] {format_money(sale_price, security.currency)}"))
-
-    console.print(*output.result_table(
-        summary_df,
-        TableOptions(title="Sale Summary", show_index=False, show_total=True, footer_lines=2)
-    ))
 
     console.print(*output.result_table(
         fifo_lots,

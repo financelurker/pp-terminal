@@ -21,32 +21,18 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
+from pandera.typing import DataFrame
 
 from pp_terminal.data.cost_basis import match_sales_to_lots
-from pp_terminal.data.tax import FifoLot
-from pp_terminal.domain.schemas import AccountType, TransactionType
+from pp_terminal.domain.schemas import AccountType, TransactionType, FifoLotSchema
 
 
 def test_partial_lot_consumption() -> None:
     """Test that sales partially consume lots in FIFO order."""
-    lots: list[FifoLot] = [
-        {
-            'purchase_date': datetime(2020, 1, 15),
-            'account_id': 'acc-1',
-            'shares': 10.0,
-            'purchase_price': 100.0,
-            'cost_basis': 1000.0,
-            'capital_gain': 0.0
-        },
-        {
-            'purchase_date': datetime(2020, 6, 20),
-            'account_id': 'acc-1',
-            'shares': 10.0,
-            'purchase_price': 150.0,
-            'cost_basis': 1500.0,
-            'capital_gain': 0.0
-        }
-    ]
+    lots = DataFrame[FifoLotSchema](pd.DataFrame([
+        [datetime(2020, 1, 15), 'acc-1', 'sec-1', 10.0, 100.0, 1000.0, 0.0],
+        [datetime(2020, 6, 20), 'acc-1', 'sec-1', 10.0, 150.0, 1500.0, 0.0],
+    ], columns=['purchase_date', 'account_id', 'security_id', 'shares', 'purchase_price', 'cost_basis', 'capital_gain']))
 
     sales = pd.DataFrame([
         [datetime(2020, 12, 1), 'acc-1', 'sec-1', TransactionType.SELL.value, 1400.0, 7.0, AccountType.SECURITIES.value, 'EUR', 0.0],
@@ -58,23 +44,16 @@ def test_partial_lot_consumption() -> None:
     # Sale of 7 shares consumes 7 from first lot (10 shares), leaving 3 shares in first lot
     # Second lot (10 shares) remains untouched
     assert len(remaining_lots) == 2
-    assert remaining_lots[0]['shares'] == pytest.approx(3.0, abs=0.0001)
-    assert remaining_lots[0]['cost_basis'] == pytest.approx(300.0, abs=0.01)
-    assert remaining_lots[1]['shares'] == pytest.approx(10.0, abs=0.0001)
-    assert remaining_lots[1]['cost_basis'] == pytest.approx(1500.0, abs=0.01)
+    assert remaining_lots.iloc[0]['shares'] == pytest.approx(3.0, abs=0.0001)
+    assert remaining_lots.iloc[0]['cost_basis'] == pytest.approx(300.0, abs=0.01)
+    assert remaining_lots.iloc[1]['shares'] == pytest.approx(10.0, abs=0.0001)
+    assert remaining_lots.iloc[1]['cost_basis'] == pytest.approx(1500.0, abs=0.01)
 
 def test_full_lot_consumption() -> None:
     """Test that sales fully consume lots."""
-    lots: list[FifoLot] = [
-        {
-            'purchase_date': datetime(2020, 1, 15),
-            'account_id': 'acc-1',
-            'shares': 10.0,
-            'purchase_price': 100.0,
-            'cost_basis': 1000.0,
-            'capital_gain': 0.0
-        }
-    ]
+    lots = DataFrame[FifoLotSchema](pd.DataFrame([
+        [datetime(2020, 1, 15), 'acc-1', 'sec-1', 10.0, 100.0, 1000.0, 0.0],
+    ], columns=['purchase_date', 'account_id', 'security_id', 'shares', 'purchase_price', 'cost_basis', 'capital_gain']))
 
     sales = pd.DataFrame([
         [datetime(2020, 12, 1), 'acc-1', 'sec-1', TransactionType.SELL.value, 2000.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0],
@@ -83,36 +62,15 @@ def test_full_lot_consumption() -> None:
 
     remaining_lots = match_sales_to_lots(lots, sales)
 
-    assert len(remaining_lots) == 0
+    assert remaining_lots.empty
 
 def test_multiple_sales_fifo_order() -> None:
     """Test that multiple sales consume lots in FIFO order."""
-    lots: list[FifoLot] = [
-        {
-            'purchase_date': datetime(2020, 1, 15),
-            'account_id': 'acc-1',
-            'shares': 10.0,
-            'purchase_price': 100.0,
-            'cost_basis': 1000.0,
-            'capital_gain': 0.0
-        },
-        {
-            'purchase_date': datetime(2020, 6, 20),
-            'account_id': 'acc-1',
-            'shares': 10.0,
-            'purchase_price': 150.0,
-            'cost_basis': 1500.0,
-            'capital_gain': 0.0
-        },
-        {
-            'purchase_date': datetime(2022, 1, 5),
-            'account_id': 'acc-1',
-            'shares': 20.0,
-            'purchase_price': 100.0,
-            'cost_basis': 2000.0,
-            'capital_gain': 0.0
-        }
-    ]
+    lots = DataFrame[FifoLotSchema](pd.DataFrame([
+        [datetime(2020, 1, 15), 'acc-1', 'sec-1', 10.0, 100.0, 1000.0, 0.0],
+        [datetime(2020, 6, 20), 'acc-1', 'sec-1', 10.0, 150.0, 1500.0, 0.0],
+        [datetime(2022, 1, 5), 'acc-1', 'sec-1', 20.0, 100.0, 2000.0, 0.0],
+    ], columns=['purchase_date', 'account_id', 'security_id', 'shares', 'purchase_price', 'cost_basis', 'capital_gain']))
 
     sales = pd.DataFrame([
         [datetime(2020, 12, 1), 'acc-1', 'sec-1', TransactionType.SELL.value, 1400.0, 7.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # Consume 7 from lot 1
@@ -126,21 +84,14 @@ def test_multiple_sales_fifo_order() -> None:
     # Lot 2 (10 shares): 9 sold in second sale -> 1 share remaining
     # Lot 3 (20 shares): untouched
     assert len(remaining_lots) == 2
-    assert remaining_lots[0]['shares'] == pytest.approx(1.0, abs=0.0001)
-    assert remaining_lots[1]['shares'] == pytest.approx(20.0, abs=0.0001)
+    assert remaining_lots.iloc[0]['shares'] == pytest.approx(1.0, abs=0.0001)
+    assert remaining_lots.iloc[1]['shares'] == pytest.approx(20.0, abs=0.0001)
 
 def test_no_sales() -> None:
     """Test with no sales (all lots remain)."""
-    lots: list[FifoLot] = [
-        {
-            'purchase_date': datetime(2020, 1, 15),
-            'account_id': 'acc-1',
-            'shares': 10.0,
-            'purchase_price': 100.0,
-            'cost_basis': 1000.0,
-            'capital_gain': 0.0
-        }
-    ]
+    lots = DataFrame[FifoLotSchema](pd.DataFrame([
+        [datetime(2020, 1, 15), 'acc-1', 'sec-1', 10.0, 100.0, 1000.0, 0.0],
+    ], columns=['purchase_date', 'account_id', 'security_id', 'shares', 'purchase_price', 'cost_basis', 'capital_gain']))
 
     sales = pd.DataFrame(columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
     sales = sales.set_index(['date', 'accountId', 'securityId'])
@@ -148,20 +99,13 @@ def test_no_sales() -> None:
     remaining_lots = match_sales_to_lots(lots, sales)
 
     assert len(remaining_lots) == 1
-    assert remaining_lots[0]['shares'] == 10.0
+    assert remaining_lots.iloc[0]['shares'] == 10.0
 
 def test_delivery_outbound_included() -> None:
     """Test that DELIVERY_OUTBOUND transactions are included in sales."""
-    lots: list[FifoLot] = [
-        {
-            'purchase_date': datetime(2020, 1, 15),
-            'account_id': 'acc-1',
-            'shares': 10.0,
-            'purchase_price': 100.0,
-            'cost_basis': 1000.0,
-            'capital_gain': 0.0
-        }
-    ]
+    lots = DataFrame[FifoLotSchema](pd.DataFrame([
+        [datetime(2020, 1, 15), 'acc-1', 'sec-1', 10.0, 100.0, 1000.0, 0.0],
+    ], columns=['purchase_date', 'account_id', 'security_id', 'shares', 'purchase_price', 'cost_basis', 'capital_gain']))
 
     sales = pd.DataFrame([
         [datetime(2020, 12, 1), 'acc-1', 'sec-1', TransactionType.DELIVERY_OUTBOUND.value, 0.0, 5.0, AccountType.SECURITIES.value, 'EUR', 0.0],
@@ -171,27 +115,20 @@ def test_delivery_outbound_included() -> None:
     remaining_lots = match_sales_to_lots(lots, sales)
 
     assert len(remaining_lots) == 1
-    assert remaining_lots[0]['shares'] == pytest.approx(5.0, abs=0.0001)
+    assert remaining_lots.iloc[0]['shares'] == pytest.approx(5.0, abs=0.0001)
 
 def test_lots_not_mutated() -> None:
-    """Test that original lots are not mutated (deep copy)."""
-    lots: list[FifoLot] = [
-        {
-            'purchase_date': datetime(2020, 1, 15),
-            'account_id': 'acc-1',
-            'shares': 10.0,
-            'purchase_price': 100.0,
-            'cost_basis': 1000.0,
-            'capital_gain': 0.0
-        }
-    ]
+    """Test that original lots are not mutated (copy)."""
+    lots = DataFrame[FifoLotSchema](pd.DataFrame([
+        [datetime(2020, 1, 15), 'acc-1', 'sec-1', 10.0, 100.0, 1000.0, 0.0],
+    ], columns=['purchase_date', 'account_id', 'security_id', 'shares', 'purchase_price', 'cost_basis', 'capital_gain']))
 
     sales = pd.DataFrame([
         [datetime(2020, 12, 1), 'acc-1', 'sec-1', TransactionType.SELL.value, 1000.0, 5.0, AccountType.SECURITIES.value, 'EUR', 0.0],
     ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
     sales = sales.set_index(['date', 'accountId', 'securityId'])
 
-    original_shares = lots[0]['shares']
+    original_shares = lots.iloc[0]['shares']
     match_sales_to_lots(lots, sales)
 
-    assert lots[0]['shares'] == original_shares  # Original not mutated
+    assert lots.iloc[0]['shares'] == original_shares  # Original not mutated

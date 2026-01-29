@@ -74,10 +74,10 @@ def test_fifo_lots_single_purchase(share_sell_portfolio: Portfolio) -> None:
     lots = _calculate_fifo_lots(snapshot, 'depot1', 'sec1', 30.0, 160.0)
 
     assert len(lots) == 1
-    assert lots[0]['shares'] == 30.0
-    assert lots[0]['purchase_price'] == 100.0
-    assert lots[0]['cost_basis'] == 3000.0
-    assert lots[0]['capital_gain'] == 1800.0  # 30 * (160 - 100)
+    assert lots.iloc[0]['shares'] == 30.0
+    assert lots.iloc[0]['purchase_price'] == 100.0
+    assert lots.iloc[0]['cost_basis'] == 3000.0
+    assert lots.iloc[0]['capital_gain'] == 1800.0  # 30 * (160 - 100)
 
 
 def test_fifo_lots_multiple_purchases(share_sell_portfolio: Portfolio) -> None:
@@ -90,22 +90,22 @@ def test_fifo_lots_multiple_purchases(share_sell_portfolio: Portfolio) -> None:
     assert len(lots) == 3
 
     # First lot: 50 shares @ €100
-    assert lots[0]['shares'] == 50.0
-    assert lots[0]['purchase_price'] == 100.0
-    assert lots[0]['cost_basis'] == 5000.0
-    assert lots[0]['capital_gain'] == 3000.0  # 50 * (160 - 100)
+    assert lots.iloc[0]['shares'] == 50.0
+    assert lots.iloc[0]['purchase_price'] == 100.0
+    assert lots.iloc[0]['cost_basis'] == 5000.0
+    assert lots.iloc[0]['capital_gain'] == 3000.0  # 50 * (160 - 100)
 
     # Second lot: 50 shares @ €140
-    assert lots[1]['shares'] == 50.0
-    assert lots[1]['purchase_price'] == 140.0
-    assert lots[1]['cost_basis'] == 7000.0
-    assert lots[1]['capital_gain'] == 1000.0  # 50 * (160 - 140)
+    assert lots.iloc[1]['shares'] == 50.0
+    assert lots.iloc[1]['purchase_price'] == 140.0
+    assert lots.iloc[1]['cost_basis'] == 7000.0
+    assert lots.iloc[1]['capital_gain'] == 1000.0  # 50 * (160 - 140)
 
     # Third lot: 20 shares @ €150
-    assert lots[2]['shares'] == 20.0
-    assert lots[2]['purchase_price'] == 150.0
-    assert lots[2]['cost_basis'] == 3000.0
-    assert lots[2]['capital_gain'] == 200.0  # 20 * (160 - 150)
+    assert lots.iloc[2]['shares'] == 20.0
+    assert lots.iloc[2]['purchase_price'] == 150.0
+    assert lots.iloc[2]['cost_basis'] == 3000.0
+    assert lots.iloc[2]['capital_gain'] == 200.0  # 20 * (160 - 150)
 
 
 def test_fifo_lots_insufficient_shares(share_sell_portfolio: Portfolio) -> None:

@@ -21,12 +21,13 @@ from datetime import datetime
 import logging
 import copy
 
+import pandas as pd
 from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_by_type
 from pp_terminal.data.tax import calculate_prepaid_tax_for_lots, FifoLot
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema
+from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema, FifoLotSchema
 
 log = logging.getLogger(__name__)
 
@@ -194,8 +195,11 @@ def calculate_current_cost_basis(
     # Step 5: Calculate tax credit (if CSV provided)
     tax_credit = 0.0
     if tax_csv_data is not None:
+        remaining_lots_df = pd.DataFrame(remaining_lots)
+        remaining_lots_df['security_id'] = security_id
+        remaining_lots_df = FifoLotSchema.validate(remaining_lots_df)
         tax_credit = calculate_prepaid_tax_for_lots(
-            remaining_lots,
+            remaining_lots_df,
             security_id,
             evaluation_date,
             tax_csv_data

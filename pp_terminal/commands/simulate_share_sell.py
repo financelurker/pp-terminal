@@ -36,7 +36,7 @@ from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio, get_securities_account_by_id, get_security_by_id
-from pp_terminal.domain.schemas import TransactionType, Percent, Money, TaxPaidSchema, Account, Security
+from pp_terminal.domain.schemas import TransactionType, Percent, Money, TaxPaidSchema, Account, Security, FifoLotSchema
 from pp_terminal.output.table_decorator import TableOptions
 
 app = typer.Typer()
@@ -55,10 +55,9 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals
         security_id: str,
         shares_to_sell: float,
         sale_price: Money
-) -> list[FifoLot]:
+) -> DataFrame[FifoLotSchema]:
     """
     Calculate FIFO lots for shares being sold.
-    Returns list of lots with purchase info and capital gains.
     """
     transactions = snapshot.securities_account_transactions
 
@@ -126,13 +125,15 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals
     if shares_remaining > 0.0001:  # Allow small floating point errors
         raise InputError(f"Insufficient shares available. Requested: {shares_to_sell}, Available: {shares_to_sell - shares_remaining}")
 
-    return lots_to_return
+    df = pd.DataFrame(lots_to_return)
+    df['security_id'] = security_id
+    return FifoLotSchema.validate(df)
 
 
 def _calculate_prepaid_taxes_for_lots(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         account_id: str,  # pylint: disable=unused-argument
         security_id: str,
-        fifo_lots: list[FifoLot],
+        fifo_lots: DataFrame[FifoLotSchema],
         sale_date: datetime,
         tax_csv_data: DataFrame[TaxPaidSchema] | None
 ) -> Money:
@@ -224,13 +225,12 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         raise InputError(f"Insufficient shares. Available: {available_shares:.8f}, Requested: {shares:.8f}")
 
     fifo_lots = _calculate_fifo_lots(snapshot, account_id, security_id, shares, sale_price)
-    lots_df = pd.DataFrame(fifo_lots)
-    lots_df['salePrice'] = sale_price
-    lots_df['grossProceeds'] = lots_df['shares'] * sale_price
-    lots_df['currency'] = security.currency
+    fifo_lots['salePrice'] = sale_price
+    fifo_lots['grossProceeds'] = fifo_lots['shares'] * sale_price
+    fifo_lots['currency'] = security.currency
 
-    total_cost_basis = sum(lot['cost_basis'] for lot in fifo_lots)
-    total_capital_gain = sum(lot['capital_gain'] for lot in fifo_lots)
+    total_cost_basis = fifo_lots['cost_basis'].sum()
+    total_capital_gain = fifo_lots['capital_gain'].sum()
     gross_proceeds = shares * sale_price
 
     taxes_paid = calculate_prepaid_tax_for_lots(fifo_lots, security_id, date, tax_csv_data)
@@ -258,20 +258,6 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         'currency': [security.currency] * 5
     })
 
-    lots_df_2 = pd.DataFrame({
-        'Purchase Date': [lot['purchase_date'].strftime('%Y-%m-%d') for lot in fifo_lots],
-        'Shares': [lot['shares'] for lot in fifo_lots],
-        'Purchase Price': [lot['purchase_price'] for lot in fifo_lots],
-        'Sale Price': [sale_price] * len(fifo_lots),
-        'Cost Basis': [lot['cost_basis'] for lot in fifo_lots],
-        'Capital Gain': [lot['capital_gain'] for lot in fifo_lots],
-        'Gross Proceeds': [lot['shares'] * sale_price for lot in fifo_lots],
-        'Taxes Already Paid': calculate_prepaid_tax_for_lots(fifo_lots, security_id, date, tax_csv_data),
-        'Remaining Taxes': [max(0.00, lot['capital_gain'] - calculate_prepaid_tax_for_lots(fifo_lots, security_id, date, tax_csv_data)) * tax_rate/100 for lot in fifo_lots],
-        'Net Proceeds': [lot['shares'] * sale_price - max(0.00, lot['capital_gain'] - calculate_prepaid_tax_for_lots(fifo_lots, security_id, date, tax_csv_data)) * tax_rate/100 for lot in fifo_lots],
-        'currency': [security.currency] * len(fifo_lots)
-    })
-
     console.print(output.text(f"\n[bold]Security:[/bold] {security.name} ({security.wkn})"))
     console.print(output.text(f"[bold]Account:[/bold] {account.name}"))
     console.print(output.text(f"[bold]Shares:[/bold] {shares}"))
@@ -284,7 +270,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     ))
 
     console.print(*output.result_table(
-        lots_df,
+        fifo_lots,
         TableOptions(title="FIFO Lots Breakdown", show_index=False, show_total=True)
     ))
 

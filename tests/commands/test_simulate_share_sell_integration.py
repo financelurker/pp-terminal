@@ -28,7 +28,7 @@ from pp_terminal.commands.simulate_share_sell import (
     _calculate_fifo_lots,
     _calculate_taxes,
     _calculate_prepaid_taxes_for_lots
-)
+) # @todo
 from pp_terminal.exceptions import InputError
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
@@ -52,10 +52,10 @@ def test_partial_sell_remaining_shares(partial_sell_portfolio: Portfolio) -> Non
 
     # All remaining 60 shares come from the original purchase at 5€
     assert len(lots) == 1
-    assert lots[0]['shares'] == 60.0
-    assert lots[0]['purchase_price'] == 5.0
-    assert lots[0]['cost_basis'] == 300.0
-    assert lots[0]['capital_gain'] == 3300.0  # 60 * (60 - 5)
+    assert lots.iloc[0]['shares'] == 60.0
+    assert lots.iloc[0]['purchase_price'] == 5.0
+    assert lots.iloc[0]['cost_basis'] == 300.0
+    assert lots.iloc[0]['capital_gain'] == 3300.0  # 60 * (60 - 5)
 
 
 def test_partial_sell_insufficient_shares_error(partial_sell_portfolio: Portfolio) -> None:
@@ -79,9 +79,9 @@ def test_sell_on_purchase_date(partial_sell_portfolio: Portfolio) -> None:
     lots = _calculate_fifo_lots(snapshot, account_id, security_id, 10.0, 5.0)
 
     assert len(lots) == 1
-    assert lots[0]['shares'] == 10.0
-    assert lots[0]['purchase_price'] == 5.0
-    assert lots[0]['capital_gain'] == 0.0  # No gain when selling at purchase price
+    assert lots.iloc[0]['shares'] == 10.0
+    assert lots.iloc[0]['purchase_price'] == 5.0
+    assert lots.iloc[0]['capital_gain'] == 0.0  # No gain when selling at purchase price
 
 
 def test_capital_loss_scenario(partial_sell_portfolio: Portfolio) -> None:
@@ -94,9 +94,9 @@ def test_capital_loss_scenario(partial_sell_portfolio: Portfolio) -> None:
     lots = _calculate_fifo_lots(snapshot, account_id, security_id, 20.0, 4.0)
 
     assert len(lots) == 1
-    assert lots[0]['shares'] == 20.0
-    assert lots[0]['purchase_price'] == 5.0
-    assert lots[0]['capital_gain'] == -20.0  # 20 * (4 - 5)
+    assert lots.iloc[0]['shares'] == 20.0
+    assert lots.iloc[0]['purchase_price'] == 5.0
+    assert lots.iloc[0]['capital_gain'] == -20.0  # 20 * (4 - 5)
 
 
 def test_no_vorabpauschale_credit_same_year_sale(partial_sell_portfolio: Portfolio) -> None:
@@ -194,7 +194,7 @@ def test_zero_price_error(partial_sell_portfolio: Portfolio) -> None:
     # Zero price should work but result in negative capital gain
     lots = _calculate_fifo_lots(snapshot, account_id, security_id, 10.0, 0.0)
 
-    assert lots[0]['capital_gain'] == -50.0  # 10 * (0 - 5)
+    assert lots.iloc[0]['capital_gain'] == -50.0  # 10 * (0 - 5)
 
 
 def test_very_small_shares(partial_sell_portfolio: Portfolio) -> None:
@@ -207,9 +207,9 @@ def test_very_small_shares(partial_sell_portfolio: Portfolio) -> None:
     lots = _calculate_fifo_lots(snapshot, account_id, security_id, 0.5, 60.0)
 
     assert len(lots) == 1
-    assert lots[0]['shares'] == 0.5
-    assert lots[0]['cost_basis'] == 2.5  # 0.5 * 5
-    assert lots[0]['capital_gain'] == 27.5  # 0.5 * (60 - 5)
+    assert lots.iloc[0]['shares'] == 0.5
+    assert lots.iloc[0]['cost_basis'] == 2.5  # 0.5 * 5
+    assert lots.iloc[0]['capital_gain'] == 27.5  # 0.5 * (60 - 5)
 
 
 def test_exact_share_match(partial_sell_portfolio: Portfolio) -> None:
@@ -222,8 +222,8 @@ def test_exact_share_match(partial_sell_portfolio: Portfolio) -> None:
     lots = _calculate_fifo_lots(snapshot, account_id, security_id, 60.0, 60.0)
 
     assert len(lots) == 1
-    assert lots[0]['shares'] == 60.0
-    total_shares = sum(lot['shares'] for lot in lots)
+    assert lots.iloc[0]['shares'] == 60.0
+    total_shares = lots['shares'].sum()
     assert total_shares == 60.0
 
 
@@ -257,12 +257,12 @@ def test_snapshot_at_different_dates(partial_sell_portfolio: Portfolio) -> None:
     # After purchase, before sell - should have 100 shares
     snapshot_mid = PortfolioSnapshot(partial_sell_portfolio, datetime(2024, 1, 1))
     lots = _calculate_fifo_lots(snapshot_mid, account_id, security_id, 100.0, 50.0)
-    assert sum(lot['shares'] for lot in lots) == 100.0
+    assert lots['shares'].sum() == 100.0
 
     # After sell - should have 60 shares
     snapshot_after = PortfolioSnapshot(partial_sell_portfolio, datetime(2024, 12, 31))
     lots = _calculate_fifo_lots(snapshot_after, account_id, security_id, 60.0, 60.0)
-    assert sum(lot['shares'] for lot in lots) == 60.0
+    assert lots['shares'].sum() == 60.0
 
 
 def test_vorabpauschale_csv_calculation(partial_sell_portfolio: Portfolio) -> None:

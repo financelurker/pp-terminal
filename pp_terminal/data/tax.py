@@ -29,7 +29,7 @@ from pandera.typing import DataFrame
 
 from pp_terminal.exceptions import InputError
 from pp_terminal.output.strategy import Console
-from pp_terminal.domain.schemas import TaxPaidSchema, Percent, Money
+from pp_terminal.domain.schemas import TaxPaidSchema, Percent, Money, FifoLotSchema
 
 app = typer.Typer()
 console = Console()
@@ -69,7 +69,7 @@ def load_prepaid_tax_data_from_csv(csv_path: Path, tax_rate: Percent) -> DataFra
 
 
 def calculate_prepaid_tax_for_lots(
-    lots: list[FifoLot],
+    lots: DataFrame[FifoLotSchema],
     security_id: str,
     current_date: datetime,
     tax_csv_data: DataFrame[TaxPaidSchema] | None
@@ -78,7 +78,7 @@ def calculate_prepaid_tax_for_lots(
     Calculate total prepaid tax on current lots (e.g. Vorabpauschale).
 
     Args:
-        lots: Current FIFO lots (after matching sales)
+        lots: Current FIFO lots DataFrame (after matching sales)
         security_id: Security identifier for tax CSV lookup
         current_date: Evaluation date (for year range calculation)
         tax_csv_data: CSV data with taxes paid per share, indexed by (year, account_id, security_id)
@@ -89,9 +89,12 @@ def calculate_prepaid_tax_for_lots(
     if tax_csv_data is None or tax_csv_data.empty:
         return 0.0
 
+    if lots.empty:
+        return 0.0
+
     total_tax = 0.0
 
-    for lot in lots:
+    for _, lot in lots.iterrows():
         first_year = lot['purchase_date'].year
         last_year = current_date.year - 1
 

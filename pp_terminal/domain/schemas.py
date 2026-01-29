@@ -18,11 +18,11 @@
 """
 
 from enum import Enum
-from typing import Optional, TypeAlias
+from typing import Optional, TypeAlias, Any
 
 import pandera.pandas as pa
 from pandera.typing import Index, Series
-
+from pydantic import BaseModel
 
 Money: TypeAlias = float
 Percent: TypeAlias = float
@@ -63,6 +63,15 @@ class TransactionSchema(pa.DataFrameModel):
     currency: Series[str] = pa.Field(nullable=True)
 
 
+class Account(BaseModel):  # pylint: disable=too-few-public-methods
+    accountId: str
+    name: str
+    type: str
+    referenceAccount: Optional[str] = pa.Field(nullable=True)
+    isRetired: Optional[bool] = pa.Field(coerce=True)
+    currency: str | None
+    additionalAttributes: dict[str, Any] = {}
+
 class AccountSchema(pa.DataFrameModel):
     accountId: Index[str]
     name: Series[str]
@@ -72,12 +81,16 @@ class AccountSchema(pa.DataFrameModel):
     currency: Series[str] = pa.Field(nullable=True)
 
 
+class Security(BaseModel):  # pylint: disable=too-few-public-methods
+    securityId: str
+    name: str
+    wkn: str | None
+    currency: str | None
+    isRetired: Optional[bool] = pa.Field(coerce=True)
+    additionalAttributes: dict[str, Any] = {}
+
 class SecuritySchema(pa.DataFrameModel):
     securityId: Index[str]
-    name: Series[str]
-    wkn: Series[str] = pa.Field(nullable=True)
-    currency: Series[str] = pa.Field(nullable=True)
-    isRetired: Optional[Series[bool]] = pa.Field(coerce=True)
 
 
 class SecurityPriceSchema(pa.DataFrameModel):
@@ -90,7 +103,5 @@ class TaxPaidSchema(pa.DataFrameModel):
     year: Index[int] = pa.Field(coerce=True)
     account_id: Index[str]
     security_id: Index[str]
-    date: Series[pa.DateTime]
     tax_per_share: Series[Money]
-    deemed_income_base_per_share: Series[Money]
     tax_free_allowance: Series[Money] = pa.Field(nullable=True, coerce=True)

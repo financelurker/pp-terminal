@@ -20,7 +20,7 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import cast, TypedDict
+from typing import TypedDict
 
 import pandas as pd
 import typer
@@ -42,7 +42,7 @@ class FifoLot(TypedDict):
     shares: float
     purchase_price: Money
     cost_basis: Money
-    capital_gain: Money  # @todo Optional, for compatibility with share-sell
+    capital_gain: Money
 
 
 def load_prepaid_tax_data_from_csv(csv_path: Path, tax_rate: Percent) -> DataFrame[TaxPaidSchema]:
@@ -63,11 +63,9 @@ def load_prepaid_tax_data_from_csv(csv_path: Path, tax_rate: Percent) -> DataFra
     df = df.set_index(['year', 'account_id', 'security_id'])
 
     try:
-        TaxPaidSchema.validate(df)
+        return TaxPaidSchema.validate(df[['tax_per_share', 'tax_free_allowance']])
     except SchemaError as e:
         raise InputError(f"Prepaid tax data CSV is missing required columns: {e}") from e
-
-    return cast(DataFrame[TaxPaidSchema], df[['tax_per_share', 'tax_free_allowance']])
 
 
 def calculate_prepaid_tax_for_lots(

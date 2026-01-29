@@ -65,7 +65,7 @@ def format_value(value: Any, column_name: str, row: pd.Series) -> str:
         return format_shares(value)
 
     # Skip Purchase Price total (summing prices is meaningless)
-    if column_name == 'Purchase Price' and 'Purchase Date' in row and row['Purchase Date'] == 'Total':
+    if column_name.endswith('Price') and 'Purchase Date' in row and row['Purchase Date'] == 'Total':
         return ''
 
     if isinstance(value, Money):

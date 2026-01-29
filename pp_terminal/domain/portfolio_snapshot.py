@@ -18,10 +18,8 @@
 """
 
 from datetime import datetime
-from typing import cast
 
 import pandas as pd
-import pandera as pa
 from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_earlier_than, filter_by_type
@@ -64,21 +62,18 @@ class PortfolioSnapshot:
         return prices
 
     @property
-    @pa.check_types()
     def securities_account_transactions(self) -> DataFrame[TransactionSchema]:
         transactions = self._portfolio.securities_account_transactions
 
-        return cast(DataFrame[TransactionSchema], transactions.pipe(filter_earlier_than, target_date=self._per_date))
+        return TransactionSchema.validate(transactions.pipe(filter_earlier_than, target_date=self._per_date))
 
     @property
-    @pa.check_types()
     def deposit_account_transactions(self) -> DataFrame[TransactionSchema]:
         transactions = self.portfolio.deposit_account_transactions
 
-        return cast(DataFrame[TransactionSchema], transactions.pipe(filter_earlier_than, target_date=self._per_date))
+        return TransactionSchema.validate(transactions.pipe(filter_earlier_than, target_date=self._per_date))
 
     @property
-    @pa.check_types()
     def shares(self) -> pd.Series | None:
         transactions = self.securities_account_transactions
         transactions['shares'] = transactions.apply(

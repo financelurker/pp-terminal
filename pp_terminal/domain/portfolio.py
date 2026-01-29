@@ -18,12 +18,12 @@
 """
 
 import logging
-from typing import cast
 
+import pandera.pandas as pa
 from pandera.errors import SchemaError
 from pandera.typing import DataFrame
 
-from .schemas import AccountType, TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema
+from .schemas import AccountType, TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema, Account, Security
 from ..exceptions import InputError
 
 log = logging.getLogger(__name__)
@@ -73,25 +73,27 @@ class Portfolio:
 
     @property
     def securities_accounts(self) -> DataFrame[AccountSchema]:
-        return cast(DataFrame[AccountSchema], self._accounts[self._accounts['type'] == AccountType.SECURITIES.value])
+        return AccountSchema.validate(self._accounts[self._accounts['type'] == AccountType.SECURITIES.value])
 
     @property
     def deposit_accounts(self) -> DataFrame[AccountSchema]:
-        return cast(DataFrame[AccountSchema], self._accounts[self._accounts['type'] == AccountType.DEPOSIT.value])
+        return AccountSchema.validate(self._accounts[self._accounts['type'] == AccountType.DEPOSIT.value])
 
     @property
     def securities_account_transactions(self) -> DataFrame[TransactionSchema]:
-        return cast(DataFrame[TransactionSchema], self._transactions[self._transactions['accountType'] == AccountType.SECURITIES.value].sort_values(by=['date']))
+        return TransactionSchema.validate(self._transactions[self._transactions['accountType'] == AccountType.SECURITIES.value].sort_values(by=['date']))
 
     @property
     def deposit_account_transactions(self) -> DataFrame[TransactionSchema]:
-        return cast(DataFrame[TransactionSchema], self._transactions[self._transactions['accountType'] == AccountType.DEPOSIT.value].sort_values(by=['date']))
+        return TransactionSchema.validate(self._transactions[self._transactions['accountType'] == AccountType.DEPOSIT.value].sort_values(by=['date']))
 
     @property
+    @pa.check_types
     def securities(self) -> DataFrame[SecuritySchema]:
         return self._securities
 
     @property
+    @pa.check_types
     def prices(self) -> DataFrame[SecurityPriceSchema]:
         return self._prices
 
@@ -108,15 +110,15 @@ class Portfolio:
         return self._attributes.get('accounts', {})
 
 
-def get_securities_account_by_id(portfolio: Portfolio, account_id: str) -> AccountSchema:
+def get_securities_account_by_id(portfolio: Portfolio, account_id: str) -> Account:
     if account_id not in portfolio.securities_accounts.index:
         raise InputError(f"Securities account '{account_id}' not found in portfolio")
 
-    return cast(AccountSchema, portfolio.securities_accounts.loc[account_id])
+    return Account(**portfolio.securities_accounts.reset_index().set_index('accountId', drop=False).loc[account_id])
 
 
-def get_security_by_id(portfolio: Portfolio, security_id: str) -> SecuritySchema:
+def get_security_by_id(portfolio: Portfolio, security_id: str) -> Security:
     if security_id not in portfolio.securities.index:
         raise InputError(f"Security '{security_id}' not found in portfolio")
 
-    return cast(SecuritySchema, portfolio.securities.loc[security_id])
+    return Security(**portfolio.securities.reset_index().set_index('securityId', drop=False).loc[security_id])

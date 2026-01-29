@@ -216,6 +216,8 @@ This will result in the command `pp-terminal hello-world` being available.
 For more sophisticated samples take a look at the packaged commands in the `pp_terminal/commands` directory,
 e.g. a good starting point is [view_accounts.py](https://github.com/ma4nn/pp-terminal/blob/master/pp_terminal/commands/view_accounts.py).
 
+The commands must be grouped by action, e.g. `view accounts` or `simulate share-sell`.
+
 The app uses [Typer](https://typer.tiangolo.com/) for composing the commands and [Rich](https://github.com/Textualize/rich)
 for nice console outputs. The Portfolio Performance XML file is read with [ppxml2db](https://github.com/pfalcon/ppxml2db) 
 and efficiently held in [pandas dataframes](https://pandas.pydata.org/).

@@ -19,7 +19,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, cast
+from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
@@ -100,7 +100,7 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
         securities = pd.read_sql_query(sql, self._db.connection, index_col='uuid', params=params).rename_axis('securityId')
         securities = convert_attribute_types(securities, security_attrs)
 
-        return cast(DataFrame[SecuritySchema], securities)
+        return SecuritySchema.validate(securities)
 
     def _parse_prices(self) -> DataFrame[SecurityPriceSchema]:
         prices = (pd.read_sql_query('select datetime(tstamp) as date, * from price', self._db.connection, index_col=['date', 'security'], parse_dates={"date": "%Y-%m-%d %H:%M:%S"}, dtype={'value': np.float64})
@@ -108,7 +108,7 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
         prices['price'] = prices['price'] / _SCALE
         prices.index.set_names(['date', 'securityId'], inplace=True)
 
-        return cast(DataFrame[SecurityPriceSchema], prices)
+        return SecurityPriceSchema.validate(prices)
 
     def _parse_transactions(self) -> DataFrame[TransactionSchema]:
         transactions = (pd.read_sql_query("""
@@ -126,7 +126,7 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
         transactions['taxes'] = transactions['taxes'] / _CENTS_PER_EURO
         transactions.index.set_names(['date', 'accountId', 'securityId'], inplace=True)
 
-        return cast(DataFrame[TransactionSchema], transactions)
+        return TransactionSchema.validate(transactions)
 
     def _parse_accounts(self) -> DataFrame[AccountSchema]:
         account_attrs = self._get_attributes(_ATTRIBUTE_TYPE_ACCOUNT)
@@ -155,7 +155,7 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
         # Convert attribute values based on converterClass
         accounts = convert_attribute_types(accounts, account_attrs)
 
-        return cast(DataFrame[AccountSchema], accounts)
+        return AccountSchema.validate(accounts)
 
     def _get_property(self, name: str) -> str | None:
         cursor = self._db.connection.cursor()

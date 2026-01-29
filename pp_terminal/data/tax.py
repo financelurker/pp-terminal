@@ -86,44 +86,54 @@ def calculate_prepaid_tax_for_lots(
     Returns:
         Total prepaid tax to reduce cost basis.
     """
-    if tax_csv_data is None or tax_csv_data.empty:
+    if lots.empty or tax_csv_data is None or tax_csv_data.empty:
         return 0.0
 
-    if lots.empty:
+    # Add year columns to determine valid year ranges
+    lots_with_years = lots.copy()
+    lots_with_years['first_year'] = lots_with_years['purchase_date'].dt.year
+    lots_with_years['last_year'] = current_date.year - 1
+
+    # Filter out current year purchases (no prepaid tax yet)
+    lots_with_years = lots_with_years[lots_with_years['last_year'] >= lots_with_years['first_year']]
+
+    if lots_with_years.empty:
         return 0.0
 
-    total_tax = 0.0
+    # Create year range for each lot
+    lots_with_years['year_range'] = lots_with_years.apply(
+        lambda row: list(range(row['first_year'], row['last_year'] + 1)),
+        axis=1
+    )
 
-    for _, lot in lots.iterrows():
-        first_year = lot['purchase_date'].year
-        last_year = current_date.year - 1
+    # Explode into lot-year pairs
+    lot_years = lots_with_years.explode('year_range').rename(columns={'year_range': 'year'})
 
-        if last_year < first_year:
-            # Purchased in current year - no prepaid tax yet
-            continue
+    # Calculate month_factor (prorate for purchase year)
+    lot_years['month_factor'] = 1.0
+    is_first_year = lot_years['year'] == lot_years['first_year']
+    lot_years.loc[is_first_year, 'month_factor'] = (
+        (13 - lot_years.loc[is_first_year, 'purchase_date'].dt.month) / 12.0
+    )
 
-        # Calculate tax for each year
-        for year in range(first_year, last_year + 1):
-            try:
-                tax_per_share = tax_csv_data.loc[(year, lot['account_id'], security_id), 'tax_per_share']
-            except KeyError:
-                continue
+    lot_years['security_id'] = security_id
+    lot_years = lot_years.merge(
+        tax_csv_data.reset_index(),
+        on=['year', 'account_id', 'security_id'],
+        how='inner'
+    )
 
-            try:
-                tax_free_allowance_per_year = tax_csv_data.loc[(year, lot['account_id'], security_id), 'tax_free_allowance']
-            except KeyError:
-                # tax_free_allowance is optional
-                tax_free_allowance_per_year = 0.0
+    if lot_years.empty:
+        return 0.0
 
-            # For purchase year, prorate by months held
-            if year == first_year:
-                # Months held = 13 - purchase_month (e.g., June = month 6 -> 13-6 = 7 months)
-                months_held = 13 - lot['purchase_date'].month
-                month_factor = months_held / 12.0
-            else:
-                # Full year
-                month_factor = 1.0
+    if 'tax_free_allowance' not in lot_years.columns:
+        lot_years['tax_free_allowance'] = 0.0
+    else:
+        lot_years['tax_free_allowance'] = lot_years['tax_free_allowance'].fillna(0.0)
 
-            total_tax += lot['shares'] * float(tax_per_share) * month_factor - float(tax_free_allowance_per_year)
+    # Calculate tax contribution per lot-year
+    lot_years['tax_contribution'] = (
+        lot_years['shares'] * lot_years['tax_per_share'] * lot_years['month_factor'] - lot_years['tax_free_allowance']
+    )
 
-    return total_tax
+    return float(lot_years['tax_contribution'].sum())

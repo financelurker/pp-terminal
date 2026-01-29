@@ -93,6 +93,9 @@ def provide_tax_csv_data() -> DataFrame[TaxPaidSchema]:
         [0.06, 0],
         [0.07, 0],
     ], columns=['tax_per_share', 'tax_free_allowance'],
-        index=pd.MultiIndex.from_arrays([[2020, 2021, 2021, 2022], ['acc-1', 'acc-1', 'acc-2', 'acc-1'], ['sec-1', 'sec-1', 'sec-1', 'sec-1']]))
+        index=pd.MultiIndex.from_arrays(
+            [[2020, 2021, 2021, 2022], ['acc-1', 'acc-1', 'acc-2', 'acc-1'], ['sec-1', 'sec-1', 'sec-1', 'sec-1']],
+            names=['year', 'account_id', 'security_id']
+        ))
 
     return data

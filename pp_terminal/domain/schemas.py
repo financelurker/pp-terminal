@@ -91,6 +91,10 @@ class Security(BaseModel):  # pylint: disable=too-few-public-methods
 
 class SecuritySchema(pa.DataFrameModel):
     securityId: Index[str]
+    name: Series[str]
+    wkn: Series[str] = pa.Field(nullable=True)
+    currency: Series[str] = pa.Field(nullable=True)
+    isRetired: Optional[Series[bool]] = pa.Field(coerce=True)
 
 
 class SecurityPriceSchema(pa.DataFrameModel):
@@ -105,3 +109,13 @@ class TaxPaidSchema(pa.DataFrameModel):
     security_id: Index[str]
     tax_per_share: Series[Money]
     tax_free_allowance: Series[Money] = pa.Field(nullable=True, coerce=True)
+
+
+class FifoLotSchema(pa.DataFrameModel):
+    purchase_date: pa.DateTime
+    account_id: str
+    security_id: str
+    shares: float
+    purchase_price: Money
+    cost_basis: Money
+    capital_gain: Money

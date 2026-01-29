@@ -36,7 +36,7 @@ from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio, get_securities_account_by_id, get_security_by_id
-from pp_terminal.domain.schemas import TransactionType, Percent, Money, TaxPaidSchema
+from pp_terminal.domain.schemas import TransactionType, Percent, Money, TaxPaidSchema, Account, Security
 from pp_terminal.output.table_decorator import TableOptions
 
 app = typer.Typer()
@@ -161,6 +161,24 @@ def get_today() -> datetime:
     return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
+def _get_available_shares(security: Security, account: Account, snapshot: PortfolioSnapshot) -> float:
+    shares_available = snapshot.shares
+    if shares_available is None:
+        raise InputError("No share holdings found in portfolio")
+
+    # Check for this specific account/security combination
+    holding_key = None
+    for key in shares_available.index:
+        if key[0] == account.accountId and key[1] == security.securityId:
+            holding_key = key
+            break
+
+    if holding_key is None:
+        raise InputError(f"No shares of '{security.name}' found in account '{account.name}' on {snapshot.date.strftime('%Y-%m-%d')}")
+
+    return float(shares_available[holding_key])
+
+
 @app.command(name="share-sell")
 def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-statements,too-many-branches
         ctx: typer.Context,
@@ -194,35 +212,22 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         if security_id not in latest_prices.index:
             raise InputError(f"No price data available for security '{security_id}'. Please provide --price")
         sale_price = latest_prices.loc[security_id]
+    elif price <= 0:
+        raise InputError("Sale price must be greater than 0")
     else:
-        if price <= 0:
-            raise InputError("Sale price must be greater than 0")
         sale_price = price
 
-    # Verify sufficient shares available
-    shares_available = snapshot.shares
-    if shares_available is None:
-        raise InputError("No share holdings found in portfolio")
-
-    # Check for this specific account/security combination
-    holding_key = None
-    for key in shares_available.index:
-        if key[0] == account_id and key[1] == security_id:
-            holding_key = key
-            break
-
-    if holding_key is None:
-        raise InputError(f"No shares of '{security.name}' found in account '{account.name}' on {date.strftime('%Y-%m-%d')}")
-
-    available_shares = shares_available[holding_key]
-
-    # If shares not specified, sell all available shares
+    available_shares = _get_available_shares(security, account, snapshot)
     if shares is None:
         shares = available_shares
     elif available_shares < shares - 0.0001:  # Allow small floating point errors
         raise InputError(f"Insufficient shares. Available: {available_shares:.8f}, Requested: {shares:.8f}")
 
     fifo_lots = _calculate_fifo_lots(snapshot, account_id, security_id, shares, sale_price)
+    lots_df = pd.DataFrame(fifo_lots)
+    lots_df['salePrice'] = sale_price
+    lots_df['grossProceeds'] = lots_df['shares'] * sale_price
+    lots_df['currency'] = security.currency
 
     total_cost_basis = sum(lot['cost_basis'] for lot in fifo_lots)
     total_capital_gain = sum(lot['capital_gain'] for lot in fifo_lots)
@@ -253,14 +258,17 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         'currency': [security.currency] * 5
     })
 
-    # Format output - FIFO Lots (use numeric types for proper alignment and totals)
-    lots_df = pd.DataFrame({
+    lots_df_2 = pd.DataFrame({
         'Purchase Date': [lot['purchase_date'].strftime('%Y-%m-%d') for lot in fifo_lots],
         'Shares': [lot['shares'] for lot in fifo_lots],
         'Purchase Price': [lot['purchase_price'] for lot in fifo_lots],
+        'Sale Price': [sale_price] * len(fifo_lots),
         'Cost Basis': [lot['cost_basis'] for lot in fifo_lots],
         'Capital Gain': [lot['capital_gain'] for lot in fifo_lots],
+        'Gross Proceeds': [lot['shares'] * sale_price for lot in fifo_lots],
         'Taxes Already Paid': calculate_prepaid_tax_for_lots(fifo_lots, security_id, date, tax_csv_data),
+        'Remaining Taxes': [max(0.00, lot['capital_gain'] - calculate_prepaid_tax_for_lots(fifo_lots, security_id, date, tax_csv_data)) * tax_rate/100 for lot in fifo_lots],
+        'Net Proceeds': [lot['shares'] * sale_price - max(0.00, lot['capital_gain'] - calculate_prepaid_tax_for_lots(fifo_lots, security_id, date, tax_csv_data)) * tax_rate/100 for lot in fifo_lots],
         'currency': [security.currency] * len(fifo_lots)
     })
 

@@ -29,7 +29,7 @@ from typing_extensions import Annotated
 
 from pp_terminal.data.cost_basis import match_sales_to_lots
 from pp_terminal.data.filters import filter_by_type
-from pp_terminal.data.tax import load_prepaid_tax_data_from_csv, calculate_prepaid_tax_per_lot, FifoLot
+from pp_terminal.data.tax import load_prepaid_tax_data_from_csv, calculate_prepaid_tax_per_lot
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import format_money, footer
 from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
@@ -67,26 +67,23 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals,too-many-arguments,
     if purchase_txns.empty:
         raise InputError(f"No purchase transactions found for security {security_id} in account {account_id}")
 
-    # Step 2: Convert purchase transactions to lots using shared logic pattern
+    # Step 2: Convert purchase transactions to lots
     purchase_txns_sorted = purchase_txns.sort_index(level='date')
-    account_lots: list[FifoLot] = []
 
-    for (date, _, _), row in purchase_txns_sorted.iterrows():
-        shares = float(row['shares'])
-        if shares <= 0:
-            continue
+    valid_purchases = purchase_txns_sorted[purchase_txns_sorted['shares'] > 0].copy()
+    if valid_purchases.empty:
+        raise InputError(f"No valid purchase transactions found for security {security_id} in account {account_id}")
 
+    account_lots_df = pd.DataFrame({
+        'purchase_date': valid_purchases.index.get_level_values('date'),
+        'account_id': account_id,
+        'security_id': security_id,
+        'shares': valid_purchases['shares'].values,
         # BUY transactions have negative amounts (cash outflow), use absolute value
-        purchase_price = abs(float(row['amount']) / shares)
-
-        account_lots.append({
-            'purchase_date': date,
-            'account_id': account_id,
-            'shares': shares,
-            'purchase_price': purchase_price,
-            'cost_basis': shares * purchase_price,
-            'capital_gain': 0.0
-        })
+        'purchase_price': abs(valid_purchases['amount'] / valid_purchases['shares']).values,
+        'capital_gain': 0.0,
+    })
+    account_lots_df['cost_basis'] = account_lots_df['shares'] * account_lots_df['purchase_price']
 
     # Step 3: Get historical sells for this account/security
     historical_sells = transactions[
@@ -95,9 +92,6 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals,too-many-arguments,
     ].pipe(filter_by_type, transaction_types=[TransactionType.SELL, TransactionType.DELIVERY_OUTBOUND])
 
     # Step 4: Match historical sells to lots using shared FIFO logic
-    account_lots_df = pd.DataFrame(account_lots)
-    if not account_lots_df.empty:
-        account_lots_df['security_id'] = security_id
     remaining_lots_df = match_sales_to_lots(account_lots_df, historical_sells)
 
     # Step 5: Match the hypothetical sell against remaining lots

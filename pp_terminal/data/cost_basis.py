@@ -24,7 +24,7 @@ import pandas as pd
 from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_by_type
-from pp_terminal.data.tax import calculate_prepaid_tax_for_lots
+from pp_terminal.data.tax import calculate_prepaid_tax_per_lot
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema, FifoLotSchema
 
@@ -182,14 +182,11 @@ def calculate_current_cost_basis(
     gross_cost_basis = float(remaining_lots['cost_basis'].sum())
 
     # Step 5: Calculate tax credit (if CSV provided)
-    tax_credit = 0.0
-    if tax_csv_data is not None:
-        tax_credit = calculate_prepaid_tax_for_lots(
-            remaining_lots,
-            security_id,
-            evaluation_date,
-            tax_csv_data
-        )
+    tax_credit = float(calculate_prepaid_tax_per_lot(
+        remaining_lots,
+        evaluation_date,
+        tax_csv_data
+    ).sum())
 
     # Step 6: Return net cost basis
     net_cost_basis = max(0.0, gross_cost_basis - tax_credit)

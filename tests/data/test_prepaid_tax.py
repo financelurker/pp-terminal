@@ -22,7 +22,7 @@ from datetime import datetime
 import pandas as pd
 import pytest
 
-from pp_terminal.data.tax import FifoLot, calculate_prepaid_tax_for_lots
+from pp_terminal.data.tax import FifoLot, calculate_prepaid_tax_per_lot
 from pp_terminal.domain.schemas import FifoLotSchema
 
 
@@ -48,7 +48,7 @@ def test_single_year_full_year(tax_csv_data: pd.DataFrame) -> None:
 
     # Current date 2022-12-31: years held = 2020, 2021 (not 2022 because last_year = current_year - 1)
     current_date = datetime(2022, 12, 31)
-    credit = calculate_prepaid_tax_for_lots(_lots_to_df(lots, 'sec-1'), 'sec-1', current_date, tax_csv_data)
+    credit = float(calculate_prepaid_tax_per_lot(_lots_to_df(lots, 'sec-1'), current_date, tax_csv_data).sum())
 
     # 2020: 100 shares * €0.05 = €5.00 (full year)
     # 2021: 100 shares * €0.06 = €6.00 (full year)
@@ -69,7 +69,7 @@ def test_purchase_year_month_proration(tax_csv_data: pd.DataFrame) -> None:
     ]
 
     current_date = datetime(2022, 12, 31)
-    credit = calculate_prepaid_tax_for_lots(_lots_to_df(lots, 'sec-1'), 'sec-1', current_date, tax_csv_data)
+    credit = float(calculate_prepaid_tax_per_lot(_lots_to_df(lots, 'sec-1'), current_date, tax_csv_data).sum())
 
     # 2020: 100 shares * €0.05 * (13-6)/12 = 100 * 0.05 * 7/12 = €2.92
     # 2021: 100 shares * €0.06 * 1.0 = €6.00
@@ -98,7 +98,7 @@ def test_multiple_lots_different_accounts(tax_csv_data: pd.DataFrame) -> None:
     ]
 
     current_date = datetime(2022, 12, 31)
-    credit = calculate_prepaid_tax_for_lots(_lots_to_df(lots, 'sec-1'), 'sec-1', current_date, tax_csv_data)
+    credit = float(calculate_prepaid_tax_per_lot(_lots_to_df(lots, 'sec-1'), current_date, tax_csv_data).sum())
 
     # Lot 1 (acc-1):
     #   2020: 50 * €0.05 = €2.50
@@ -122,7 +122,7 @@ def test_purchased_in_current_year_no_credit(tax_csv_data: pd.DataFrame) -> None
     ]
 
     current_date = datetime(2022, 12, 31)
-    credit = calculate_prepaid_tax_for_lots(_lots_to_df(lots, 'sec-1'), 'sec-1', current_date, tax_csv_data)
+    credit = float(calculate_prepaid_tax_per_lot(_lots_to_df(lots, 'sec-1'), current_date, tax_csv_data).sum())
 
     # Purchased in 2022, evaluated in 2022 -> last_year = 2021 < first_year = 2022
     assert credit == 0.0
@@ -141,7 +141,7 @@ def test_missing_tax_data_ignored(tax_csv_data: pd.DataFrame) -> None:
     ]
 
     current_date = datetime(2022, 12, 31)
-    credit = calculate_prepaid_tax_for_lots(_lots_to_df(lots, 'sec-1'), 'sec-1', current_date, tax_csv_data)
+    credit = float(calculate_prepaid_tax_per_lot(_lots_to_df(lots, 'sec-1'), current_date, tax_csv_data).sum())
 
     # 2019: No data in CSV -> €0.00
     # 2020: 100 * €0.05 = €5.00
@@ -163,6 +163,6 @@ def test_no_tax_csv_returns_zero() -> None:
     ]
 
     current_date = datetime(2022, 12, 31)
-    credit = calculate_prepaid_tax_for_lots(_lots_to_df(lots, 'sec-1'), 'sec-1', current_date, None)
+    credit = float(calculate_prepaid_tax_per_lot(_lots_to_df(lots, 'sec-1'), current_date, None).sum())
 
     assert credit == 0.0

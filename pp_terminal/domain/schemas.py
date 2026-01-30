@@ -119,3 +119,12 @@ class FifoLotSchema(pa.DataFrameModel):
     purchase_price: Money
     cost_basis: Money
     capital_gain: Money
+    salePrice: Money = pa.Field(nullable=True)
+    grossProceeds: Money = pa.Field(nullable=True)
+    prepaidTax: Money = pa.Field(nullable=True)
+    taxableGain: Money = pa.Field(nullable=True, ge=0)
+    totalTax: Money = pa.Field(nullable=True)
+    netProceeds: Money = pa.Field(nullable=True)
+
+    class Config:  # pylint: disable=too-few-public-methods
+        add_missing_columns = True

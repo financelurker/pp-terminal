@@ -29,15 +29,14 @@ from typing_extensions import Annotated
 
 from pp_terminal.data.cost_basis import match_sales_to_lots
 from pp_terminal.data.filters import filter_by_type
-from pp_terminal.data.tax import load_prepaid_tax_data_from_csv, calculate_prepaid_tax_for_lots, FifoLot
+from pp_terminal.data.tax import load_prepaid_tax_data_from_csv, calculate_prepaid_tax_per_lot, FifoLot
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import format_money, footer
 from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio, get_securities_account_by_id, get_security_by_id
-from pp_terminal.domain.schemas import TransactionType, Percent, Money, TaxPaidSchema, Account, Security, FifoLotSchema, \
-    TransactionSchema
+from pp_terminal.domain.schemas import TransactionType, Percent, Money, TaxPaidSchema, Account, Security, FifoLotSchema, TransactionSchema
 from pp_terminal.output.table_decorator import TableOptions
 
 app = typer.Typer()
@@ -50,15 +49,17 @@ class TaxBreakdown(TypedDict):
     total_tax: Money
 
 
-def _calculate_fifo_lots(  # pylint: disable=too-many-locals
+def _calculate_fifo_lots(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
         snapshot: PortfolioSnapshot,
         account_id: str,
         security_id: str,
         shares_to_sell: float,
-        sale_price: Money
+        sale_price: Money,
+        tax_rate: Percent,
+        tax_csv_data: DataFrame[TaxPaidSchema] | None = None
 ) -> DataFrame[FifoLotSchema]:
     """
-    Calculate FIFO lots for shares being sold.
+    Calculate FIFO lots for shares being sold, including prepaid tax calculations.
     """
     transactions = snapshot.securities_account_transactions
 
@@ -92,20 +93,18 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals
             'capital_gain': 0.0
         })
 
-    # Step 3: Get historical sales for this account/security
-    historical_sales = transactions[
+    # Step 3: Get historical sells for this account/security
+    historical_sells = transactions[
         (transactions.index.get_level_values('accountId') == account_id) &
         (transactions.index.get_level_values('securityId') == security_id)
     ].pipe(filter_by_type, transaction_types=[TransactionType.SELL, TransactionType.DELIVERY_OUTBOUND])
 
-    # Step 4: Match historical sales to lots using shared FIFO logic
-    # Convert list to DataFrame for match_sales_to_lots
+    # Step 4: Match historical sells to lots using shared FIFO logic
     account_lots_df = pd.DataFrame(account_lots)
     if not account_lots_df.empty:
         account_lots_df['security_id'] = security_id
-    remaining_lots_df = match_sales_to_lots(account_lots_df, historical_sales)
+    remaining_lots_df = match_sales_to_lots(account_lots_df, historical_sells)
 
-    # Convert DataFrame back to list for iteration
     remaining_lots = remaining_lots_df.to_dict('records') if not remaining_lots_df.empty else []
 
     # Step 5: Match the hypothetical sale against remaining lots
@@ -138,17 +137,14 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals
     df['salePrice'] = sale_price
     df['grossProceeds'] = df['shares'] * sale_price
 
+    prepaid_tax_series = calculate_prepaid_tax_per_lot(FifoLotSchema.validate(df), snapshot.date, tax_csv_data)
+    df['prepaidTax'] = prepaid_tax_series.values
+
+    df['taxableGain'] = df.apply(lambda row: max(0.0, row['capital_gain'] - row['prepaidTax']), axis=1)
+    df['totalTax'] = df['taxableGain'] * (tax_rate / 100.0)
+    df['netProceeds'] = df['grossProceeds'] - df['totalTax']
+
     return FifoLotSchema.validate(df)
-
-
-def _calculate_prepaid_taxes_for_lots(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-        account_id: str,  # pylint: disable=unused-argument
-        security_id: str,
-        fifo_lots: DataFrame[FifoLotSchema],
-        sale_date: datetime,
-        tax_csv_data: DataFrame[TaxPaidSchema] | None
-) -> Money:
-    return calculate_prepaid_tax_for_lots(fifo_lots, security_id, sale_date, tax_csv_data)
 
 
 def get_today() -> datetime:
@@ -195,7 +191,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     if date is None:
         date = get_today()
 
-    tax_csv_data = load_prepaid_tax_data_from_csv(tax_csv, tax_rate) if tax_csv else None
+    _tax_csv_data = load_prepaid_tax_data_from_csv(tax_csv, tax_rate) if tax_csv else None
 
     security = get_security_by_id(portfolio, security_id)
     account = get_securities_account_by_id(portfolio, account_id)
@@ -218,7 +214,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     elif available_shares < shares - 0.0001:  # Allow small floating point errors
         raise InputError(f"Insufficient shares. Available: {available_shares:.8f}, Requested: {shares:.8f}")
 
-    fifo_lots = _calculate_fifo_lots(snapshot, account_id, security_id, shares, sale_price)
+    fifo_lots = _calculate_fifo_lots(snapshot, account_id, security_id, shares, sale_price, tax_rate, _tax_csv_data)
     fifo_lots['currency'] = security.currency
 
     console.print(output.text(f"\n[bold]Security:[/bold] {security.name} ({security.wkn})"))

@@ -68,29 +68,28 @@ def load_prepaid_tax_data_from_csv(csv_path: Path, tax_rate: Percent) -> DataFra
         raise InputError(f"Prepaid tax data CSV is missing required columns: {e}") from e
 
 
-def calculate_prepaid_tax_for_lots(
+def calculate_prepaid_tax_per_lot(
     lots: DataFrame[FifoLotSchema],
-    security_id: str,
     current_date: datetime,
     tax_csv_data: DataFrame[TaxPaidSchema] | None
-) -> Money:
+) -> pd.Series:
     """
-    Calculate total prepaid tax on current lots (e.g. Vorabpauschale).
+    Calculate prepaid tax per lot (e.g. Vorabpauschale).
 
     Args:
         lots: Current FIFO lots DataFrame (after matching sales)
-        security_id: Security identifier for tax CSV lookup
         current_date: Evaluation date (for year range calculation)
         tax_csv_data: CSV data with taxes paid per share, indexed by (year, account_id, security_id)
 
     Returns:
-        Total prepaid tax to reduce cost basis.
+        Series of prepaid tax amounts, indexed to match the input lots dataframe.
     """
     if lots.empty or tax_csv_data is None or tax_csv_data.empty:
-        return 0.0
+        return pd.Series(0.0, index=lots.index)
 
-    # Add year columns to determine valid year ranges
-    lots_with_years = lots.copy()
+    # Add year columns and lot index to track original lot
+    lots_with_years = lots.copy().reset_index(drop=True)
+    lots_with_years['lot_index'] = lots_with_years.index
     lots_with_years['first_year'] = lots_with_years['purchase_date'].dt.year
     lots_with_years['last_year'] = current_date.year - 1
 
@@ -98,7 +97,7 @@ def calculate_prepaid_tax_for_lots(
     lots_with_years = lots_with_years[lots_with_years['last_year'] >= lots_with_years['first_year']]
 
     if lots_with_years.empty:
-        return 0.0
+        return pd.Series(0.0, index=lots.index)
 
     # Create year range for each lot
     lots_with_years['year_range'] = lots_with_years.apply(
@@ -116,7 +115,6 @@ def calculate_prepaid_tax_for_lots(
         (13 - lot_years.loc[is_first_year, 'purchase_date'].dt.month) / 12.0
     )
 
-    lot_years['security_id'] = security_id
     lot_years = lot_years.merge(
         tax_csv_data.reset_index(),
         on=['year', 'account_id', 'security_id'],
@@ -124,7 +122,7 @@ def calculate_prepaid_tax_for_lots(
     )
 
     if lot_years.empty:
-        return 0.0
+        return pd.Series(0.0, index=lots.index)
 
     if 'tax_free_allowance' not in lot_years.columns:
         lot_years['tax_free_allowance'] = 0.0
@@ -136,4 +134,8 @@ def calculate_prepaid_tax_for_lots(
         lot_years['shares'] * lot_years['tax_per_share'] * lot_years['month_factor'] - lot_years['tax_free_allowance']
     )
 
-    return float(lot_years['tax_contribution'].sum())
+    # Group by lot_index to get per-lot totals
+    per_lot_tax = lot_years.groupby('lot_index')['tax_contribution'].sum()
+
+    # Reindex to match original lots dataframe, filling missing with 0
+    return per_lot_tax.reindex(lots.index, fill_value=0.0)

@@ -20,7 +20,7 @@
 from datetime import datetime
 import logging
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import cast
 
 import pandas as pd
 import typer
@@ -42,11 +42,6 @@ from pp_terminal.output.table_decorator import TableOptions
 app = typer.Typer()
 console = Console()
 log = logging.getLogger(__name__)
-
-
-class TaxBreakdown(TypedDict):
-    taxable_gain: Money
-    total_tax: Money
 
 
 def _calculate_fifo_lots(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
@@ -105,34 +100,35 @@ def _calculate_fifo_lots(  # pylint: disable=too-many-locals,too-many-arguments,
         account_lots_df['security_id'] = security_id
     remaining_lots_df = match_sales_to_lots(account_lots_df, historical_sells)
 
-    remaining_lots = remaining_lots_df.to_dict('records') if not remaining_lots_df.empty else []
+    # Step 5: Match the hypothetical sell against remaining lots
+    if remaining_lots_df.empty:
+        raise InputError(f"Insufficient shares available. Requested: {shares_to_sell}, Available: 0")
 
-    # Step 5: Match the hypothetical sale against remaining lots
-    lots_to_return: list[FifoLot] = []
-    shares_remaining = shares_to_sell
+    # Calculate cumulative shares to determine lot consumption
+    cumsum = remaining_lots_df['shares'].cumsum()
+    prev_cumsum = cumsum.shift(1, fill_value=0.0)
 
-    for lot in remaining_lots:
-        if shares_remaining <= 0:
-            break
+    # Shares to take from each lot: min(lot_shares, remaining_needed)
+    shares_taken = (shares_to_sell - prev_cumsum).clip(lower=0, upper=remaining_lots_df['shares'])
 
-        shares_from_lot = min(shares_remaining, lot['shares'])
-        capital_gain = shares_from_lot * (sale_price - lot['purchase_price'])
+    # Filter to contributing lots only
+    contributing_mask = shares_taken > 0
+    if not contributing_mask.any():
+        raise InputError(f"Insufficient shares available. Requested: {shares_to_sell}, Available: 0")
 
-        lots_to_return.append({
-            'purchase_date': lot['purchase_date'],
-            'account_id': lot['account_id'],
-            'shares': shares_from_lot,
-            'purchase_price': lot['purchase_price'],
-            'cost_basis': shares_from_lot * lot['purchase_price'],
-            'capital_gain': capital_gain
-        })
+    df = remaining_lots_df[contributing_mask][['purchase_date', 'account_id', 'purchase_price']].copy()
+    df['shares'] = shares_taken[contributing_mask].values
 
-        shares_remaining -= shares_from_lot
+    # Validate sufficient shares
+    total_allocated = df['shares'].sum()
+    if total_allocated < shares_to_sell - 0.0001:  # Allow small floating point errors
+        raise InputError(
+            f"Insufficient shares available. Requested: {shares_to_sell}, "
+            f"Available: {total_allocated}"
+        )
 
-    if shares_remaining > 0.0001:  # Allow small floating point errors
-        raise InputError(f"Insufficient shares available. Requested: {shares_to_sell}, Available: {shares_to_sell - shares_remaining}")
-
-    df = pd.DataFrame(lots_to_return)
+    df['cost_basis'] = df['shares'] * df['purchase_price']
+    df['capital_gain'] = df['shares'] * (sale_price - df['purchase_price'])
     df['security_id'] = security_id
     df['salePrice'] = sale_price
     df['grossProceeds'] = df['shares'] * sale_price

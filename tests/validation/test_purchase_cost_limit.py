@@ -139,7 +139,7 @@ def test_purchase_cost_limit_fail(portfolio_with_purchases_and_sales: Portfolio)
     # sec-a should fail
     assert results['sec-a'].has_errors
     assert 'current cost basis' in results['sec-a'].messages
-    assert '5500.00' in results['sec-a'].messages
+    assert '4500.00' in results['sec-a'].messages
     assert 'exceeds limit 3000.00' in results['sec-a'].messages
 
     # sec-b and sec-c should pass
@@ -176,7 +176,7 @@ def test_attribute_based_rule(portfolio_with_purchases_and_sales: Portfolio) -> 
 
     # Add custom attribute with limit for sec-a
     portfolio_with_purchases_and_sales.securities[test_attr_uuid] = pd.Series({
-        'sec-a': 5500.0,  # sec-a will pass
+        'sec-a': 5000.0,  # sec-a will pass
         'sec-b': 1500.0,  # sec-b will fail
     })
 
@@ -282,7 +282,7 @@ def test_multiple_accounts_aggregated(portfolio_with_purchases_and_sales: Portfo
 
     # sec-a should fail (acc-1: €5500 + acc-2: €500 = €6000 > €4500)
     assert results['sec-a'].has_errors
-    assert '6000.00' in results['sec-a'].messages
+    assert '5000.00' in results['sec-a'].messages
 
 
 def test_purchase_cost_limit_rule_direct(caplog: pytest.LogCaptureFixture) -> None:

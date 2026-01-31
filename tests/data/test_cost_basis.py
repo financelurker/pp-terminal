@@ -18,12 +18,16 @@
 """
 # pylint: disable=duplicate-code
 
+import logging
+from datetime import datetime
+
 import pandas as pd
 import pytest
+from _pytest.logging import LogCaptureFixture
 
 from pp_terminal.data.cost_basis import calculate_total_cost
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.schemas import AccountType
+from pp_terminal.domain.schemas import AccountType, TransactionType
 
 
 def test_only_purchases_no_sells(portfolio_with_purchases: Portfolio) -> None:
@@ -40,7 +44,21 @@ def test_only_purchases_no_sells(portfolio_with_purchases: Portfolio) -> None:
 def test_purchases_and_sells(portfolio_with_sells: Portfolio) -> None:
     cost_basis = calculate_total_cost(portfolio_with_sells.securities_account_transactions, 'sec-1')
 
-    assert cost_basis == pytest.approx(4500.0, abs=0.01)
+    # Purchases:
+    #   2020-01-15: acc-1, 10 shares @ €100 = €1,000
+    #   2020-06-20: acc-1, 10 shares @ €150 = €1,500
+    #   2021-03-10: acc-2, 5 shares @ €0 = €0
+    #   2022-01-05: acc-1, 20 shares @ €100 = €2,000
+    # Sales:
+    #   2020-12-01: acc-1, 7 shares (consumes 7 from lot 1)
+    #   2023-06-15: acc-2, 3 shares (consumes 3 from lot 3)
+    # Remaining:
+    #   Lot 1: 3 shares @ €100 = €300
+    #   Lot 2: 10 shares @ €150 = €1,500
+    #   Lot 3: 2 shares @ €0 = €0
+    #   Lot 4: 20 shares @ €100 = €2,000
+    # Total: €3,800
+    assert cost_basis == pytest.approx(3800.0, abs=0.01)
 
 
 def test_no_transactions() -> None:
@@ -61,3 +79,65 @@ def test_no_purchases_for_security(portfolio_with_purchases: Portfolio) -> None:
     cost_basis = calculate_total_cost(portfolio_with_purchases.securities_account_transactions, 'non-existent-security')
 
     assert cost_basis == 0.0
+
+
+def test_all_shares_sold(portfolio_with_purchases: Portfolio) -> None:
+    """Test cost basis when all shares have been sold."""
+    transactions = portfolio_with_purchases.securities_account_transactions.copy()
+
+    # Add sales that exhaust all lots
+    sales = pd.DataFrame([
+        [datetime(2023, 1, 1), 'acc-1', 'sec-1', TransactionType.SELL.value, 2000.0, 20.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # Sell lot 1 (10) + lot 2 (10)
+        [datetime(2023, 2, 1), 'acc-2', 'sec-1', TransactionType.SELL.value, 500.0, 5.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # Sell lot 3 (5)
+        [datetime(2023, 3, 1), 'acc-1', 'sec-1', TransactionType.SELL.value, 2000.0, 20.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # Sell lot 4 (20)
+    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
+    sales = sales.set_index(['date', 'accountId', 'securityId'])
+
+    transactions = pd.concat([transactions, sales])
+
+    cost_basis = calculate_total_cost(transactions, 'sec-1')
+
+    assert cost_basis == 0.0
+
+
+def test_sell_exceeds_purchases(portfolio_with_purchases: Portfolio, caplog: LogCaptureFixture) -> None:
+    """Test cost basis when sells exceed available shares (partial matching)."""
+    transactions = portfolio_with_purchases.securities_account_transactions.copy()
+
+    # Try to sell more shares than available from acc-1
+    sales = pd.DataFrame([
+        [datetime(2023, 1, 1), 'acc-1', 'sec-1', TransactionType.SELL.value, 5000.0, 50.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # Try to sell 50, only 40 available in acc-1
+    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
+    sales = sales.set_index(['date', 'accountId', 'securityId'])
+
+    transactions = pd.concat([transactions, sales])
+
+    with caplog.at_level(logging.WARNING):
+        cost_basis = calculate_total_cost(transactions, 'sec-1')
+
+    # Should only match the 40 shares available in acc-1, leaving acc-2's 5 shares
+    # Remaining: 5 shares @ €0 (lot 3 from acc-2) = €0
+    assert cost_basis == pytest.approx(0.0, abs=0.01)
+    assert 'could not be fully matched' in caplog.text
+
+
+def test_multiple_securities(portfolio_with_purchases: Portfolio) -> None:
+    """Test cost basis correctly filters by security_id."""
+    transactions = portfolio_with_purchases.securities_account_transactions.copy()
+
+    # Add transactions for a second security
+    sec2_transactions = pd.DataFrame([
+        [datetime(2020, 1, 1), 'acc-1', 'sec-2', TransactionType.BUY.value, -3000.0, 30.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # 30 shares @ 100
+        [datetime(2020, 6, 1), 'acc-1', 'sec-2', TransactionType.SELL.value, 1000.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # Sell 10 shares
+    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
+    sec2_transactions = sec2_transactions.set_index(['date', 'accountId', 'securityId'])
+
+    transactions = pd.concat([transactions, sec2_transactions])
+
+    # Calculate cost basis for sec-1 (should ignore sec-2)
+    cost_basis_sec1 = calculate_total_cost(transactions, 'sec-1')
+    assert cost_basis_sec1 == pytest.approx(4500.0, abs=0.01)
+
+    # Calculate cost basis for sec-2 (30 - 10 = 20 shares @ €100 = €2,000)
+    cost_basis_sec2 = calculate_total_cost(transactions, 'sec-2')
+    assert cost_basis_sec2 == pytest.approx(2000.0, abs=0.01)

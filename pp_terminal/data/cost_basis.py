@@ -40,7 +40,7 @@ def _filter_purchase_transactions(transactions: DataFrame[TransactionSchema]) ->
 
 def _apply_fifo_sells(
     transactions: DataFrame[TransactionSchema]
-) -> DataFrame[TransactionSchema]:
+) -> DataFrame[PurchaseTransactionSchema]:
     """
     Apply FIFO matching of sells to purchase lots.
 
@@ -57,12 +57,13 @@ def _apply_fifo_sells(
         has significant overhead that doesn't add value for sequential state updates.
     """
     lots = _filter_purchase_transactions(transactions)
+    lots['purchase_price'] = lots['amount'].abs() / lots['shares']  # save original purchase price
     if lots.empty:
-        return lots
+        return PurchaseTransactionSchema.validate(lots)
 
     sell_transactions = transactions.pipe(filter_by_type, transaction_types=[TransactionType.SELL, TransactionType.DELIVERY_OUTBOUND])
     if sell_transactions.empty:
-        return lots
+        return PurchaseTransactionSchema.validate(lots)
 
     # Convert to list of dicts for fast mutation during FIFO matching
     remaining_lots = lots.reset_index().to_dict('records')
@@ -93,9 +94,9 @@ def _apply_fifo_sells(
     # Filter out exhausted lots and convert back to DataFrame
     remaining_lots = [lot for lot in remaining_lots if lot['shares'] > 0.0001]
     if not remaining_lots:
-        return TransactionSchema.empty()
+        return PurchaseTransactionSchema.empty()
 
-    return TransactionSchema.validate(pd.DataFrame(remaining_lots).set_index(['date', 'accountId', 'securityId']))
+    return PurchaseTransactionSchema.validate(pd.DataFrame(remaining_lots).set_index(['date', 'accountId', 'securityId']))
 
 
 def _reduce_shares(remaining_lots_df: DataFrame[TransactionSchema], shares_to_sell: float) -> DataFrame[TransactionSchema]:
@@ -117,20 +118,30 @@ def _reduce_shares(remaining_lots_df: DataFrame[TransactionSchema], shares_to_se
     # Validate sufficient shares
     total_allocated = df['shares'].sum()
     if total_allocated < shares_to_sell - 0.0001:  # Allow small floating point errors
-        raise InputError(
-            f"Insufficient shares available. Requested: {shares_to_sell}, "
-            f"Available: {total_allocated}"
-        )
+        raise InputError(f"Insufficient shares available. Requested: {shares_to_sell}, Available: {total_allocated}")
 
     return TransactionSchema.validate(df)
 
 
-def _calculate_purchase_prices(transactions: DataFrame[TransactionSchema]) -> pd.Series:
-    return transactions['amount'].abs() / transactions['shares']
-
-
 def _calculate_cost_basis(transactions: DataFrame[PurchaseTransactionSchema]) -> pd.Series:
     return transactions['shares'] * transactions['purchase_price']
+
+
+def _recalculate_amount(df: DataFrame[PurchaseTransactionSchema]) -> DataFrame[PurchaseTransactionSchema]:
+    """Recalculate amount based on purchase_price and remaining shares after FIFO."""
+    df = df.copy()
+    df['amount'] = df['purchase_price'] * df['shares']
+    return PurchaseTransactionSchema.validate(df)
+
+
+def _recalculate(df: DataFrame[PurchaseTransactionSchema]) -> DataFrame[PurchaseTransactionSchema]:
+    """Recalculate all sale-related fields after FIFO matching."""
+    df = _recalculate_amount(df)
+    df['capital_gain'] = df['shares'] * (df['salePrice'] - df['purchase_price'])
+    df['grossProceeds'] = df['shares'] * df['salePrice']
+    df['taxableGain'] = df.apply(lambda row: max(0.0, row['capital_gain'] - row['prepaidTax']), axis=1)
+
+    return PurchaseTransactionSchema.validate(df)
 
 
 def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
@@ -145,7 +156,6 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
     Calculate FIFO lots for shares being sold, including prepaid tax calculations.
     """
     df = transactions.copy()
-    df['purchase_price'] = _calculate_purchase_prices(df)  # original purchase price
 
     df = _apply_fifo_sells(df)
     if df.empty:
@@ -155,23 +165,25 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
         df = _reduce_shares(df, shares_to_sell)
 
     df = PurchaseTransactionSchema.validate(df)
-    df['amount'] = df['purchase_price'] * df['shares']
-    df['capital_gain'] = df['shares'] * (sale_price - df['purchase_price'])
+    df['type'] = TransactionType.SELL.value
     df['salePrice'] = sale_price
-    df['grossProceeds'] = df['shares'] * sale_price
 
-    prepaid_tax_series = calculate_prepaid_tax_per_lot(df, sale_date, tax_csv_data)
-    df['prepaidTax'] = prepaid_tax_series.values
+    df['prepaidTax'] = calculate_prepaid_tax_per_lot(df, sale_date, tax_csv_data).values
 
-    df['taxableGain'] = df.apply(lambda row: max(0.0, row['capital_gain'] - row['prepaidTax']), axis=1)
+    df = _recalculate(df)
     df['totalTax'] = df['taxableGain'] * (tax_rate / 100.0)
     df['netProceeds'] = df['grossProceeds'] - df['totalTax']
-    df['type'] = TransactionType.SELL.value
 
     return PurchaseTransactionSchema.validate(df)
 
 
 def calculate_total_cost(transactions: DataFrame[TransactionSchema], security_id: str) -> Money:
-    df = _filter_purchase_transactions(transactions.pipe(filter_by_security, security_id=security_id))
+    """Calculate the cost basis of currently held shares for a security."""
+    df = transactions.pipe(filter_by_security, security_id=security_id)
+    df = _apply_fifo_sells(df)
+    if df.empty:
+        return Money(0.0)
+
+    df = _recalculate_amount(df)
 
     return Money(df['amount'].abs().sum())

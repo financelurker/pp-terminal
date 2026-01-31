@@ -20,7 +20,6 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import TypedDict
 
 import pandas as pd
 import typer
@@ -29,20 +28,11 @@ from pandera.typing import DataFrame
 
 from pp_terminal.exceptions import InputError
 from pp_terminal.output.strategy import Console
-from pp_terminal.domain.schemas import TaxPaidSchema, Percent, Money, PurchaseTransactionSchema
+from pp_terminal.domain.schemas import TaxPaidSchema, Percent, PurchaseTransactionSchema
 
 app = typer.Typer()
 console = Console()
 log = logging.getLogger(__name__)
-
-
-class FifoLot(TypedDict):
-    purchase_date: datetime
-    account_id: str
-    shares: float
-    purchase_price: Money
-    cost_basis: Money
-    capital_gain: Money
 
 
 def load_prepaid_tax_data_from_csv(csv_path: Path, tax_rate: Percent) -> DataFrame[TaxPaidSchema]:
@@ -87,9 +77,8 @@ def calculate_prepaid_tax_per_lot(
     if lots.empty or tax_csv_data is None or tax_csv_data.empty:
         return pd.Series(0.0, index=lots.index)
 
-    # Add year columns and lot index to track original lot
+    # Add year columns to track original lot
     lots_with_years = lots.copy().reset_index()
-    lots_with_years['lot_index'] = lots_with_years.index
     lots_with_years['first_year'] = lots_with_years['date'].dt.year
     lots_with_years['last_year'] = current_date.year - 1
 
@@ -134,8 +123,8 @@ def calculate_prepaid_tax_per_lot(
         lot_years['shares'] * lot_years['tax_per_share'] * lot_years['month_factor'] - lot_years['tax_free_allowance']
     )
 
-    # Group by lot_index to get per-lot totals
-    per_lot_tax = lot_years.groupby('lot_index')['taxes'].sum()
+    # Group by original lot identity (MultiIndex columns) to sum taxes across all years
+    per_lot_tax = lot_years.groupby(['date', 'accountId', 'securityId'])['taxes'].sum()
 
     # Reindex to match original lots dataframe, filling missing with 0
     return per_lot_tax.reindex(lots.index, fill_value=0.0)

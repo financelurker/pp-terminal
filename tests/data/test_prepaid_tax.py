@@ -23,22 +23,16 @@ import pandas as pd
 import pytest
 from pandera.typing import DataFrame
 
-from pp_terminal.data.tax import FifoLot, calculate_prepaid_tax_per_lot
+from pp_terminal.data.tax import calculate_prepaid_tax_per_lot
 from pp_terminal.domain.schemas import PurchaseTransactionSchema, TransactionType, AccountType
-
-
-def _lots_to_df(lots: list[FifoLot], security_id: str) -> pd.DataFrame:
-    """Helper to convert list of lots to DataFrame."""
-    df = pd.DataFrame(lots)
-    df['security_id'] = security_id
-    return PurchaseTransactionSchema.validate(df)
 
 
 def test_single_year_full_year(tax_csv_data: pd.DataFrame) -> None:
     """Test tax credit for single lot held full year."""
     df = DataFrame[PurchaseTransactionSchema]([
         [TransactionType.SELL.value, AccountType.SECURITIES.value, 100.0, 10000.0]
-    ], columns=['type', 'accountType', 'shares', 'amount'], index=pd.MultiIndex.from_arrays([[datetime(2020, 1, 1)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
+    ], columns=['type', 'accountType', 'shares', 'amount'],
+        index=pd.MultiIndex.from_arrays([[datetime(2020, 1, 1)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 
     # Current date 2022-12-31: years held = 2020, 2021 (not 2022 because last_year = current_year - 1)
     current_date = datetime(2022, 12, 31)
@@ -51,19 +45,13 @@ def test_single_year_full_year(tax_csv_data: pd.DataFrame) -> None:
 
 def test_purchase_year_month_proration(tax_csv_data: pd.DataFrame) -> None:
     """Test that purchase year is prorated by months held."""
-    lots: list[FifoLot] = [
-        {
-            'purchase_date': datetime(2020, 6, 15),  # June = month 6
-            'account_id': 'acc-1',
-            'shares': 100.0,
-            'purchase_price': 100.0,
-            'cost_basis': 10000.0,
-            'capital_gain': 0.0
-        }
-    ]
+    df = DataFrame[PurchaseTransactionSchema]([
+        [TransactionType.BUY.value, AccountType.SECURITIES.value, 100.0, 10000.0]
+    ], columns=['type', 'accountType', 'shares', 'amount'],
+        index=pd.MultiIndex.from_arrays([[datetime(2020, 6, 15)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 
     current_date = datetime(2022, 12, 31)
-    credit = float(calculate_prepaid_tax_per_lot(_lots_to_df(lots, 'sec-1'), current_date, tax_csv_data).sum())
+    credit = float(calculate_prepaid_tax_per_lot(df, current_date, tax_csv_data).sum())
 
     # 2020: 100 shares * €0.05 * (13-6)/12 = 100 * 0.05 * 7/12 = €2.92
     # 2021: 100 shares * €0.06 * 1.0 = €6.00
@@ -72,27 +60,16 @@ def test_purchase_year_month_proration(tax_csv_data: pd.DataFrame) -> None:
 
 def test_multiple_lots_different_accounts(tax_csv_data: pd.DataFrame) -> None:
     """Test tax credit across multiple lots in different accounts."""
-    lots: list[FifoLot] = [
-        {
-            'purchase_date': datetime(2020, 1, 1),
-            'account_id': 'acc-1',
-            'shares': 50.0,
-            'purchase_price': 100.0,
-            'cost_basis': 5000.0,
-            'capital_gain': 0.0
-        },
-        {
-            'purchase_date': datetime(2021, 1, 1),
-            'account_id': 'acc-2',
-            'shares': 30.0,
-            'purchase_price': 120.0,
-            'cost_basis': 3600.0,
-            'capital_gain': 0.0
-        }
-    ]
+    df = DataFrame[PurchaseTransactionSchema]([
+        [TransactionType.BUY.value, AccountType.SECURITIES.value, 50.0, 5000.0],
+        [TransactionType.BUY.value, AccountType.SECURITIES.value, 30.0, 3600.0],
+    ], columns=['type', 'accountType', 'shares', 'amount'],
+        index=pd.MultiIndex.from_arrays(
+            [[datetime(2020, 1, 1), datetime(2021, 1, 1)], ['acc-1', 'acc-2'], ['sec-1', 'sec-1']],
+            names=['date', 'accountId', 'securityId']))
 
     current_date = datetime(2022, 12, 31)
-    credit = float(calculate_prepaid_tax_per_lot(_lots_to_df(lots, 'sec-1'), current_date, tax_csv_data).sum())
+    credit = float(calculate_prepaid_tax_per_lot(df, current_date, tax_csv_data).sum())
 
     # Lot 1 (acc-1):
     #   2020: 50 * €0.05 = €2.50
@@ -104,38 +81,26 @@ def test_multiple_lots_different_accounts(tax_csv_data: pd.DataFrame) -> None:
 
 def test_purchased_in_current_year_no_credit(tax_csv_data: pd.DataFrame) -> None:
     """Test that lots purchased in current year have no tax credit."""
-    lots: list[FifoLot] = [
-        {
-            'purchase_date': datetime(2022, 6, 1),
-            'account_id': 'acc-1',
-            'shares': 100.0,
-            'purchase_price': 100.0,
-            'cost_basis': 10000.0,
-            'capital_gain': 0.0
-        }
-    ]
+    df = DataFrame[PurchaseTransactionSchema]([
+        [TransactionType.BUY.value, AccountType.SECURITIES.value, 100.0, 10000.0]
+    ], columns=['type', 'accountType', 'shares', 'amount'],
+        index=pd.MultiIndex.from_arrays([[datetime(2022, 6, 1)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 
     current_date = datetime(2022, 12, 31)
-    credit = float(calculate_prepaid_tax_per_lot(_lots_to_df(lots, 'sec-1'), current_date, tax_csv_data).sum())
+    credit = float(calculate_prepaid_tax_per_lot(df, current_date, tax_csv_data).sum())
 
     # Purchased in 2022, evaluated in 2022 -> last_year = 2021 < first_year = 2022
     assert credit == 0.0
 
 def test_missing_tax_data_ignored(tax_csv_data: pd.DataFrame) -> None:
     """Test that missing tax data for year/account/security is ignored (returns 0)."""
-    lots: list[FifoLot] = [
-        {
-            'purchase_date': datetime(2019, 1, 1),
-            'account_id': 'acc-1',
-            'shares': 100.0,
-            'purchase_price': 100.0,
-            'cost_basis': 10000.0,
-            'capital_gain': 0.0
-        }
-    ]
+    df = DataFrame[PurchaseTransactionSchema]([
+        [TransactionType.BUY.value, AccountType.SECURITIES.value, 100.0, 10000.0]
+    ], columns=['type', 'accountType', 'shares', 'amount'],
+        index=pd.MultiIndex.from_arrays([[datetime(2019, 1, 1)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 
     current_date = datetime(2022, 12, 31)
-    credit = float(calculate_prepaid_tax_per_lot(_lots_to_df(lots, 'sec-1'), current_date, tax_csv_data).sum())
+    credit = float(calculate_prepaid_tax_per_lot(df, current_date, tax_csv_data).sum())
 
     # 2019: No data in CSV -> €0.00
     # 2020: 100 * €0.05 = €5.00
@@ -145,18 +110,12 @@ def test_missing_tax_data_ignored(tax_csv_data: pd.DataFrame) -> None:
 
 def test_no_tax_csv_returns_zero() -> None:
     """Test that None tax CSV returns zero credit."""
-    lots: list[FifoLot] = [
-        {
-            'purchase_date': datetime(2020, 1, 1),
-            'account_id': 'acc-1',
-            'shares': 100.0,
-            'purchase_price': 100.0,
-            'cost_basis': 10000.0,
-            'capital_gain': 0.0
-        }
-    ]
+    df = DataFrame[PurchaseTransactionSchema]([
+        [TransactionType.BUY.value, AccountType.SECURITIES.value, 100.0, 10000.0]
+    ], columns=['type', 'accountType', 'shares', 'amount'],
+        index=pd.MultiIndex.from_arrays([[datetime(2020, 1, 1)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 
     current_date = datetime(2022, 12, 31)
-    credit = float(calculate_prepaid_tax_per_lot(_lots_to_df(lots, 'sec-1'), current_date, None).sum())
+    credit = float(calculate_prepaid_tax_per_lot(df, current_date, None).sum())
 
     assert credit == 0.0

@@ -26,7 +26,7 @@ from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import AccountType
 
 
-def test_only_purchases_no_sales(portfolio_with_purchases: Portfolio) -> None:
+def test_only_purchases_no_sells(portfolio_with_purchases: Portfolio) -> None:
     """Test cost basis with only purchases (no sells)."""
     cost_basis = calculate_total_cost(portfolio_with_purchases.securities_account_transactions, 'sec-1')
 
@@ -37,8 +37,8 @@ def test_only_purchases_no_sales(portfolio_with_purchases: Portfolio) -> None:
     # Total: €4,500
     assert cost_basis == pytest.approx(4500.0, abs=0.01)
 
-def test_purchases_and_sales(portfolio_with_sales: Portfolio) -> None:
-    cost_basis = calculate_total_cost(portfolio_with_sales.securities_account_transactions, 'sec-1')
+def test_purchases_and_sells(portfolio_with_sells: Portfolio) -> None:
+    cost_basis = calculate_total_cost(portfolio_with_sells.securities_account_transactions, 'sec-1')
 
     assert cost_basis == pytest.approx(4500.0, abs=0.01)
 

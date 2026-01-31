@@ -59,8 +59,8 @@ def provide_portfolio_with_purchases() -> Portfolio:
     )
 
 
-@pytest.fixture(name='portfolio_with_sales')
-def provide_portfolio_with_sales(portfolio_with_purchases: Portfolio) -> Portfolio:
+@pytest.fixture(name='portfolio_with_sells')
+def provide_portfolio_with_sells(portfolio_with_purchases: Portfolio) -> Portfolio:
     """Portfolio with purchases and sales."""
     if not isinstance(portfolio_with_purchases.securities_account_transactions, pd.DataFrame):
         raise TypeError("transactions must be a DataFrame")

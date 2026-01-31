@@ -59,7 +59,7 @@ class TransactionSchema(pa.DataFrameModel):
     amount: Series[Money]
     shares: Series[float]
     accountType: Series[str]
-    taxes: Series[Money]
+    taxes: Series[Money] = pa.Field(default=0.0)
     currency: Series[str] = pa.Field(nullable=True)
 
 
@@ -111,19 +111,12 @@ class TaxPaidSchema(pa.DataFrameModel):
     tax_free_allowance: Series[Money] = pa.Field(nullable=True, coerce=True)
 
 
-class FifoLotSchema(pa.DataFrameModel):
-    purchase_date: pa.DateTime
-    account_id: str
-    security_id: str
-    shares: float
-    purchase_price: Money
-    cost_basis: Money
-    capital_gain: Money
+class FifoLotSchema(TransactionSchema):
+    capital_gain: Money = pa.Field(nullable=True)
     salePrice: Money = pa.Field(nullable=True)
     grossProceeds: Money = pa.Field(nullable=True)
     prepaidTax: Money = pa.Field(nullable=True)
     taxableGain: Money = pa.Field(nullable=True, ge=0)
-    totalTax: Money = pa.Field(nullable=True)
     netProceeds: Money = pa.Field(nullable=True)
 
     class Config:  # pylint: disable=too-few-public-methods

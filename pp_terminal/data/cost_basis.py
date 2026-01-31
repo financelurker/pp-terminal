@@ -23,64 +23,26 @@ import logging
 import pandas as pd
 from pandera.typing import DataFrame
 
-from pp_terminal.data.filters import filter_by_type
+from pp_terminal.data.filters import filter_by_type, filter_by_security
 from pp_terminal.data.tax import calculate_prepaid_tax_per_lot
-from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema, FifoLotSchema
+from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema, FifoLotSchema, Percent
+from pp_terminal.exceptions import InputError
 
 log = logging.getLogger(__name__)
 
 
-def calculate_purchase_lots(
-    portfolio: Portfolio,
-    security_id: str,
-    sort_by_date: bool = True
-) -> DataFrame[FifoLotSchema]:
+def _filter_purchase_transactions(transactions: DataFrame[TransactionSchema]) -> DataFrame[TransactionSchema]:
+    valid_purchases = transactions.pipe(filter_by_type, transaction_types=[TransactionType.BUY, TransactionType.DELIVERY_INBOUND]).sort_index(level='date')
+    valid_purchases = valid_purchases[valid_purchases['shares'] > 0].copy()
+
+    return TransactionSchema.validate(valid_purchases)
+
+
+def _apply_fifo_sells(
+    transactions: DataFrame[TransactionSchema]
+) -> DataFrame[TransactionSchema]:
     """
-    Get all purchase lots for a security across all accounts.
-    """
-    transactions = portfolio.securities_account_transactions
-    purchase_txns : DataFrame[TransactionSchema] = transactions[
-        transactions.index.get_level_values('securityId') == security_id
-    ].pipe(filter_by_type, transaction_types=[TransactionType.BUY, TransactionType.DELIVERY_INBOUND])
-
-    if purchase_txns.empty:
-        log.debug('No purchase transactions found for security %s', security_id)
-        return FifoLotSchema.empty()
-
-    # Reset index to get date, accountId, securityId as columns
-    lots = purchase_txns.reset_index()
-
-    # Filter out zero/negative shares
-    zero_shares_mask = lots['shares'] <= 0
-    if zero_shares_mask.any():
-        log.warning('Skipping %d transaction(s) with zero/negative shares', zero_shares_mask.sum())
-        lots = lots[~zero_shares_mask]
-
-    if lots.empty:
-        return FifoLotSchema.empty()
-
-    # Calculate purchase_price: BUY transactions have negative amounts (cash outflow)
-    lots['purchase_price'] = lots['amount'].abs() / lots['shares']
-    lots['cost_basis'] = lots['shares'] * lots['purchase_price']
-    lots['capital_gain'] = 0.0
-
-    lots = lots.rename(columns={'date': 'purchase_date', 'accountId': 'account_id', 'securityId': 'security_id'})
-    lots = lots[['purchase_date', 'account_id', 'security_id', 'shares', 'purchase_price', 'cost_basis', 'capital_gain']]
-
-    # Sort by date if requested (FIFO order)
-    if sort_by_date:
-        lots = lots.sort_values('purchase_date')
-
-    return FifoLotSchema.validate(lots)
-
-
-def match_sales_to_lots(
-    lots: DataFrame[FifoLotSchema],
-    sell_transactions: DataFrame[TransactionSchema]
-) -> DataFrame[FifoLotSchema]:
-    """
-    Apply FIFO matching of sales to purchase lots.
+    Apply FIFO matching of sells to purchase lots.
 
     Returns:
         DataFrame of remaining lots after sales are matched.
@@ -94,11 +56,16 @@ def match_sales_to_lots(
         for ~10x faster mutation during the matching algorithm. DataFrame .loc[] access
         has significant overhead that doesn't add value for sequential state updates.
     """
+    lots = _filter_purchase_transactions(transactions)
+    if lots.empty:
+        return lots
+
+    sell_transactions = transactions.pipe(filter_by_type, transaction_types=[TransactionType.SELL, TransactionType.DELIVERY_OUTBOUND])
     if sell_transactions.empty:
         return lots
 
     # Convert to list of dicts for fast mutation during FIFO matching
-    remaining_lots = lots.to_dict('records')
+    remaining_lots = lots.reset_index().to_dict('records')
     sales_sorted = sell_transactions.sort_index(level='date')
 
     for (_date, account_id, _security_id), row in sales_sorted.iterrows():
@@ -109,7 +76,7 @@ def match_sales_to_lots(
             if shares_to_match <= 0:
                 break
 
-            if lot['account_id'] != account_id:
+            if lot['accountId'] != account_id:
                 continue
 
             # Consume shares from this lot
@@ -118,76 +85,93 @@ def match_sales_to_lots(
             new_shares = lot_shares - shares_from_lot
             shares_to_match -= shares_from_lot
 
-            # Update shares and cost_basis
             lot['shares'] = new_shares
-            if new_shares > 0:
-                remaining_fraction = new_shares / lot_shares
-                lot['cost_basis'] *= remaining_fraction
-            else:
-                lot['cost_basis'] = 0.0
 
         if shares_to_match > 0.0001:  # Allow small floating point errors
             log.warning('Sale of %.8f shares for security %s could not be fully matched to purchase lots', shares_to_match, _security_id)
 
     # Filter out exhausted lots and convert back to DataFrame
     remaining_lots = [lot for lot in remaining_lots if lot['shares'] > 0.0001]
-
     if not remaining_lots:
+        return TransactionSchema.empty()
+
+    return TransactionSchema.validate(pd.DataFrame(remaining_lots).set_index(['date', 'accountId', 'securityId']))
+
+
+def _reduce_shares(remaining_lots_df: DataFrame[TransactionSchema], shares_to_sell: float) -> DataFrame[TransactionSchema]:
+    # Calculate cumulative shares to determine lot consumption
+    cumsum = remaining_lots_df['shares'].cumsum()
+    prev_cumsum = cumsum.shift(1, fill_value=0.0)
+
+    # Shares to take from each lot: min(lot_shares, remaining_needed)
+    shares_taken = (shares_to_sell - prev_cumsum).clip(lower=0, upper=remaining_lots_df['shares'])
+
+    # Filter to contributing lots only
+    contributing_mask = shares_taken > 0
+    if not contributing_mask.any():
+        raise InputError(f"Insufficient shares available. Requested: {shares_to_sell}, Available: 0")
+
+    df = remaining_lots_df[contributing_mask].copy()
+    df['shares'] = shares_taken[contributing_mask].values
+
+    # Validate sufficient shares
+    total_allocated = df['shares'].sum()
+    if total_allocated < shares_to_sell - 0.0001:  # Allow small floating point errors
+        raise InputError(
+            f"Insufficient shares available. Requested: {shares_to_sell}, "
+            f"Available: {total_allocated}"
+        )
+
+    return TransactionSchema.validate(df)
+
+
+def _calculate_purchase_prices(transactions: DataFrame[TransactionSchema]) -> pd.Series:
+    return transactions['amount'].abs() / transactions['shares']
+
+
+def _calculate_cost_basis(transactions: DataFrame[FifoLotSchema]) -> pd.Series:
+    return transactions['shares'] * transactions['purchase_price']
+
+
+def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
+        transactions: DataFrame[TransactionSchema],
+        sale_date: datetime,
+        sale_price: Money,
+        tax_rate: Percent,
+        shares_to_sell: float | None = None,
+        tax_csv_data: DataFrame[TaxPaidSchema] | None = None
+) -> DataFrame[FifoLotSchema]:
+    """
+    Calculate FIFO lots for shares being sold, including prepaid tax calculations.
+    """
+    df = transactions.copy()
+    df['purchase_price'] = _calculate_purchase_prices(df)  # original purchase price
+
+    df = _apply_fifo_sells(df)
+    if df.empty:
         return FifoLotSchema.empty()
 
-    return FifoLotSchema.validate(pd.DataFrame(remaining_lots))
+    if shares_to_sell is not None:
+        df = _reduce_shares(df, shares_to_sell)
+
+    df = FifoLotSchema.validate(df)
+    df['amount'] = df['purchase_price'] * df['shares']
+    df['capital_gain'] = df['shares'] * (sale_price - df['purchase_price'])
+    df['salePrice'] = sale_price
+    df['grossProceeds'] = df['shares'] * sale_price
+
+    prepaid_tax_series = calculate_prepaid_tax_per_lot(df, sale_date, tax_csv_data)
+    df['prepaidTax'] = prepaid_tax_series.values
+
+    df['taxableGain'] = df.apply(lambda row: max(0.0, row['capital_gain'] - row['prepaidTax']), axis=1)
+    df['totalTax'] = df['taxableGain'] * (tax_rate / 100.0)
+    df['netProceeds'] = df['grossProceeds'] - df['totalTax']
+    df['type'] = TransactionType.SELL.value
+
+    return FifoLotSchema.validate(df)
 
 
-def calculate_current_cost_basis(
-    portfolio: Portfolio,
-    security_id: str,
-    tax_csv_data: DataFrame[TaxPaidSchema] | None = None,
-    evaluation_date: datetime | None = None
-) -> Money:
-    """
-    Calculate current cost basis for a security using FIFO, net of taxes already paid.
+def calculate_total_cost(transactions: DataFrame[TransactionSchema], security_id: str) -> Money:
+    df = _filter_purchase_transactions(transactions.pipe(filter_by_security, security_id=security_id))
 
-    Args:
-        portfolio: Portfolio object with all transactions
-        security_id: Security to evaluate
-        tax_csv_data: Optional CSV with taxes paid per share (if None, returns gross cost basis)
-        evaluation_date: Date for evaluation (defaults to today)
-
-    Returns:
-        Net cost basis of currently held shares.
-        Formula: sum(lot.cost_basis for remaining_lots) - tax_credit
-    """
-    if evaluation_date is None:
-        evaluation_date = datetime.now()
-
-    # Step 1: Get all purchase lots
-    purchase_lots = calculate_purchase_lots(portfolio, security_id)
-    if purchase_lots.empty:
-        log.debug('No purchase lots found for security %s', security_id)
-        return 0.0
-
-    # Step 2: Get all sales transactions for this security
-    transactions = portfolio.securities_account_transactions
-    sales_transactions = transactions[
-        transactions.index.get_level_values('securityId') == security_id
-    ].pipe(filter_by_type, transaction_types=[TransactionType.SELL, TransactionType.DELIVERY_OUTBOUND])
-
-    # Step 3: Match sales to lots (FIFO)
-    remaining_lots = match_sales_to_lots(purchase_lots, sales_transactions)
-    if remaining_lots.empty:
-        log.debug('All lots for security %s have been sold', security_id)
-        return 0.0
-
-    # Step 4: Calculate gross cost basis
-    gross_cost_basis = float(remaining_lots['cost_basis'].sum())
-
-    # Step 5: Calculate tax credit (if CSV provided)
-    tax_credit = float(calculate_prepaid_tax_per_lot(
-        remaining_lots,
-        evaluation_date,
-        tax_csv_data
-    ).sum())
-
-    # Step 6: Return net cost basis
-    net_cost_basis = max(0.0, gross_cost_basis - tax_credit)
-    return net_cost_basis
+    return Money(df['amount'].abs().sum())

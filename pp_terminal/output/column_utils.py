@@ -39,6 +39,9 @@ def normalize_columns(
     normalized = []
     available_lower = {col.lower(): col for col in available_columns}
 
+    if 'currency' in available_columns:
+        normalized.append(available_lower['currency'])
+
     for col in requested_columns:
         col_lower = col.strip().lower()
 
@@ -57,4 +60,4 @@ def normalize_columns(
                     available_names.append(f"{uuid} ({name})")
             raise InputError(f"Column '{col}' not found. Available columns: {', '.join(available_names)}")
 
-    return normalized
+    return list(set(normalized))  # make unique

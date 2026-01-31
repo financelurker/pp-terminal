@@ -19,9 +19,7 @@
 # pylint: disable=duplicate-code
 
 import logging
-import tempfile
 from datetime import datetime
-from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -138,10 +136,10 @@ def test_purchase_cost_limit_fail(portfolio_with_purchases_and_sales: Portfolio)
 
     results = validate_securities(portfolio_with_purchases_and_sales, config)
 
-    # sec-a should fail (€4500 > €3000)
+    # sec-a should fail
     assert results['sec-a'].has_errors
     assert 'current cost basis' in results['sec-a'].messages
-    assert '4500.00' in results['sec-a'].messages
+    assert '5500.00' in results['sec-a'].messages
     assert 'exceeds limit 3000.00' in results['sec-a'].messages
 
     # sec-b and sec-c should pass
@@ -178,8 +176,8 @@ def test_attribute_based_rule(portfolio_with_purchases_and_sales: Portfolio) -> 
 
     # Add custom attribute with limit for sec-a
     portfolio_with_purchases_and_sales.securities[test_attr_uuid] = pd.Series({
-        'sec-a': 5000.0,  # sec-a will pass (cost €4500 < limit €5000)
-        'sec-b': 1500.0,  # sec-b will fail (cost €2000 > limit €1500)
+        'sec-a': 5500.0,  # sec-a will pass
+        'sec-b': 1500.0,  # sec-b will fail
     })
 
     config = {
@@ -251,61 +249,6 @@ def test_mixed_severities(portfolio_with_purchases_and_sales: Portfolio) -> None
     assert results['sec-b'].has_errors
 
 
-def test_with_tax_csv_reduces_cost(portfolio_with_purchases_and_sales: Portfolio, tmp_path: pytest.TempPathFactory) -> None:
-    """Test that tax CSV reduces cost basis calculation."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, dir=str(tmp_path)) as f:
-        f.write('date;account_id;security_id;deemed_income_base_per_share;tax_free_allowance\n')
-        f.write('2020;acc-1;sec-a;0.10;0\n')
-        f.write('2021;acc-1;sec-a;0.12;0\n')
-        tax_file_path = Path(f.name)
-
-    config = {
-        'tax': {
-            'file': str(tax_file_path)
-        },
-        'commands': {
-            'validate': {
-                'securities': {
-                    'rules': [
-                        {'type': 'purchase-cost-limit', 'value': 5000.0}  # Net cost should be below this
-                    ]
-                }
-            }
-        }
-    }
-
-    results = validate_securities(portfolio_with_purchases_and_sales, config)
-
-    # sec-a should pass because net cost (after tax credit) is below limit
-    # Gross cost: €4,500
-    # Tax credit calculation:
-    #   Lot 2 (10 shares from 2020-06-20): 2020: 10 * 0.10 * 7/12 = €0.58, 2021: 10 * 0.12 = €1.20
-    #   Lot 3 (30 shares from 2021-03-10): 2021: 30 * 0.12 * 10/12 = €3.00
-    # Total tax credit: €4.78
-    # Net cost: €4,500 - €4.78 = €4,495.22 (below €5,000)
-    assert not results['sec-a'].has_errors
-
-
-def test_without_tax_csv_gross_cost(portfolio_with_purchases_and_sales: Portfolio) -> None:
-    """Test that without tax CSV, gross cost is validated."""
-    config = {
-        'commands': {
-            'validate': {
-                'securities': {
-                    'rules': [
-                        {'type': 'purchase-cost-limit', 'value': 5000.0}
-                    ]
-                }
-            }
-        }
-    }
-
-    results = validate_securities(portfolio_with_purchases_and_sales, config)
-
-    # sec-a should pass (gross cost €4500 < €5000)
-    assert not results['sec-a'].has_errors
-
-
 def test_multiple_accounts_aggregated(portfolio_with_purchases_and_sales: Portfolio) -> None:
     """Test that cost is aggregated across multiple accounts."""
     # Add purchases for sec-a in acc-2
@@ -337,29 +280,9 @@ def test_multiple_accounts_aggregated(portfolio_with_purchases_and_sales: Portfo
 
     results = validate_securities(portfolio, config)
 
-    # sec-a should fail (acc-1: €4500 + acc-2: €500 = €5000 > €4500)
+    # sec-a should fail (acc-1: €5500 + acc-2: €500 = €6000 > €4500)
     assert results['sec-a'].has_errors
-    assert '5000.00' in results['sec-a'].messages
-
-
-def test_all_shares_sold_no_violation(portfolio_with_purchases_and_sales: Portfolio) -> None:
-    """Test that fully sold securities don't violate (cost basis = 0)."""
-    config = {
-        'commands': {
-            'validate': {
-                'securities': {
-                    'rules': [
-                        {'type': 'purchase-cost-limit', 'value': 1.0}  # Very low limit
-                    ]
-                }
-            }
-        }
-    }
-
-    results = validate_securities(portfolio_with_purchases_and_sales, config)
-
-    # sec-c should pass (all shares sold, cost basis = 0)
-    assert not results['sec-c'].has_errors
+    assert '6000.00' in results['sec-a'].messages
 
 
 def test_purchase_cost_limit_rule_direct(caplog: pytest.LogCaptureFixture) -> None:

@@ -21,9 +21,10 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
+from pandera.typing import DataFrame
 
 from pp_terminal.data.tax import FifoLot, calculate_prepaid_tax_per_lot
-from pp_terminal.domain.schemas import FifoLotSchema
+from pp_terminal.domain.schemas import FifoLotSchema, TransactionType, AccountType
 
 
 def _lots_to_df(lots: list[FifoLot], security_id: str) -> pd.DataFrame:
@@ -35,25 +36,18 @@ def _lots_to_df(lots: list[FifoLot], security_id: str) -> pd.DataFrame:
 
 def test_single_year_full_year(tax_csv_data: pd.DataFrame) -> None:
     """Test tax credit for single lot held full year."""
-    lots: list[FifoLot] = [
-        {
-            'purchase_date': datetime(2020, 1, 1),
-            'account_id': 'acc-1',
-            'shares': 100.0,
-            'purchase_price': 100.0,
-            'cost_basis': 10000.0,
-            'capital_gain': 0.0
-        }
-    ]
+    df = DataFrame[FifoLotSchema]([
+        [TransactionType.SELL.value, AccountType.SECURITIES.value, 100.0, 10000.0]
+    ], columns=['type', 'accountType', 'shares', 'amount'], index=pd.MultiIndex.from_arrays([[datetime(2020, 1, 1)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 
     # Current date 2022-12-31: years held = 2020, 2021 (not 2022 because last_year = current_year - 1)
     current_date = datetime(2022, 12, 31)
-    credit = float(calculate_prepaid_tax_per_lot(_lots_to_df(lots, 'sec-1'), current_date, tax_csv_data).sum())
+    tax = float(calculate_prepaid_tax_per_lot(df, current_date, tax_csv_data).sum())
 
     # 2020: 100 shares * €0.05 = €5.00 (full year)
     # 2021: 100 shares * €0.06 = €6.00 (full year)
     # Total: €11.00
-    assert credit == pytest.approx(11.0, abs=0.01)
+    assert tax == pytest.approx(11.0, abs=0.01)
 
 def test_purchase_year_month_proration(tax_csv_data: pd.DataFrame) -> None:
     """Test that purchase year is prorated by months held."""

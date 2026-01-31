@@ -32,8 +32,16 @@ def filter_later_than(df: pd.DataFrame, target_date: datetime) -> pd.DataFrame:
     return df[df.index.get_level_values('date') >= target_date]
 
 
-def filter_by_account_id(df: pd.DataFrame, account_id: str) -> pd.DataFrame:
+def filter_by_account(df: pd.DataFrame, account_id: str) -> pd.DataFrame:
     return df[df.index.get_level_values('accountId') == account_id]
+
+
+def filter_by_security(df: pd.DataFrame, security_id: str) -> pd.DataFrame:
+    return df[df.index.get_level_values('securityId') == security_id]
+
+
+def filter_by_account_and_security(df: pd.DataFrame, account_id: str, security_id: str) -> pd.DataFrame:
+    return df[(df.index.get_level_values('accountId') == account_id) & (df.index.get_level_values('securityId') == security_id)]
 
 
 def filter_by_type(df: pd.DataFrame, transaction_types: TransactionType| list[TransactionType]) -> pd.DataFrame:

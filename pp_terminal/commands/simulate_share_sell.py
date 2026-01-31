@@ -21,120 +21,25 @@ from datetime import datetime
 import logging
 from pathlib import Path
 from typing import cast
-
-import pandas as pd
-import typer
-from pandera.typing import DataFrame
 from typing_extensions import Annotated
 
-from pp_terminal.data.cost_basis import match_sales_to_lots
-from pp_terminal.data.filters import filter_by_type
-from pp_terminal.data.tax import load_prepaid_tax_data_from_csv, calculate_prepaid_tax_per_lot
+import typer
+from pp_terminal.data.cost_basis import calculate_fifo_sell
+from pp_terminal.data.filters import filter_by_account_and_security
+
+from pp_terminal.data.tax import load_prepaid_tax_data_from_csv
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import format_money, footer
 from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio, get_securities_account_by_id, get_security_by_id
-from pp_terminal.domain.schemas import TransactionType, Percent, Money, TaxPaidSchema, Account, Security, FifoLotSchema, TransactionSchema
+from pp_terminal.domain.schemas import Percent, Money, Account, Security
 from pp_terminal.output.table_decorator import TableOptions
 
 app = typer.Typer()
 console = Console()
 log = logging.getLogger(__name__)
-
-
-def _calculate_fifo_lots(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
-        snapshot: PortfolioSnapshot,
-        account_id: str,
-        security_id: str,
-        shares_to_sell: float,
-        sale_price: Money,
-        tax_rate: Percent,
-        tax_csv_data: DataFrame[TaxPaidSchema] | None = None
-) -> DataFrame[FifoLotSchema]:
-    """
-    Calculate FIFO lots for shares being sold, including prepaid tax calculations.
-    """
-    transactions = snapshot.securities_account_transactions
-
-    # Step 1: Get purchase transactions for this account/security from snapshot
-    purchase_txns : DataFrame[TransactionSchema] = transactions[
-        (transactions.index.get_level_values('accountId') == account_id) &
-        (transactions.index.get_level_values('securityId') == security_id)
-    ].pipe(filter_by_type, transaction_types=[TransactionType.BUY, TransactionType.DELIVERY_INBOUND])
-
-    if purchase_txns.empty:
-        raise InputError(f"No purchase transactions found for security {security_id} in account {account_id}")
-
-    # Step 2: Convert purchase transactions to lots
-    purchase_txns_sorted = purchase_txns.sort_index(level='date')
-
-    valid_purchases = purchase_txns_sorted[purchase_txns_sorted['shares'] > 0].copy()
-    if valid_purchases.empty:
-        raise InputError(f"No valid purchase transactions found for security {security_id} in account {account_id}")
-
-    account_lots_df = pd.DataFrame({
-        'purchase_date': valid_purchases.index.get_level_values('date'),
-        'account_id': account_id,
-        'security_id': security_id,
-        'shares': valid_purchases['shares'].values,
-        # BUY transactions have negative amounts (cash outflow), use absolute value
-        'purchase_price': abs(valid_purchases['amount'] / valid_purchases['shares']).values,
-        'capital_gain': 0.0,
-    })
-    account_lots_df['cost_basis'] = account_lots_df['shares'] * account_lots_df['purchase_price']
-
-    # Step 3: Get historical sells for this account/security
-    historical_sells = transactions[
-        (transactions.index.get_level_values('accountId') == account_id) &
-        (transactions.index.get_level_values('securityId') == security_id)
-    ].pipe(filter_by_type, transaction_types=[TransactionType.SELL, TransactionType.DELIVERY_OUTBOUND])
-
-    # Step 4: Match historical sells to lots using shared FIFO logic
-    remaining_lots_df = match_sales_to_lots(account_lots_df, historical_sells)
-
-    # Step 5: Match the hypothetical sell against remaining lots
-    if remaining_lots_df.empty:
-        raise InputError(f"Insufficient shares available. Requested: {shares_to_sell}, Available: 0")
-
-    # Calculate cumulative shares to determine lot consumption
-    cumsum = remaining_lots_df['shares'].cumsum()
-    prev_cumsum = cumsum.shift(1, fill_value=0.0)
-
-    # Shares to take from each lot: min(lot_shares, remaining_needed)
-    shares_taken = (shares_to_sell - prev_cumsum).clip(lower=0, upper=remaining_lots_df['shares'])
-
-    # Filter to contributing lots only
-    contributing_mask = shares_taken > 0
-    if not contributing_mask.any():
-        raise InputError(f"Insufficient shares available. Requested: {shares_to_sell}, Available: 0")
-
-    df = remaining_lots_df[contributing_mask][['purchase_date', 'account_id', 'purchase_price']].copy()
-    df['shares'] = shares_taken[contributing_mask].values
-
-    # Validate sufficient shares
-    total_allocated = df['shares'].sum()
-    if total_allocated < shares_to_sell - 0.0001:  # Allow small floating point errors
-        raise InputError(
-            f"Insufficient shares available. Requested: {shares_to_sell}, "
-            f"Available: {total_allocated}"
-        )
-
-    df['cost_basis'] = df['shares'] * df['purchase_price']
-    df['capital_gain'] = df['shares'] * (sale_price - df['purchase_price'])
-    df['security_id'] = security_id
-    df['salePrice'] = sale_price
-    df['grossProceeds'] = df['shares'] * sale_price
-
-    prepaid_tax_series = calculate_prepaid_tax_per_lot(FifoLotSchema.validate(df), snapshot.date, tax_csv_data)
-    df['prepaidTax'] = prepaid_tax_series.values
-
-    df['taxableGain'] = df.apply(lambda row: max(0.0, row['capital_gain'] - row['prepaidTax']), axis=1)
-    df['totalTax'] = df['taxableGain'] * (tax_rate / 100.0)
-    df['netProceeds'] = df['grossProceeds'] - df['totalTax']
-
-    return FifoLotSchema.validate(df)
 
 
 def get_today() -> datetime:
@@ -204,8 +109,9 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     elif available_shares < shares - 0.0001:  # Allow small floating point errors
         raise InputError(f"Insufficient shares. Available: {available_shares:.8f}, Requested: {shares:.8f}")
 
-    fifo_lots = _calculate_fifo_lots(snapshot, account_id, security_id, shares, sale_price, tax_rate, _tax_csv_data)
-    fifo_lots['currency'] = security.currency
+    transactions = snapshot.securities_account_transactions.pipe(filter_by_account_and_security, security_id=security_id, account_id=account_id)
+    fifo_lots = calculate_fifo_sell(transactions, snapshot.date, sale_price, tax_rate, shares, _tax_csv_data)
+    fifo_lots = fifo_lots.rename(columns={'amount': 'costBasis'}).reset_index()
 
     console.print(output.text(f"\n[bold]Security:[/bold] {security.name} ({security.wkn})"))
     console.print(output.text(f"[bold]Account:[/bold] {account.name}"))
@@ -214,7 +120,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     console.print(output.text(f"[bold]Sale Price (per share):[/bold] {format_money(sale_price, security.currency)}"))
 
     console.print(*output.result_table(
-        fifo_lots,
+        fifo_lots[['date', 'shares', 'currency', 'purchase_price', 'costBasis', 'fees', 'salePrice', 'capital_gain', 'taxableGain', 'grossProceeds', 'totalTax', 'netProceeds']],
         TableOptions(title="FIFO Lots Breakdown", show_index=False, show_total=True)
     ))
 

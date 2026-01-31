@@ -88,9 +88,9 @@ def calculate_prepaid_tax_per_lot(
         return pd.Series(0.0, index=lots.index)
 
     # Add year columns and lot index to track original lot
-    lots_with_years = lots.copy().reset_index(drop=True)
+    lots_with_years = lots.copy().reset_index()
     lots_with_years['lot_index'] = lots_with_years.index
-    lots_with_years['first_year'] = lots_with_years['purchase_date'].dt.year
+    lots_with_years['first_year'] = lots_with_years['date'].dt.year
     lots_with_years['last_year'] = current_date.year - 1
 
     # Filter out current year purchases (no prepaid tax yet)
@@ -112,12 +112,13 @@ def calculate_prepaid_tax_per_lot(
     lot_years['month_factor'] = 1.0
     is_first_year = lot_years['year'] == lot_years['first_year']
     lot_years.loc[is_first_year, 'month_factor'] = (
-        (13 - lot_years.loc[is_first_year, 'purchase_date'].dt.month) / 12.0
+        (13 - lot_years.loc[is_first_year, 'date'].dt.month) / 12.0
     )
 
+    tax_csv_data = tax_csv_data.reset_index().rename(columns={'account_id': 'accountId', 'security_id': 'securityId'})  # @todo
     lot_years = lot_years.merge(
-        tax_csv_data.reset_index(),
-        on=['year', 'account_id', 'security_id'],
+        tax_csv_data,
+        on=['year', 'accountId', 'securityId'],
         how='inner'
     )
 
@@ -129,13 +130,12 @@ def calculate_prepaid_tax_per_lot(
     else:
         lot_years['tax_free_allowance'] = lot_years['tax_free_allowance'].fillna(0.0)
 
-    # Calculate tax contribution per lot-year
-    lot_years['tax_contribution'] = (
+    lot_years['taxes'] = (
         lot_years['shares'] * lot_years['tax_per_share'] * lot_years['month_factor'] - lot_years['tax_free_allowance']
     )
 
     # Group by lot_index to get per-lot totals
-    per_lot_tax = lot_years.groupby('lot_index')['tax_contribution'].sum()
+    per_lot_tax = lot_years.groupby('lot_index')['taxes'].sum()
 
     # Reindex to match original lots dataframe, filling missing with 0
     return per_lot_tax.reindex(lots.index, fill_value=0.0)

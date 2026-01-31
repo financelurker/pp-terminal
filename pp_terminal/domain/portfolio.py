@@ -23,7 +23,8 @@ import pandera.pandas as pa
 from pandera.errors import SchemaError
 from pandera.typing import DataFrame
 
-from .schemas import AccountType, TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema, Account, Security
+from .schemas import AccountType, TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema, Account, \
+    Security
 from ..exceptions import InputError
 
 log = logging.getLogger(__name__)

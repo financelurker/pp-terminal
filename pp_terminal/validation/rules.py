@@ -25,7 +25,7 @@ import logging
 import pandas as pd
 from pandera.typing import DataFrame
 
-from pp_terminal.data.cost_basis import calculate_current_cost_basis
+from pp_terminal.data.cost_basis import calculate_total_cost
 from pp_terminal.data.tax import load_prepaid_tax_data_from_csv
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TaxPaidSchema
@@ -169,17 +169,6 @@ class PriceLimitRule(ValidationRule):
 
 class PurchaseCostLimitRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
-        """
-        Validates the **current cost basis** of each security using FIFO lot matching, optionally net of taxes already paid (e.g., Vorabpauschale).
-
-        **How it works**:
-        1. Tracks all purchase lots (BUY + DELIVERY_INBOUND) by date and account
-        2. Matches sales (SELL + DELIVERY_OUTBOUND) to lots using FIFO (first-in, first-out)
-        3. Calculates cost basis of remaining shares
-        4. If `tax.file` is configured, reduces cost basis by taxes already paid per share
-        5. Aggregates cost across all accounts for the same security
-        6. Validates against configured limit
-        """
         super().validate(entity, entity_id, context)
 
         limit = self._get_value(entity)
@@ -188,13 +177,12 @@ class PurchaseCostLimitRule(ValidationRule):
         if portfolio is None:
             raise RuntimeError('No portfolio in context for purchase-cost-limit validation')
 
-        tax_csv_data = self._load_tax_csv(context)
-        current_cost = calculate_current_cost_basis(portfolio, entity_id, tax_csv_data)
+        transactions = portfolio.securities_account_transactions
+        current_cost = calculate_total_cost(transactions, entity_id)
 
         if current_cost > limit:
             currency = entity.get('currency', 'EUR')
-            tax_note = ' (net of taxes paid)' if tax_csv_data is not None else ''
-            message = f'current cost basis {current_cost:.2f} {currency}{tax_note} exceeds limit {limit:.2f} {currency}'
+            message = f'current cost basis {current_cost:.2f} {currency} exceeds limit {limit:.2f} {currency}'
             return self.is_error(), message
 
         return False, None

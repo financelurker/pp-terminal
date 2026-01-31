@@ -22,6 +22,7 @@ from datetime import datetime
 from typing import cast
 
 import typer
+from pp_terminal.data.cost_basis import calculate_total_cost
 
 from pp_terminal.output.column_utils import normalize_columns
 from pp_terminal.utils.config import Config
@@ -81,6 +82,10 @@ def print_securities(  # pylint: disable=too-many-locals
     validation_results = validate_securities(portfolio, config)
     df['Messages'] = df['securityId'].map(
         lambda sid: validation_results.get(str(sid), ValidationResult.empty()).messages or ''
+    )
+
+    df['costBasis'] = df['securityId'].map(
+        lambda sid: calculate_total_cost(portfolio.securities_account_transactions, sid)
     )
 
     requested_columns = [col.strip() for col in columns.split(',')]

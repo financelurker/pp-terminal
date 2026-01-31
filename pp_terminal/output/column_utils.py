@@ -60,4 +60,4 @@ def normalize_columns(
                     available_names.append(f"{uuid} ({name})")
             raise InputError(f"Column '{col}' not found. Available columns: {', '.join(available_names)}")
 
-    return list(set(normalized))  # make unique
+    return list(dict.fromkeys(normalized))  # make unique

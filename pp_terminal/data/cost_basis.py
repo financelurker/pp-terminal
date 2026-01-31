@@ -25,7 +25,7 @@ from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_by_type, filter_by_security
 from pp_terminal.data.tax import calculate_prepaid_tax_per_lot
-from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema, FifoLotSchema, Percent
+from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema, PurchaseTransactionSchema, Percent
 from pp_terminal.exceptions import InputError
 
 log = logging.getLogger(__name__)
@@ -129,7 +129,7 @@ def _calculate_purchase_prices(transactions: DataFrame[TransactionSchema]) -> pd
     return transactions['amount'].abs() / transactions['shares']
 
 
-def _calculate_cost_basis(transactions: DataFrame[FifoLotSchema]) -> pd.Series:
+def _calculate_cost_basis(transactions: DataFrame[PurchaseTransactionSchema]) -> pd.Series:
     return transactions['shares'] * transactions['purchase_price']
 
 
@@ -140,7 +140,7 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
         tax_rate: Percent,
         shares_to_sell: float | None = None,
         tax_csv_data: DataFrame[TaxPaidSchema] | None = None
-) -> DataFrame[FifoLotSchema]:
+) -> DataFrame[PurchaseTransactionSchema]:
     """
     Calculate FIFO lots for shares being sold, including prepaid tax calculations.
     """
@@ -149,12 +149,12 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
 
     df = _apply_fifo_sells(df)
     if df.empty:
-        return FifoLotSchema.empty()
+        return PurchaseTransactionSchema.empty()
 
     if shares_to_sell is not None:
         df = _reduce_shares(df, shares_to_sell)
 
-    df = FifoLotSchema.validate(df)
+    df = PurchaseTransactionSchema.validate(df)
     df['amount'] = df['purchase_price'] * df['shares']
     df['capital_gain'] = df['shares'] * (sale_price - df['purchase_price'])
     df['salePrice'] = sale_price
@@ -168,7 +168,7 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
     df['netProceeds'] = df['grossProceeds'] - df['totalTax']
     df['type'] = TransactionType.SELL.value
 
-    return FifoLotSchema.validate(df)
+    return PurchaseTransactionSchema.validate(df)
 
 
 def calculate_total_cost(transactions: DataFrame[TransactionSchema], security_id: str) -> Money:

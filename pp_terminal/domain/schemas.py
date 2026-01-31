@@ -111,7 +111,7 @@ class TaxPaidSchema(pa.DataFrameModel):
     tax_free_allowance: Series[Money] = pa.Field(nullable=True, coerce=True)
 
 
-class FifoLotSchema(TransactionSchema):
+class PurchaseTransactionSchema(TransactionSchema):
     capital_gain: Money = pa.Field(nullable=True)
     salePrice: Money = pa.Field(nullable=True)
     grossProceeds: Money = pa.Field(nullable=True)

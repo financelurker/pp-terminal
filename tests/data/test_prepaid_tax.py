@@ -24,19 +24,19 @@ import pytest
 from pandera.typing import DataFrame
 
 from pp_terminal.data.tax import FifoLot, calculate_prepaid_tax_per_lot
-from pp_terminal.domain.schemas import FifoLotSchema, TransactionType, AccountType
+from pp_terminal.domain.schemas import PurchaseTransactionSchema, TransactionType, AccountType
 
 
 def _lots_to_df(lots: list[FifoLot], security_id: str) -> pd.DataFrame:
     """Helper to convert list of lots to DataFrame."""
     df = pd.DataFrame(lots)
     df['security_id'] = security_id
-    return FifoLotSchema.validate(df)
+    return PurchaseTransactionSchema.validate(df)
 
 
 def test_single_year_full_year(tax_csv_data: pd.DataFrame) -> None:
     """Test tax credit for single lot held full year."""
-    df = DataFrame[FifoLotSchema]([
+    df = DataFrame[PurchaseTransactionSchema]([
         [TransactionType.SELL.value, AccountType.SECURITIES.value, 100.0, 10000.0]
     ], columns=['type', 'accountType', 'shares', 'amount'], index=pd.MultiIndex.from_arrays([[datetime(2020, 1, 1)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 

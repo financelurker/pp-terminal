@@ -36,16 +36,16 @@ def test_import_non_existent_file() -> None:
 @pytest.mark.parametrize("xml_file", ['kommer.xml', 'invalid.xml', 'other.xml'])
 def test_import_invalid_xml(request: TopRequest, xml_file: str) -> None:
     with pytest.raises(InputError):
-        PpPortfolioBuilder().construct(request.path.parent / 'fixtures' / xml_file)
+        PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / xml_file)
 
 
 def test_import_pp_empty_xml(request: TopRequest) -> None:
-    CachedPpPortfolioBuilder().construct(request.path.parent / 'fixtures' / 'empty.ids.xml')
+    CachedPpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
 
 
 def test_xml_file_opened_readonly(request: TopRequest) -> None:
     """Verify that Portfolio Performance XML files are opened in read-only mode."""
-    xml_file_path = request.path.parent / 'fixtures' / 'empty.ids.xml'
+    xml_file_path = request.path.parent.parent / 'fixtures' / 'empty.ids.xml'
 
     # Track the mode parameter passed to file.open()
     original_open = Path.open
@@ -68,7 +68,7 @@ def test_xml_file_opened_readonly(request: TopRequest) -> None:
 
 def test_cache_disabled_uses_in_memory(request: TopRequest, tmp_path: Path) -> None:
     """Test that use_cache=False uses in-memory database."""
-    xml_file = request.path.parent / 'fixtures' / 'empty.ids.xml'
+    xml_file = request.path.parent.parent / 'fixtures' / 'empty.ids.xml'
 
     # Create temporary copy to avoid interference with other tests
     temp_xml = tmp_path / 'test.xml'
@@ -84,7 +84,7 @@ def test_cache_disabled_uses_in_memory(request: TopRequest, tmp_path: Path) -> N
 
 def test_cache_filename_generation(request: TopRequest, tmp_path: Path) -> None:
     """Test cache filename includes checksum."""
-    xml_file = request.path.parent / 'fixtures' / 'empty.ids.xml'
+    xml_file = request.path.parent.parent / 'fixtures' / 'empty.ids.xml'
 
     # Create temporary copy to avoid leaving cache files
     temp_xml = tmp_path / 'test.xml'
@@ -110,7 +110,7 @@ def test_cache_filename_generation(request: TopRequest, tmp_path: Path) -> None:
 
 def test_cache_hit_reuses_existing(request: TopRequest, tmp_path: Path) -> None:
     """Test that existing valid cache is reused."""
-    xml_file = request.path.parent / 'fixtures' / 'empty.ids.xml'
+    xml_file = request.path.parent.parent / 'fixtures' / 'empty.ids.xml'
 
     # Create temporary copy
     temp_xml = tmp_path / 'test.xml'
@@ -137,7 +137,7 @@ def test_cache_hit_reuses_existing(request: TopRequest, tmp_path: Path) -> None:
 
 def test_cache_invalidation_on_xml_change(request: TopRequest, tmp_path: Path) -> None:
     """Test that cache is invalidated when XML changes."""
-    xml_file = request.path.parent / 'fixtures' / 'empty.ids.xml'
+    xml_file = request.path.parent.parent / 'fixtures' / 'empty.ids.xml'
 
     # Create temporary copy
     temp_xml = tmp_path / 'test.xml'
@@ -169,7 +169,7 @@ def test_cache_invalidation_on_xml_change(request: TopRequest, tmp_path: Path) -
 
 def test_old_cache_cleanup(request: TopRequest, tmp_path: Path) -> None:
     """Test that old cache files are deleted."""
-    xml_file = request.path.parent / 'fixtures' / 'empty.ids.xml'
+    xml_file = request.path.parent.parent / 'fixtures' / 'empty.ids.xml'
 
     # Create temporary copy
     temp_xml = tmp_path / 'test.xml'
@@ -190,7 +190,7 @@ def test_old_cache_cleanup(request: TopRequest, tmp_path: Path) -> None:
 
 def test_cache_fallback_on_io_error(request: TopRequest, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Test graceful fallback to in-memory on cache I/O error."""
-    xml_file = request.path.parent / 'fixtures' / 'empty.ids.xml'
+    xml_file = request.path.parent.parent / 'fixtures' / 'empty.ids.xml'
 
     # Create temporary copy in read-only directory to simulate I/O error
     readonly_dir = tmp_path / 'readonly'

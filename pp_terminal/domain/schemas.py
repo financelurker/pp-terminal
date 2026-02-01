@@ -60,6 +60,7 @@ class TransactionSchema(pa.DataFrameModel):
     shares: Series[float]
     accountType: Series[str]
     taxes: Series[Money] = pa.Field(default=0.0)
+    fees: Optional[Series[Money]] = pa.Field(default=0.0, coerce=True)
     currency: Series[str] = pa.Field(nullable=True)
 
 
@@ -113,6 +114,7 @@ class TaxPaidSchema(pa.DataFrameModel):
 
 class PurchaseTransactionSchema(TransactionSchema):
     capital_gain: Money = pa.Field(nullable=True)
+    purchase_price: Money = pa.Field(nullable=True)
     salePrice: Money = pa.Field(nullable=True)
     grossProceeds: Money = pa.Field(nullable=True)
     prepaidTax: Money = pa.Field(nullable=True)

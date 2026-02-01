@@ -38,11 +38,11 @@ def _filter_purchase_transactions(transactions: DataFrame[TransactionSchema]) ->
     return TransactionSchema.validate(valid_purchases)
 
 
-def _apply_fifo_sells(
+def _get_remaining_lots_after_fifo_matching(
     transactions: DataFrame[TransactionSchema]
 ) -> DataFrame[PurchaseTransactionSchema]:
     """
-    Apply FIFO matching of sells to purchase lots.
+    Match all sell transactions to purchase lots using FIFO and return remaining lots.
 
     Returns:
         DataFrame of remaining lots after sales are matched.
@@ -127,16 +127,16 @@ def _calculate_cost_basis(transactions: DataFrame[PurchaseTransactionSchema]) ->
     return transactions['shares'] * transactions['purchase_price']
 
 
-def _recalculate_amount(df: DataFrame[PurchaseTransactionSchema]) -> DataFrame[PurchaseTransactionSchema]:
-    """Recalculate amount based on purchase_price and remaining shares after FIFO."""
+def _sync_amount_with_shares(df: DataFrame[PurchaseTransactionSchema]) -> DataFrame[PurchaseTransactionSchema]:
+    """Adjust amount field to reflect remaining shares after FIFO matching (amount = purchase_price * remaining shares)."""
     df = df.copy()
     df['amount'] = df['purchase_price'] * df['shares']
     return PurchaseTransactionSchema.validate(df)
 
 
-def _recalculate(df: DataFrame[PurchaseTransactionSchema]) -> DataFrame[PurchaseTransactionSchema]:
-    """Recalculate all sale-related fields after FIFO matching."""
-    df = _recalculate_amount(df)
+def _calculate_sell_metrics(df: DataFrame[PurchaseTransactionSchema]) -> DataFrame[PurchaseTransactionSchema]:
+    """Calculate capital gains, gross proceeds, and taxable gain for sale simulation."""
+    df = _sync_amount_with_shares(df)
     df['capital_gain'] = df['shares'] * (df['salePrice'] - df['purchase_price'])
     df['grossProceeds'] = df['shares'] * df['salePrice']
     df['taxableGain'] = df.apply(lambda row: max(0.0, row['capital_gain'] - row['prepaidTax']), axis=1)
@@ -152,12 +152,10 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
         shares_to_sell: float | None = None,
         tax_csv_data: DataFrame[TaxPaidSchema] | None = None
 ) -> DataFrame[PurchaseTransactionSchema]:
-    """
-    Calculate FIFO lots for shares being sold, including prepaid tax calculations.
-    """
+    """Calculate FIFO lots for shares being sold, including prepaid tax calculations."""
     df = transactions.copy()
 
-    df = _apply_fifo_sells(df)
+    df = _get_remaining_lots_after_fifo_matching(df)
     if df.empty:
         return PurchaseTransactionSchema.empty()
 
@@ -170,7 +168,7 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
 
     df['prepaidTax'] = calculate_prepaid_tax_per_lot(df, sale_date, tax_csv_data).values
 
-    df = _recalculate(df)
+    df = _calculate_sell_metrics(df)
     df['totalTax'] = df['taxableGain'] * (tax_rate / 100.0)
     df['netProceeds'] = df['grossProceeds'] - df['totalTax']
 
@@ -178,12 +176,12 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
 
 
 def calculate_total_cost(transactions: DataFrame[TransactionSchema], security_id: str) -> Money:
-    """Calculate the cost basis of currently held shares for a security."""
+    """Calculate the cost basis of currently held shares for a security, i.e. what did I originally pay for the shares I currently hold?"""
     df = transactions.pipe(filter_by_security, security_id=security_id)
-    df = _apply_fifo_sells(df)
+    df = _get_remaining_lots_after_fifo_matching(df)
     if df.empty:
         return Money(0.0)
 
-    df = _recalculate_amount(df)
+    df = _sync_amount_with_shares(df)
 
     return Money(df['amount'].abs().sum())

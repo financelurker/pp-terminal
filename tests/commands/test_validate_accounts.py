@@ -16,7 +16,7 @@
     You should have received a copy of the GNU General Public License
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
-
+# pylint: disable=duplicate-code
 import logging
 from datetime import datetime
 from types import SimpleNamespace
@@ -44,10 +44,10 @@ def provide_sample_portfolio_with_limits() -> Portfolio:
     accounts.index.name = 'accountId'
 
     transactions = pd.DataFrame([
-        [datetime(2025, 1, 1), 'account-1', None, 'DEPOSIT', 1050.0, 0.0, AccountType.DEPOSIT.value, 'EUR', 0.0],
-        [datetime(2025, 1, 2), 'account-2', None, 'DEPOSIT', 850.0, 0.0, AccountType.DEPOSIT.value, 'EUR', 0.0],
-        [datetime(2025, 1, 3), 'account-3', None, 'DEPOSIT', 800.0, 0.0, AccountType.DEPOSIT.value, 'EUR', 0.0],
-    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
+        [datetime(2025, 1, 1), 'account-1', None, 'DEPOSIT', 1050.0, 0.0, AccountType.DEPOSIT.value, 'EUR', 0.0, 0.0],
+        [datetime(2025, 1, 2), 'account-2', None, 'DEPOSIT', 850.0, 0.0, AccountType.DEPOSIT.value, 'EUR', 0.0, 0.0],
+        [datetime(2025, 1, 3), 'account-3', None, 'DEPOSIT', 800.0, 0.0, AccountType.DEPOSIT.value, 'EUR', 0.0, 0.0],
+    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes', 'fees'])
     transactions = transactions.set_index(['date', 'accountId', 'securityId'])
 
     return Portfolio(

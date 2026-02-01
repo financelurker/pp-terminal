@@ -64,9 +64,9 @@ def test_full_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_secur
     Expected: No Vorabpauschale as no shares held at year end
     """
     transactions = pd.DataFrame([
-        [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-        [datetime(2024, 8, 1), TransactionType.SELL.value, 6000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes']).set_index(['date', 'accountId', 'securityId'])
+        [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        [datetime(2024, 8, 1), TransactionType.SELL.value, 6000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes', 'fees']).set_index(['date', 'accountId', 'securityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -96,9 +96,9 @@ def test_partial_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_se
     - Note: Exemption not applied because securities DataFrame doesn't have 'exempt_rate' column
     """
     transactions = pd.DataFrame([
-        [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-        [datetime(2024, 8, 1), TransactionType.SELL.value, 3000.0, 50.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes']).set_index(['date', 'accountId', 'securityId'])
+        [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        [datetime(2024, 8, 1), TransactionType.SELL.value, 3000.0, 50.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes', 'fees']).set_index(['date', 'accountId', 'securityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -124,10 +124,10 @@ def test_multiple_sells_during_year(sell_test_accounts: pd.DataFrame, sell_test_
     Expected: Same as partial sell (only 50 remaining shares matter)
     """
     transactions = pd.DataFrame([
-        [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-        [datetime(2024, 3, 1), TransactionType.SELL.value, 1500.0, 25.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-        [datetime(2024, 9, 1), TransactionType.SELL.value, 1500.0, 25.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes']).set_index(['date', 'accountId', 'securityId'])
+        [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        [datetime(2024, 3, 1), TransactionType.SELL.value, 1500.0, 25.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        [datetime(2024, 9, 1), TransactionType.SELL.value, 1500.0, 25.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes', 'fees']).set_index(['date', 'accountId', 'securityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -169,10 +169,10 @@ def test_sell_and_rebuy_during_year(sell_test_accounts: pd.DataFrame, sell_test_
     - Note: Exemption not applied because securities DataFrame doesn't have 'exempt_rate' column
     """
     transactions = pd.DataFrame([
-        [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-        [datetime(2024, 4, 1), TransactionType.SELL.value, 5500.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-        [datetime(2024, 8, 1), TransactionType.BUY.value, 3000.0, 50.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes']).set_index(['date', 'accountId', 'securityId'])
+        [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        [datetime(2024, 4, 1), TransactionType.SELL.value, 5500.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        [datetime(2024, 8, 1), TransactionType.BUY.value, 3000.0, 50.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes', 'fees']).set_index(['date', 'accountId', 'securityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
@@ -198,8 +198,8 @@ def test_no_sells_baseline(sell_test_accounts: pd.DataFrame, sell_test_securitie
     This should pass with current implementation
     """
     transactions = pd.DataFrame([
-        [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes']).set_index(['date', 'accountId', 'securityId'])
+        [datetime(2023, 6, 1), TransactionType.BUY.value, 5000.0, 100.0, 'sec1', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes', 'fees']).set_index(['date', 'accountId', 'securityId'])
 
     portfolio = Portfolio(sell_test_accounts, transactions, sell_test_securities, sell_test_prices)
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))

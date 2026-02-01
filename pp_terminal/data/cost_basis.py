@@ -57,8 +57,10 @@ def _get_remaining_lots_after_fifo_matching(
         has significant overhead that doesn't add value for sequential state updates.
     """
     lots = _filter_purchase_transactions(transactions)
-    lots['purchasePrice'] = lots['amount'].abs() / lots['shares']  # save original purchase price
+    lots['purchasePrice'] = lots['amount'].abs() / lots['shares']  # save actual market price per share
+    lots['fees'] = lots['fees'].fillna(0)
     lots = lots.rename(columns={'amount': 'costBasis'})
+
     if lots.empty:
         return TaxLotSchema.validate(lots)
 
@@ -86,6 +88,10 @@ def _get_remaining_lots_after_fifo_matching(
             shares_from_lot = min(shares_to_match, lot_shares)
             new_shares = lot_shares - shares_from_lot
             shares_to_match -= shares_from_lot
+
+            # Proportionally reduce fees based on remaining shares
+            if lot_shares > 0:
+                lot['fees'] = lot['fees'] * (new_shares / lot_shares)
 
             lot['shares'] = new_shares
 
@@ -124,18 +130,16 @@ def _reduce_shares(remaining_lots_df: DataFrame[TaxLotSchema], shares_to_sell: f
     return TaxLotSchema.validate(df)
 
 
-def _sync_amount_with_shares(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
-    """Adjust cost field to reflect remaining shares after FIFO matching (cost = purchasePrice * remaining shares)."""
+def _calculate_cost_basis(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
     df = df.copy()
-    df['cost'] = df['purchasePrice'] * df['shares']
+    df['costBasis'] = df['purchasePrice'] * df['shares'] + df['fees'].fillna(0)
     return TaxLotSchema.validate(df)
 
 
-def _calculate_sell_metrics(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
-    """Calculate capital gains, gross proceeds, and taxable gain for sale simulation."""
-    df = _sync_amount_with_shares(df)
-    df['capitalGain'] = df['shares'] * (df['salePrice'] - df['purchasePrice'])
+def _calculate_gains(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
+    df = _calculate_cost_basis(df)
     df['grossProceeds'] = df['shares'] * df['salePrice']
+    df['capitalGain'] = df['grossProceeds'] - df['costBasis']
     df['taxableGain'] = df.apply(lambda row: max(0.0, row['capitalGain'] - row['prepaidTax']), axis=1)
 
     return TaxLotSchema.validate(df)
@@ -143,8 +147,8 @@ def _calculate_sell_metrics(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSche
 
 def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
         transactions: DataFrame[TransactionSchema],
-        sale_date: datetime,
-        sale_price: Money,
+        sell_date: datetime,
+        sell_price: Money,
         tax_rate: Percent,
         shares_to_sell: float | None = None,
         tax_csv_data: DataFrame[TaxPaidSchema] | None = None
@@ -160,11 +164,11 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
         df = _reduce_shares(df, shares_to_sell)
 
     df = TaxLotSchema.validate(df)
-    df['salePrice'] = sale_price
+    df['salePrice'] = sell_price
 
-    df['prepaidTax'] = calculate_prepaid_tax_per_lot(df, sale_date, tax_csv_data).values
+    df['prepaidTax'] = calculate_prepaid_tax_per_lot(df, sell_date, tax_csv_data).values
 
-    df = _calculate_sell_metrics(df)
+    df = _calculate_gains(df)
     df['totalTax'] = df['taxableGain'] * (tax_rate / 100.0)
     df['netProceeds'] = df['grossProceeds'] - df['totalTax']
 
@@ -181,6 +185,6 @@ def calculate_total_cost_basis(transactions: DataFrame[TransactionSchema], secur
     if df.empty:
         return Money(0.0)
 
-    df = _sync_amount_with_shares(df)
+    df = _calculate_cost_basis(df)
 
-    return Money(df['cost'].abs().sum())
+    return Money(df['costBasis'].abs().sum())

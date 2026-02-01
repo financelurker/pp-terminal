@@ -61,17 +61,17 @@ def provide_portfolio_with_purchases_and_sales() -> Portfolio:
     # Security C: €0 cost basis (all shares sold)
     transactions = pd.DataFrame([
         # Security A purchases
-        [datetime(2020, 1, 15), 'acc-1', 'sec-a', TransactionType.BUY.value, -1000.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0],
-        [datetime(2020, 6, 20), 'acc-1', 'sec-a', TransactionType.BUY.value, -1500.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0],
-        [datetime(2021, 3, 10), 'acc-1', 'sec-a', TransactionType.BUY.value, -3000.0, 30.0, AccountType.SECURITIES.value, 'EUR', 0.0],
+        [datetime(2020, 1, 15), 'acc-1', 'sec-a', TransactionType.BUY.value, -1000.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        [datetime(2020, 6, 20), 'acc-1', 'sec-a', TransactionType.BUY.value, -1500.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        [datetime(2021, 3, 10), 'acc-1', 'sec-a', TransactionType.BUY.value, -3000.0, 30.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
         # Security A sale (FIFO: consume 10 @ €100)
-        [datetime(2022, 1, 5), 'acc-1', 'sec-a', TransactionType.SELL.value, 1200.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0],
+        [datetime(2022, 1, 5), 'acc-1', 'sec-a', TransactionType.SELL.value, 1200.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
         # Security B purchases
-        [datetime(2020, 2, 1), 'acc-2', 'sec-b', TransactionType.BUY.value, -2000.0, 20.0, AccountType.SECURITIES.value, 'EUR', 0.0],
+        [datetime(2020, 2, 1), 'acc-2', 'sec-b', TransactionType.BUY.value, -2000.0, 20.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
         # Security C purchases and full sale
-        [datetime(2020, 3, 1), 'acc-1', 'sec-c', TransactionType.BUY.value, -1000.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0],
-        [datetime(2022, 1, 1), 'acc-1', 'sec-c', TransactionType.SELL.value, 1500.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
+        [datetime(2020, 3, 1), 'acc-1', 'sec-c', TransactionType.BUY.value, -1000.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        [datetime(2022, 1, 1), 'acc-1', 'sec-c', TransactionType.SELL.value, 1500.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes', 'fees'])
     transactions = transactions.set_index(['date', 'accountId', 'securityId'])
 
     return Portfolio(

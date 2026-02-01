@@ -44,11 +44,11 @@ def provide_portfolio_with_purchases() -> Portfolio:
 
     # Purchases: BUY amounts are negative (cash outflow)
     transactions = pd.DataFrame([
-        [datetime(2020, 1, 15), 'acc-1', 'sec-1', TransactionType.BUY.value, -1000.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # 10 shares @ 100
-        [datetime(2020, 6, 20), 'acc-1', 'sec-1', TransactionType.BUY.value, -1500.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # 10 shares @ 150
-        [datetime(2021, 3, 10), 'acc-2', 'sec-1', TransactionType.DELIVERY_INBOUND.value, 0.0, 5.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # 5 shares @ 0 (gift)
-        [datetime(2022, 1, 5), 'acc-1', 'sec-1', TransactionType.BUY.value, -2000.0, 20.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # 20 shares @ 100
-    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
+        [datetime(2020, 1, 15), 'acc-1', 'sec-1', TransactionType.BUY.value, -1000.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],  # 10 shares @ 100
+        [datetime(2020, 6, 20), 'acc-1', 'sec-1', TransactionType.BUY.value, -1500.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],  # 10 shares @ 150
+        [datetime(2021, 3, 10), 'acc-2', 'sec-1', TransactionType.DELIVERY_INBOUND.value, 0.0, 5.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],  # 5 shares @ 0 (gift)
+        [datetime(2022, 1, 5), 'acc-1', 'sec-1', TransactionType.BUY.value, -2000.0, 20.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],  # 20 shares @ 100
+    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes', 'fees'])
     transactions = transactions.set_index(['date', 'accountId', 'securityId'])
 
     return Portfolio(
@@ -69,9 +69,9 @@ def provide_portfolio_with_sells(portfolio_with_purchases: Portfolio) -> Portfol
 
     # Add sales: SELL amounts are positive (cash inflow)
     sales = pd.DataFrame([
-        [datetime(2020, 12, 1), 'acc-1', 'sec-1', TransactionType.SELL.value, 1400.0, 7.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # Sell 7 shares
-        [datetime(2023, 6, 15), 'acc-2', 'sec-1', TransactionType.DELIVERY_OUTBOUND.value, 0.0, 3.0, AccountType.SECURITIES.value, 'EUR', 0.0],  # Transfer out 3 shares
-    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes'])
+        [datetime(2020, 12, 1), 'acc-1', 'sec-1', TransactionType.SELL.value, 1400.0, 7.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],  # Sell 7 shares
+        [datetime(2023, 6, 15), 'acc-2', 'sec-1', TransactionType.DELIVERY_OUTBOUND.value, 0.0, 3.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],  # Transfer out 3 shares
+    ], columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes', 'fees'])
     sales = sales.set_index(['date', 'accountId', 'securityId'])
 
     transactions = pd.concat([transactions, sales])

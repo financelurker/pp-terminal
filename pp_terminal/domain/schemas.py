@@ -113,12 +113,6 @@ class TaxPaidSchema(pa.DataFrameModel):
 
 
 class TaxLotSchema(pa.DataFrameModel):
-    """
-    FIFO tax lot for capital gains calculations.
-
-    Combines purchase lot data with sale simulation to calculate
-    taxable gains accounting for prepaid taxes (Vorabpauschale).
-    """
     date: Index[pa.DateTime]  # Purchase date
     accountId: Index[str]
     securityId: Index[str]
@@ -128,7 +122,7 @@ class TaxLotSchema(pa.DataFrameModel):
     currency: Series[str] = pa.Field(nullable=True)
     fees: Series[Money] = pa.Field(nullable=True)
 
-    # Sale simulation (nullable until _calculate_sell_metrics)
+    # Sell simulation (nullable until _calculate_sell_metrics)
     salePrice: Series[Money] = pa.Field(nullable=True)
     capitalGain: Series[Money] = pa.Field(nullable=True)
     grossProceeds: Series[Money] = pa.Field(nullable=True)

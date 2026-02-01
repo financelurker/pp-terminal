@@ -126,9 +126,9 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
         [datetime(2025, 1, 2), '1234567890', 45.302],
     ], columns=['date', 'securityId', 'price']).set_index(['date', 'securityId'])
     transactions = pd.DataFrame([
-        [datetime(2023, 12, 6), TransactionType.BUY.value, float(value_begin), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-        [datetime(2024, 6, 4), TransactionType.DIVIDENDS.value, float(payout), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes']).set_index(['date', 'accountId', 'securityId'])
+        [datetime(2023, 12, 6), TransactionType.BUY.value, float(value_begin), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        [datetime(2024, 6, 4), TransactionType.DIVIDENDS.value, float(payout), shares, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes', 'fees']).set_index(['date', 'accountId', 'securityId'])
 
     portfolio = Portfolio(sample_accounts, transactions, sample_securities, prices)
 

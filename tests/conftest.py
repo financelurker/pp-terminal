@@ -46,7 +46,7 @@ def provide_sample_accounts() -> pd.DataFrame:
 @pytest.fixture(name='sample_transactions')
 def provide_sample_transactions() -> pd.DataFrame:
     return (pd.DataFrame([
-            [datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0],
-            [datetime(2018, 1, 30), TransactionType.TRANSFER_IN.value, 100000.0, 0, None, '2', AccountType.DEPOSIT.value, 'EUR', 0.0],
-    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes'])
+            [datetime(2018, 8, 15), TransactionType.BUY.value, 1000.0, 5.0, '1234567890', '1', AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+            [datetime(2018, 1, 30), TransactionType.TRANSFER_IN.value, 100000.0, 0, None, '2', AccountType.DEPOSIT.value, 'EUR', 0.0, 0.0],
+    ], columns=['date', 'type', 'amount', 'shares', 'securityId', 'accountId', 'accountType', 'currency', 'taxes', 'fees'])
             .set_index(['date', 'accountId', 'securityId']))

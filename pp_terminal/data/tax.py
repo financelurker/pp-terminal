@@ -28,7 +28,7 @@ from pandera.typing import DataFrame
 
 from pp_terminal.exceptions import InputError
 from pp_terminal.output.strategy import Console
-from pp_terminal.domain.schemas import TaxPaidSchema, Percent, PurchaseTransactionSchema
+from pp_terminal.domain.schemas import TaxPaidSchema, Percent, TaxLotSchema
 
 app = typer.Typer()
 console = Console()
@@ -59,7 +59,7 @@ def load_prepaid_tax_data_from_csv(csv_path: Path, tax_rate: Percent) -> DataFra
 
 
 def calculate_prepaid_tax_per_lot(
-    lots: DataFrame[PurchaseTransactionSchema],
+    lots: DataFrame[TaxLotSchema],
     current_date: datetime,
     tax_csv_data: DataFrame[TaxPaidSchema] | None
 ) -> pd.Series:

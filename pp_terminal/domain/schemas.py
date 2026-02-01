@@ -112,14 +112,30 @@ class TaxPaidSchema(pa.DataFrameModel):
     tax_free_allowance: Series[Money] = pa.Field(nullable=True, coerce=True)
 
 
-class PurchaseTransactionSchema(TransactionSchema):
-    capital_gain: Money = pa.Field(nullable=True)
-    purchase_price: Money = pa.Field(nullable=True)
-    salePrice: Money = pa.Field(nullable=True)
-    grossProceeds: Money = pa.Field(nullable=True)
-    prepaidTax: Money = pa.Field(nullable=True)
-    taxableGain: Money = pa.Field(nullable=True, ge=0)
-    netProceeds: Money = pa.Field(nullable=True)
+class TaxLotSchema(pa.DataFrameModel):
+    """
+    FIFO tax lot for capital gains calculations.
+
+    Combines purchase lot data with sale simulation to calculate
+    taxable gains accounting for prepaid taxes (Vorabpauschale).
+    """
+    date: Index[pa.DateTime]  # Purchase date
+    accountId: Index[str]
+    securityId: Index[str]
+    shares: Series[float]
+    cost: Series[Money]  # Total cost basis (recalculated for partial lots)
+    purchasePrice: Series[Money] = pa.Field(nullable=True)
+    currency: Series[str] = pa.Field(nullable=True)
+    fees: Series[Money] = pa.Field(nullable=True)
+
+    # Sale simulation (nullable until _calculate_sell_metrics)
+    salePrice: Series[Money] = pa.Field(nullable=True)
+    capitalGain: Series[Money] = pa.Field(nullable=True)
+    grossProceeds: Series[Money] = pa.Field(nullable=True)
+    prepaidTax: Series[Money] = pa.Field(nullable=True)
+    taxableGain: Series[Money] = pa.Field(nullable=True, ge=0)
+    totalTax: Series[Money] = pa.Field(nullable=True)
+    netProceeds: Series[Money] = pa.Field(nullable=True)
 
     class Config:  # pylint: disable=too-few-public-methods
         add_missing_columns = True

@@ -73,11 +73,11 @@ def test_fifo_lots_single_purchase(share_sell_portfolio: Portfolio) -> None:
 
     assert len(lots) == 1
     assert lots.iloc[0]['shares'] == 30.0
-    assert lots.iloc[0]['purchase_price'] == 100.0
-    assert lots.iloc[0]['amount'] == 3000.0
-    assert lots.iloc[0]['capital_gain'] == 1800.0  # 30 * (160 - 100)
+    assert lots.iloc[0]['purchasePrice'] == 100.0
+    assert lots.iloc[0]['cost'] == 3000.0
+    assert lots.iloc[0]['capitalGain'] == 1800.0  # 30 * (160 - 100)
     assert lots.iloc[0]['prepaidTax'] == 0.0  # No prepaid tax (no CSV provided)
-    assert lots.iloc[0]['taxableGain'] == 1800.0  # capital_gain - prepaidTax
+    assert lots.iloc[0]['taxableGain'] == 1800.0  # capitalGain - prepaidTax
     assert lots.iloc[0]['totalTax'] == 474.75  # 1800 * 0.26375
     assert lots.iloc[0]['netProceeds'] == 4325.25  # 4800 - 474.75
 
@@ -93,25 +93,25 @@ def test_fifo_lots_multiple_purchases(share_sell_portfolio: Portfolio) -> None:
 
     # First lot: 50 shares @ €100
     assert lots.iloc[0]['shares'] == 50.0
-    assert lots.iloc[0]['purchase_price'] == 100.0
-    assert lots.iloc[0]['amount'] == 5000.0
-    assert lots.iloc[0]['capital_gain'] == 3000.0  # 50 * (160 - 100)
+    assert lots.iloc[0]['purchasePrice'] == 100.0
+    assert lots.iloc[0]['cost'] == 5000.0
+    assert lots.iloc[0]['capitalGain'] == 3000.0  # 50 * (160 - 100)
     assert lots.iloc[0]['prepaidTax'] == 0.0
     assert lots.iloc[0]['totalTax'] == 791.25  # 3000 * 0.26375
 
     # Second lot: 50 shares @ €140
     assert lots.iloc[1]['shares'] == 50.0
-    assert lots.iloc[1]['purchase_price'] == 140.0
-    assert lots.iloc[1]['amount'] == 7000.0
-    assert lots.iloc[1]['capital_gain'] == 1000.0  # 50 * (160 - 140)
+    assert lots.iloc[1]['purchasePrice'] == 140.0
+    assert lots.iloc[1]['cost'] == 7000.0
+    assert lots.iloc[1]['capitalGain'] == 1000.0  # 50 * (160 - 140)
     assert lots.iloc[1]['prepaidTax'] == 0.0
     assert lots.iloc[1]['totalTax'] == 263.75  # 1000 * 0.26375
 
     # Third lot: 20 shares @ €150
     assert lots.iloc[2]['shares'] == 20.0
-    assert lots.iloc[2]['purchase_price'] == 150.0
-    assert lots.iloc[2]['amount'] == 3000.0
-    assert lots.iloc[2]['capital_gain'] == 200.0  # 20 * (160 - 150)
+    assert lots.iloc[2]['purchasePrice'] == 150.0
+    assert lots.iloc[2]['cost'] == 3000.0
+    assert lots.iloc[2]['capitalGain'] == 200.0  # 20 * (160 - 150)
     assert lots.iloc[2]['prepaidTax'] == 0.0
     assert lots.iloc[2]['totalTax'] == 52.75  # 200 * 0.26375
 

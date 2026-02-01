@@ -110,8 +110,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         raise InputError(f"Insufficient shares. Available: {available_shares:.8f}, Requested: {shares:.8f}")
 
     transactions = snapshot.securities_account_transactions.pipe(filter_by_account_and_security, security_id=security_id, account_id=account_id)
-    fifo_lots = calculate_fifo_sell(transactions, snapshot.date, sale_price, tax_rate, shares, _tax_csv_data)
-    fifo_lots = fifo_lots.rename(columns={'amount': 'costBasis'}).reset_index()
+    fifo_lots = calculate_fifo_sell(transactions, snapshot.date, sale_price, tax_rate, shares, _tax_csv_data).reset_index()
 
     console.print(output.text(f"\n[bold]Security:[/bold] {security.name} ({security.wkn})"))
     console.print(output.text(f"[bold]Account:[/bold] {account.name}"))
@@ -120,7 +119,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     console.print(output.text(f"[bold]Sale Price (per share):[/bold] {format_money(sale_price, security.currency)}"))
 
     console.print(*output.result_table(
-        fifo_lots[['date', 'shares', 'currency', 'purchase_price', 'costBasis', 'fees', 'salePrice', 'capital_gain', 'taxableGain', 'grossProceeds', 'totalTax', 'netProceeds']],
+        fifo_lots[['date', 'shares', 'currency', 'purchasePrice', 'cost', 'fees', 'salePrice', 'capitalGain', 'taxableGain', 'grossProceeds', 'totalTax', 'netProceeds']],
         TableOptions(title="FIFO Lots Breakdown", show_index=False, show_total=True)
     ))
 

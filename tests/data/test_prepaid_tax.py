@@ -24,14 +24,14 @@ import pytest
 from pandera.typing import DataFrame
 
 from pp_terminal.data.tax import calculate_prepaid_tax_per_lot
-from pp_terminal.domain.schemas import PurchaseTransactionSchema, TransactionType, AccountType
+from pp_terminal.domain.schemas import TaxLotSchema
 
 
 def test_single_year_full_year(tax_csv_data: pd.DataFrame) -> None:
     """Test tax credit for single lot held full year."""
-    df = DataFrame[PurchaseTransactionSchema]([
-        [TransactionType.SELL.value, AccountType.SECURITIES.value, 100.0, 10000.0]
-    ], columns=['type', 'accountType', 'shares', 'amount'],
+    df = DataFrame[TaxLotSchema]([
+        [100.0, 10000.0]
+    ], columns=['shares', 'cost'],
         index=pd.MultiIndex.from_arrays([[datetime(2020, 1, 1)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 
     # Current date 2022-12-31: years held = 2020, 2021 (not 2022 because last_year = current_year - 1)
@@ -45,9 +45,9 @@ def test_single_year_full_year(tax_csv_data: pd.DataFrame) -> None:
 
 def test_purchase_year_month_proration(tax_csv_data: pd.DataFrame) -> None:
     """Test that purchase year is prorated by months held."""
-    df = DataFrame[PurchaseTransactionSchema]([
-        [TransactionType.BUY.value, AccountType.SECURITIES.value, 100.0, 10000.0]
-    ], columns=['type', 'accountType', 'shares', 'amount'],
+    df = DataFrame[TaxLotSchema]([
+        [100.0, 10000.0]
+    ], columns=['shares', 'cost'],
         index=pd.MultiIndex.from_arrays([[datetime(2020, 6, 15)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 
     current_date = datetime(2022, 12, 31)
@@ -60,10 +60,10 @@ def test_purchase_year_month_proration(tax_csv_data: pd.DataFrame) -> None:
 
 def test_multiple_lots_different_accounts(tax_csv_data: pd.DataFrame) -> None:
     """Test tax credit across multiple lots in different accounts."""
-    df = DataFrame[PurchaseTransactionSchema]([
-        [TransactionType.BUY.value, AccountType.SECURITIES.value, 50.0, 5000.0],
-        [TransactionType.BUY.value, AccountType.SECURITIES.value, 30.0, 3600.0],
-    ], columns=['type', 'accountType', 'shares', 'amount'],
+    df = DataFrame[TaxLotSchema]([
+        [50.0, 5000.0],
+        [30.0, 3600.0],
+    ], columns=['shares', 'cost'],
         index=pd.MultiIndex.from_arrays(
             [[datetime(2020, 1, 1), datetime(2021, 1, 1)], ['acc-1', 'acc-2'], ['sec-1', 'sec-1']],
             names=['date', 'accountId', 'securityId']))
@@ -81,9 +81,9 @@ def test_multiple_lots_different_accounts(tax_csv_data: pd.DataFrame) -> None:
 
 def test_purchased_in_current_year_no_credit(tax_csv_data: pd.DataFrame) -> None:
     """Test that lots purchased in current year have no tax credit."""
-    df = DataFrame[PurchaseTransactionSchema]([
-        [TransactionType.BUY.value, AccountType.SECURITIES.value, 100.0, 10000.0]
-    ], columns=['type', 'accountType', 'shares', 'amount'],
+    df = DataFrame[TaxLotSchema]([
+        [100.0, 10000.0]
+    ], columns=['shares', 'cost'],
         index=pd.MultiIndex.from_arrays([[datetime(2022, 6, 1)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 
     current_date = datetime(2022, 12, 31)
@@ -94,9 +94,9 @@ def test_purchased_in_current_year_no_credit(tax_csv_data: pd.DataFrame) -> None
 
 def test_missing_tax_data_ignored(tax_csv_data: pd.DataFrame) -> None:
     """Test that missing tax data for year/account/security is ignored (returns 0)."""
-    df = DataFrame[PurchaseTransactionSchema]([
-        [TransactionType.BUY.value, AccountType.SECURITIES.value, 100.0, 10000.0]
-    ], columns=['type', 'accountType', 'shares', 'amount'],
+    df = DataFrame[TaxLotSchema]([
+        [100.0, 10000.0]
+    ], columns=['shares', 'cost'],
         index=pd.MultiIndex.from_arrays([[datetime(2019, 1, 1)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 
     current_date = datetime(2022, 12, 31)
@@ -110,9 +110,9 @@ def test_missing_tax_data_ignored(tax_csv_data: pd.DataFrame) -> None:
 
 def test_no_tax_csv_returns_zero() -> None:
     """Test that None tax CSV returns zero credit."""
-    df = DataFrame[PurchaseTransactionSchema]([
-        [TransactionType.BUY.value, AccountType.SECURITIES.value, 100.0, 10000.0]
-    ], columns=['type', 'accountType', 'shares', 'amount'],
+    df = DataFrame[TaxLotSchema]([
+        [100.0, 10000.0]
+    ], columns=['shares', 'cost'],
         index=pd.MultiIndex.from_arrays([[datetime(2020, 1, 1)], ['acc-1'], ['sec-1']], names=['date', 'accountId', 'securityId']))
 
     current_date = datetime(2022, 12, 31)

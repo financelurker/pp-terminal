@@ -25,7 +25,7 @@ from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_by_type, filter_by_security
 from pp_terminal.data.tax import calculate_prepaid_tax_per_lot
-from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema, PurchaseTransactionSchema, Percent
+from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema, TaxLotSchema, Percent
 from pp_terminal.exceptions import InputError
 
 log = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ def _filter_purchase_transactions(transactions: DataFrame[TransactionSchema]) ->
 
 def _get_remaining_lots_after_fifo_matching(
     transactions: DataFrame[TransactionSchema]
-) -> DataFrame[PurchaseTransactionSchema]:
+) -> DataFrame[TaxLotSchema]:
     """
     Match all sell transactions to purchase lots using FIFO and return remaining lots.
 
@@ -57,13 +57,14 @@ def _get_remaining_lots_after_fifo_matching(
         has significant overhead that doesn't add value for sequential state updates.
     """
     lots = _filter_purchase_transactions(transactions)
-    lots['purchase_price'] = lots['amount'].abs() / lots['shares']  # save original purchase price
+    lots['purchasePrice'] = lots['amount'].abs() / lots['shares']  # save original purchase price
+    lots = lots.rename(columns={'amount': 'cost'})
     if lots.empty:
-        return PurchaseTransactionSchema.validate(lots)
+        return TaxLotSchema.validate(lots)
 
     sell_transactions = transactions.pipe(filter_by_type, transaction_types=[TransactionType.SELL, TransactionType.DELIVERY_OUTBOUND])
     if sell_transactions.empty:
-        return PurchaseTransactionSchema.validate(lots)
+        return TaxLotSchema.validate(lots)
 
     # Convert to list of dicts for fast mutation during FIFO matching
     remaining_lots = lots.reset_index().to_dict('records')
@@ -94,12 +95,12 @@ def _get_remaining_lots_after_fifo_matching(
     # Filter out exhausted lots and convert back to DataFrame
     remaining_lots = [lot for lot in remaining_lots if lot['shares'] > 0.0001]
     if not remaining_lots:
-        return PurchaseTransactionSchema.empty()
+        return TaxLotSchema.empty()
 
-    return PurchaseTransactionSchema.validate(pd.DataFrame(remaining_lots).set_index(['date', 'accountId', 'securityId']))
+    return TaxLotSchema.validate(pd.DataFrame(remaining_lots).set_index(['date', 'accountId', 'securityId']))
 
 
-def _reduce_shares(remaining_lots_df: DataFrame[TransactionSchema], shares_to_sell: float) -> DataFrame[TransactionSchema]:
+def _reduce_shares(remaining_lots_df: DataFrame[TaxLotSchema], shares_to_sell: float) -> DataFrame[TaxLotSchema]:
     # Calculate cumulative shares to determine lot consumption
     cumsum = remaining_lots_df['shares'].cumsum()
     prev_cumsum = cumsum.shift(1, fill_value=0.0)
@@ -120,28 +121,24 @@ def _reduce_shares(remaining_lots_df: DataFrame[TransactionSchema], shares_to_se
     if total_allocated < shares_to_sell - 0.0001:  # Allow small floating point errors
         raise InputError(f"Insufficient shares available. Requested: {shares_to_sell}, Available: {total_allocated}")
 
-    return TransactionSchema.validate(df)
+    return TaxLotSchema.validate(df)
 
 
-def _calculate_cost_basis(transactions: DataFrame[PurchaseTransactionSchema]) -> pd.Series:
-    return transactions['shares'] * transactions['purchase_price']
-
-
-def _sync_amount_with_shares(df: DataFrame[PurchaseTransactionSchema]) -> DataFrame[PurchaseTransactionSchema]:
-    """Adjust amount field to reflect remaining shares after FIFO matching (amount = purchase_price * remaining shares)."""
+def _sync_amount_with_shares(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
+    """Adjust cost field to reflect remaining shares after FIFO matching (cost = purchasePrice * remaining shares)."""
     df = df.copy()
-    df['amount'] = df['purchase_price'] * df['shares']
-    return PurchaseTransactionSchema.validate(df)
+    df['cost'] = df['purchasePrice'] * df['shares']
+    return TaxLotSchema.validate(df)
 
 
-def _calculate_sell_metrics(df: DataFrame[PurchaseTransactionSchema]) -> DataFrame[PurchaseTransactionSchema]:
+def _calculate_sell_metrics(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
     """Calculate capital gains, gross proceeds, and taxable gain for sale simulation."""
     df = _sync_amount_with_shares(df)
-    df['capital_gain'] = df['shares'] * (df['salePrice'] - df['purchase_price'])
+    df['capitalGain'] = df['shares'] * (df['salePrice'] - df['purchasePrice'])
     df['grossProceeds'] = df['shares'] * df['salePrice']
-    df['taxableGain'] = df.apply(lambda row: max(0.0, row['capital_gain'] - row['prepaidTax']), axis=1)
+    df['taxableGain'] = df.apply(lambda row: max(0.0, row['capitalGain'] - row['prepaidTax']), axis=1)
 
-    return PurchaseTransactionSchema.validate(df)
+    return TaxLotSchema.validate(df)
 
 
 def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
@@ -151,19 +148,18 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
         tax_rate: Percent,
         shares_to_sell: float | None = None,
         tax_csv_data: DataFrame[TaxPaidSchema] | None = None
-) -> DataFrame[PurchaseTransactionSchema]:
+) -> DataFrame[TaxLotSchema]:
     """Calculate FIFO lots for shares being sold, including prepaid tax calculations."""
     df = transactions.copy()
 
     df = _get_remaining_lots_after_fifo_matching(df)
     if df.empty:
-        return PurchaseTransactionSchema.empty()
+        return TaxLotSchema.empty()
 
     if shares_to_sell is not None:
         df = _reduce_shares(df, shares_to_sell)
 
-    df = PurchaseTransactionSchema.validate(df)
-    df['type'] = TransactionType.SELL.value
+    df = TaxLotSchema.validate(df)
     df['salePrice'] = sale_price
 
     df['prepaidTax'] = calculate_prepaid_tax_per_lot(df, sale_date, tax_csv_data).values
@@ -172,7 +168,7 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
     df['totalTax'] = df['taxableGain'] * (tax_rate / 100.0)
     df['netProceeds'] = df['grossProceeds'] - df['totalTax']
 
-    return PurchaseTransactionSchema.validate(df)
+    return TaxLotSchema.validate(df)
 
 
 def calculate_total_cost(transactions: DataFrame[TransactionSchema], security_id: str) -> Money:
@@ -184,4 +180,4 @@ def calculate_total_cost(transactions: DataFrame[TransactionSchema], security_id
 
     df = _sync_amount_with_shares(df)
 
-    return Money(df['amount'].abs().sum())
+    return Money(df['cost'].abs().sum())

@@ -52,9 +52,9 @@ def test_partial_sell_remaining_shares(partial_sell_portfolio: Portfolio) -> Non
     # All remaining 60 shares come from the original purchase at 5€
     assert len(lots) == 1
     assert lots.iloc[0]['shares'] == 60.0
-    assert lots.iloc[0]['purchase_price'] == 5.0
-    assert lots.iloc[0]['amount'] == 300.0
-    assert lots.iloc[0]['capital_gain'] == 3300.0  # 60 * (60 - 5)
+    assert lots.iloc[0]['purchasePrice'] == 5.0
+    assert lots.iloc[0]['cost'] == 300.0
+    assert lots.iloc[0]['capitalGain'] == 3300.0  # 60 * (60 - 5)
 
 
 def test_partial_sell_insufficient_shares_error(partial_sell_portfolio: Portfolio) -> None:
@@ -77,8 +77,8 @@ def test_sell_on_purchase_date(partial_sell_portfolio: Portfolio) -> None:
 
     assert len(lots) == 1
     assert lots.iloc[0]['shares'] == 10.0
-    assert lots.iloc[0]['purchase_price'] == 5.0
-    assert lots.iloc[0]['capital_gain'] == 0.0  # No gain when selling at purchase price
+    assert lots.iloc[0]['purchasePrice'] == 5.0
+    assert lots.iloc[0]['capitalGain'] == 0.0  # No gain when selling at purchase price
 
 
 def test_capital_loss_scenario(partial_sell_portfolio: Portfolio) -> None:
@@ -91,8 +91,8 @@ def test_capital_loss_scenario(partial_sell_portfolio: Portfolio) -> None:
 
     assert len(lots) == 1
     assert lots.iloc[0]['shares'] == 20.0
-    assert lots.iloc[0]['purchase_price'] == 5.0
-    assert lots.iloc[0]['capital_gain'] == -20.0  # 20 * (4 - 5)
+    assert lots.iloc[0]['purchasePrice'] == 5.0
+    assert lots.iloc[0]['capitalGain'] == -20.0  # 20 * (4 - 5)
 
 
 def test_no_vorabpauschale_credit_same_year_sale(partial_sell_portfolio: Portfolio) -> None:
@@ -123,7 +123,7 @@ def test_zero_price_error(partial_sell_portfolio: Portfolio) -> None:
     # Zero price should work but result in negative capital gain
     lots = calculate_fifo_sell(transactions, snapshot.date, shares_to_sell=10.0, sale_price=0.0, tax_rate=TEST_TAX_RATE)
 
-    assert lots.iloc[0]['capital_gain'] == -50.0  # 10 * (0 - 5)
+    assert lots.iloc[0]['capitalGain'] == -50.0  # 10 * (0 - 5)
 
 
 def test_very_small_shares(partial_sell_portfolio: Portfolio) -> None:
@@ -137,8 +137,8 @@ def test_very_small_shares(partial_sell_portfolio: Portfolio) -> None:
 
     assert len(lots) == 1
     assert lots.iloc[0]['shares'] == 0.5
-    assert lots.iloc[0]['amount'] == 2.5  # 0.5 * 5
-    assert lots.iloc[0]['capital_gain'] == 27.5  # 0.5 * (60 - 5)
+    assert lots.iloc[0]['cost'] == 2.5  # 0.5 * 5
+    assert lots.iloc[0]['capitalGain'] == 27.5  # 0.5 * (60 - 5)
 
 
 def test_exact_share_match(partial_sell_portfolio: Portfolio) -> None:

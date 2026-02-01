@@ -58,7 +58,7 @@ def _get_remaining_lots_after_fifo_matching(
     """
     lots = _filter_purchase_transactions(transactions)
     lots['purchasePrice'] = lots['amount'].abs() / lots['shares']  # save original purchase price
-    lots = lots.rename(columns={'amount': 'cost'})
+    lots = lots.rename(columns={'amount': 'costBasis'})
     if lots.empty:
         return TaxLotSchema.validate(lots)
 
@@ -171,8 +171,11 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
     return TaxLotSchema.validate(df)
 
 
-def calculate_total_cost(transactions: DataFrame[TransactionSchema], security_id: str) -> Money:
-    """Calculate the cost basis of currently held shares for a security, i.e. what did I originally pay for the shares I currently hold?"""
+def calculate_total_cost_basis(transactions: DataFrame[TransactionSchema], security_id: str) -> Money:
+    """
+    Calculate the cost basis of currently held shares for a security, i.e. what did I originally pay for the shares I currently hold?
+    @link https://www.investopedia.com/terms/c/costbasis.asp
+    """
     df = transactions.pipe(filter_by_security, security_id=security_id)
     df = _get_remaining_lots_after_fifo_matching(df)
     if df.empty:

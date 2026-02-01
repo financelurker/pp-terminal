@@ -124,6 +124,7 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
             axis=1
         ) * transactions['amount'] / _CENTS_PER_EURO
         transactions['taxes'] = transactions['taxes'] / _CENTS_PER_EURO
+        transactions['fees'] = transactions['fees'] / _CENTS_PER_EURO
         transactions.index.set_names(['date', 'accountId', 'securityId'], inplace=True)
 
         return TransactionSchema.validate(transactions)

@@ -25,14 +25,14 @@ import pandas as pd
 import pytest
 from _pytest.logging import LogCaptureFixture
 
-from pp_terminal.data.cost_basis import calculate_total_cost
+from pp_terminal.data.cost_basis import calculate_total_cost_basis
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import AccountType, TransactionType
 
 
 def test_only_purchases_no_sells(portfolio_with_purchases: Portfolio) -> None:
     """Test cost basis with only purchases (no sells)."""
-    cost_basis = calculate_total_cost(portfolio_with_purchases.securities_account_transactions, 'sec-1')
+    cost_basis = calculate_total_cost_basis(portfolio_with_purchases.securities_account_transactions, 'sec-1')
 
     # Lot 1: 10 shares @ €100 = €1,000
     # Lot 2: 10 shares @ €150 = €1,500
@@ -42,7 +42,7 @@ def test_only_purchases_no_sells(portfolio_with_purchases: Portfolio) -> None:
     assert cost_basis == pytest.approx(4500.0, abs=0.01)
 
 def test_purchases_and_sells(portfolio_with_sells: Portfolio) -> None:
-    cost_basis = calculate_total_cost(portfolio_with_sells.securities_account_transactions, 'sec-1')
+    cost_basis = calculate_total_cost_basis(portfolio_with_sells.securities_account_transactions, 'sec-1')
 
     # Purchases:
     #   2020-01-15: acc-1, 10 shares @ €100 = €1,000
@@ -70,13 +70,13 @@ def test_no_transactions() -> None:
 
     portfolio = Portfolio(accounts=accounts, transactions=None, securities=None, prices=None)
 
-    cost_basis = calculate_total_cost(portfolio.securities_account_transactions, 'sec-1')
+    cost_basis = calculate_total_cost_basis(portfolio.securities_account_transactions, 'sec-1')
 
     assert cost_basis == 0.0
 
 def test_no_purchases_for_security(portfolio_with_purchases: Portfolio) -> None:
     """Test with security that has no purchases."""
-    cost_basis = calculate_total_cost(portfolio_with_purchases.securities_account_transactions, 'non-existent-security')
+    cost_basis = calculate_total_cost_basis(portfolio_with_purchases.securities_account_transactions, 'non-existent-security')
 
     assert cost_basis == 0.0
 
@@ -95,7 +95,7 @@ def test_all_shares_sold(portfolio_with_purchases: Portfolio) -> None:
 
     transactions = pd.concat([transactions, sales])
 
-    cost_basis = calculate_total_cost(transactions, 'sec-1')
+    cost_basis = calculate_total_cost_basis(transactions, 'sec-1')
 
     assert cost_basis == 0.0
 
@@ -113,7 +113,7 @@ def test_sell_exceeds_purchases(portfolio_with_purchases: Portfolio, caplog: Log
     transactions = pd.concat([transactions, sales])
 
     with caplog.at_level(logging.WARNING):
-        cost_basis = calculate_total_cost(transactions, 'sec-1')
+        cost_basis = calculate_total_cost_basis(transactions, 'sec-1')
 
     # Should only match the 40 shares available in acc-1, leaving acc-2's 5 shares
     # Remaining: 5 shares @ €0 (lot 3 from acc-2) = €0
@@ -135,9 +135,9 @@ def test_multiple_securities(portfolio_with_purchases: Portfolio) -> None:
     transactions = pd.concat([transactions, sec2_transactions])
 
     # Calculate cost basis for sec-1 (should ignore sec-2)
-    cost_basis_sec1 = calculate_total_cost(transactions, 'sec-1')
+    cost_basis_sec1 = calculate_total_cost_basis(transactions, 'sec-1')
     assert cost_basis_sec1 == pytest.approx(4500.0, abs=0.01)
 
     # Calculate cost basis for sec-2 (30 - 10 = 20 shares @ €100 = €2,000)
-    cost_basis_sec2 = calculate_total_cost(transactions, 'sec-2')
+    cost_basis_sec2 = calculate_total_cost_basis(transactions, 'sec-2')
     assert cost_basis_sec2 == pytest.approx(2000.0, abs=0.01)

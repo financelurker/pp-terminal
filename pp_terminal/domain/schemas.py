@@ -123,7 +123,7 @@ class TaxLotSchema(pa.DataFrameModel):
     accountId: Index[str]
     securityId: Index[str]
     shares: Series[float]
-    cost: Series[Money]  # Total cost basis (recalculated for partial lots)
+    costBasis: Series[Money]
     purchasePrice: Series[Money] = pa.Field(nullable=True)
     currency: Series[str] = pa.Field(nullable=True)
     fees: Series[Money] = pa.Field(nullable=True)

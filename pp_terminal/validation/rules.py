@@ -26,6 +26,7 @@ import pandas as pd
 from pandera.typing import DataFrame
 
 from pp_terminal.data.cost_basis import calculate_total_cost_basis
+from pp_terminal.data.filters import filter_by_security
 from pp_terminal.data.tax import load_prepaid_tax_data_from_csv
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TaxPaidSchema
@@ -177,8 +178,7 @@ class PurchaseCostLimitRule(ValidationRule):
         if portfolio is None:
             raise RuntimeError('No portfolio in context for purchase-cost-limit validation')
 
-        transactions = portfolio.securities_account_transactions
-        current_cost = calculate_total_cost_basis(transactions, entity_id)
+        current_cost = calculate_total_cost_basis(portfolio.securities_account_transactions.pipe(filter_by_security, security_id=entity_id))
 
         if current_cost > limit:
             currency = entity.get('currency', 'EUR')

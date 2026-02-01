@@ -23,6 +23,7 @@ from typing import cast
 
 import typer
 from pp_terminal.data.cost_basis import calculate_total_cost_basis
+from pp_terminal.data.filters import filter_by_security
 from pp_terminal.output.column_utils import normalize_columns
 from pp_terminal.utils.config import Config
 from pp_terminal.utils.helper import footer
@@ -84,7 +85,7 @@ def print_securities(  # pylint: disable=too-many-locals
     )
 
     df['costBasis'] = df['securityId'].map(
-        lambda sid: calculate_total_cost_basis(portfolio.securities_account_transactions, sid)
+        lambda sid: calculate_total_cost_basis(portfolio.securities_account_transactions.pipe(filter_by_security, security_id=sid))
     )
 
     requested_columns = [col.strip() for col in columns.split(',')]

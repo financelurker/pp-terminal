@@ -23,7 +23,7 @@ import logging
 import pandas as pd
 from pandera.typing import DataFrame
 
-from pp_terminal.data.filters import filter_by_type, filter_by_security
+from pp_terminal.data.filters import filter_by_type
 from pp_terminal.data.tax import calculate_prepaid_tax_per_lot
 from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema, TaxLotSchema, Percent
 from pp_terminal.exceptions import InputError
@@ -175,16 +175,12 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
     return TaxLotSchema.validate(df)
 
 
-def calculate_total_cost_basis(transactions: DataFrame[TransactionSchema], security_id: str) -> Money:
+def calculate_total_cost_basis(transactions: DataFrame[TransactionSchema]) -> Money:
     """
     Calculate the cost basis of currently held shares for a security, i.e. what did I originally pay for the shares I currently hold?
     @link https://www.investopedia.com/terms/c/costbasis.asp
     """
-    df = transactions.pipe(filter_by_security, security_id=security_id)
-    df = _get_remaining_lots_after_fifo_matching(df)
-    if df.empty:
-        return Money(0.0)
-
+    df = _get_remaining_lots_after_fifo_matching(transactions)
     df = _calculate_cost_basis(df)
 
     return Money(df['costBasis'].abs().sum())

@@ -17,10 +17,12 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
+import atexit
 import locale
 from pathlib import Path
 from types import SimpleNamespace
 import logging
+import os
 from typing import Optional
 
 from rich import print # pylint: disable=redefined-builtin
@@ -62,10 +64,6 @@ def _create_anonymized_temp_file(original_file: Path) -> Path:
     """Create a deterministic anonymized version of the XML file next to the original."""
     temp_path = original_file.parent / f".{original_file.stem}.anon{original_file.suffix}"
 
-    if temp_path.exists():
-        log.debug("Using existing anonymized file at %s", temp_path)
-        return temp_path
-
     # Use deterministic seed based on file path
     seed = hash(str(original_file.resolve())) % (2**31)
     log.debug("Anonymizing data with seed %d", seed)
@@ -73,6 +71,16 @@ def _create_anonymized_temp_file(original_file: Path) -> Path:
     anonymizer = XmlAnonymizer(seed=seed, config=get_config().get('anonymization', {}).get('attributes', {}))
     anonymizer.anonymize_file(original_file, temp_path)
     log.debug("Created anonymized file at %s", temp_path)
+
+    # Register cleanup on program exit
+    def cleanup() -> None:
+        try:
+            os.unlink(temp_path)
+            log.debug("Removed temporary anonymized file at %s", temp_path)
+        except OSError as e:
+            log.warning("Failed to remove temporary file %s: %s", temp_path, e)
+
+    atexit.register(cleanup)
 
     return temp_path
 

@@ -17,7 +17,7 @@ dependencies = [
     "faker (>=33.1.0,<34.0.0)",
 ]
 scripts = { pp-terminal = "pp_terminal.main:app" }
-entry-points = { "pp_terminal.commands" = { "view.accounts" = "pp_terminal.commands.view_accounts:app", "view.securities" = "pp_terminal.commands.view_securities:app", "simulate.vorabpauschale" = "pp_terminal.commands.simulate_vorabpauschale:app", "simulate.interest" = "pp_terminal.commands.simulate_interest:app", "simulate.share-sell" = "pp_terminal.commands.simulate_share_sell:app", "validate" = "pp_terminal.commands.validate:app", "export" = "pp_terminal.commands.export_anonymized:app" } }
+entry-points = { "pp_terminal.commands" = { "view.accounts" = "pp_terminal.commands.view_accounts:app", "view.securities" = "pp_terminal.commands.view_securities:app", "simulate.vorabpauschale" = "pp_terminal.commands.simulate_vorabpauschale:app", "simulate.interest" = "pp_terminal.commands.simulate_interest:app", "simulate.share-sell" = "pp_terminal.commands.simulate_share_sell:app", "validate" = "pp_terminal.commands.validate:app", "export" = "pp_terminal.commands.export:app" } }
 dynamic = ["version"]
 
 

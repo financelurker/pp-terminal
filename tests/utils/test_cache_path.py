@@ -31,17 +31,17 @@ def test_cache_path_format(tmp_path: Path) -> None:
 
     cache_path = get_cache_path(xml_file)
 
-    # Verify format: .{xml-name}.{checksum}.pp-terminal.db
+    # Verify format: .{xml-stem}.{checksum}.pp-terminal.db
     assert cache_path.parent == tmp_path
-    assert cache_path.name.startswith('.test.xml.')
+    assert cache_path.name.startswith('.test.')
     assert cache_path.name.endswith('.pp-terminal.db')
 
     # Extract checksum part
     name_parts = cache_path.name.split('.')
-    # Format: .test.xml.<checksum>.pp-terminal.db
-    # Split: ['', 'test', 'xml', '<checksum>', 'pp-terminal', 'db']
-    assert len(name_parts) == 6
-    checksum = name_parts[3]
+    # Format: .test.<checksum>.pp-terminal.db
+    # Split: ['', 'test', '<checksum>', 'pp-terminal', 'db']
+    assert len(name_parts) == 5
+    checksum = name_parts[2]
     assert len(checksum) == 64  # SHA-256 hex digest
 
 def test_cache_path_consistency(tmp_path: Path) -> None:
@@ -78,7 +78,7 @@ def test_cache_path_with_large_file(tmp_path: Path) -> None:
 
     cache_path = get_cache_path(xml_file)
 
-    assert cache_path.name.startswith('.large.xml.')
+    assert cache_path.name.startswith('.large.')
     assert cache_path.name.endswith('.pp-terminal.db')
 
 def test_cache_path_missing_file(tmp_path: Path) -> None:
@@ -87,3 +87,27 @@ def test_cache_path_missing_file(tmp_path: Path) -> None:
 
     with pytest.raises(OSError):
         get_cache_path(missing_file)
+
+def test_cache_path_adds_dot_prefix(tmp_path: Path) -> None:
+    """Test that cache path adds dot prefix for regular files."""
+    xml_file = tmp_path / "regular.xml"
+    xml_file.write_text("<?xml version='1.0'?><test>data</test>")
+
+    cache_path = get_cache_path(xml_file)
+
+    # Cache filename should start with dot (hidden file)
+    assert cache_path.name.startswith('.')
+    # Should be .regular.<checksum>.pp-terminal.db
+    assert cache_path.name.startswith('.regular.')
+
+def test_cache_path_no_double_dot(tmp_path: Path) -> None:
+    """Test that cache path doesn't add extra dot for hidden files."""
+    xml_file = tmp_path / ".hidden.xml"
+    xml_file.write_text("<?xml version='1.0'?><test>data</test>")
+
+    cache_path = get_cache_path(xml_file)
+
+    # Cache filename should NOT start with double dot
+    assert not cache_path.name.startswith('..')
+    # Should be .hidden.<checksum>.pp-terminal.db (single dot)
+    assert cache_path.name.startswith('.hidden.')

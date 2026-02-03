@@ -109,15 +109,20 @@ severity = "warning"
 
 ### Export
 
-| Command             | Description                                                      |
-|---------------------|------------------------------------------------------------------|
-| `export anonymized` | Save an anonymized version of the Portfolio Performance XML file |
+| Command  | Description                                                                 |
+|----------|-----------------------------------------------------------------------------|
+| `export` | Save the Portfolio Performance XML file to a different location             |
 
-The command can be customized in the [configuration file](#configuration-file):
+Use the `--anonymize` flag to export an anonymized version:
+```bash
+pp-terminal --file depot.xml --anonymize export --output-file anonymized.xml
+```
+
+Anonymization can be customized in the [configuration file](#configuration-file):
 ```toml
-[commands.export.anonymized.attributes."a1b2c3d4-e5f6-7890-abcd-ef1234567890"]
+[anonymization.attributes."a1b2c3d4-e5f6-7890-abcd-ef1234567890"]
 provider = "iban"  # for all available providers see https://faker.readthedocs.io/en/master/providers.html
-[commands.export.anonymized.attributes."fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"]
+[anonymization.attributes."fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"]
 provider = "pyfloat"
 args = { min_value = 0.0, max_value = 1.0, right_digits = 2 }
 ```
@@ -229,8 +234,8 @@ If your command makes sense for a broader audience, I'm happy to accept a [pull 
 > [!INFO]
 > The script is still in beta version, so there might be Portfolio Performance files that are not compatible with and also public APIs can change.
 
-In case you are experiencing any problems: 
-1. Create an anonymized version of your portfolio with `pp-terminal export anonymized` (verify!)
+In case you are experiencing any problems:
+1. Create an anonymized version of your portfolio with `pp-terminal --file depot.xml --anonymize export --output-file anonymized.xml` (verify!)
 2. Add the `--verbose` option to the command that is causing the issue
 3. And [submit a new issue](https://github.com/ma4nn/pp-terminal/issues/new) and include the results from steps 1. and 2.
 

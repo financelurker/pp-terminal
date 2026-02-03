@@ -78,7 +78,7 @@ def test_cache_disabled_uses_in_memory(request: TopRequest, tmp_path: Path) -> N
     portfolio = PpPortfolioBuilder().construct(temp_xml)
 
     # Verify no cache file was created
-    cache_files = list(tmp_path.glob('.test.xml.*.pp-terminal.db'))
+    cache_files = list(tmp_path.glob('.test.*.pp-terminal.db'))
     assert len(cache_files) == 0
     assert portfolio is not None
 
@@ -94,18 +94,18 @@ def test_cache_filename_generation(request: TopRequest, tmp_path: Path) -> None:
     CachedPpPortfolioBuilder().construct(temp_xml)
 
     # Verify cache file exists with expected pattern
-    cache_files = list(tmp_path.glob('.test.xml.*.pp-terminal.db'))
+    cache_files = list(tmp_path.glob('.test.*.pp-terminal.db'))
     assert len(cache_files) == 1
     cache_file = cache_files[0]
 
-    # Verify filename format: .test.xml.<64-char-hex>.pp-terminal.db
-    assert cache_file.name.startswith('.test.xml.')
+    # Verify filename format: .test.<64-char-hex>.pp-terminal.db
+    assert cache_file.name.startswith('.test.')
     assert cache_file.name.endswith('.pp-terminal.db')
 
-    # Extract checksum part: .test.xml.<checksum>.pp-terminal.db
+    # Extract checksum part: .test.<checksum>.pp-terminal.db
     name_parts = cache_file.name.split('.')
-    # ['', 'test', 'xml', '<checksum>', 'pp-terminal', 'db']
-    checksum = name_parts[3]
+    # ['', 'test', '<checksum>', 'pp-terminal', 'db']
+    checksum = name_parts[2]
     assert len(checksum) == 64  # SHA-256 hex digest
 
 def test_cache_hit_reuses_existing(request: TopRequest, tmp_path: Path) -> None:
@@ -120,7 +120,7 @@ def test_cache_hit_reuses_existing(request: TopRequest, tmp_path: Path) -> None:
     portfolio1 = CachedPpPortfolioBuilder().construct(temp_xml)
 
     # Get cache file
-    cache_files = list(tmp_path.glob('.test.xml.*.pp-terminal.db'))
+    cache_files = list(tmp_path.glob('.test.*.pp-terminal.db'))
     assert len(cache_files) == 1
     cache_file = cache_files[0]
     cache_mtime = cache_file.stat().st_mtime
@@ -147,7 +147,7 @@ def test_cache_invalidation_on_xml_change(request: TopRequest, tmp_path: Path) -
     CachedPpPortfolioBuilder().construct(temp_xml)
 
     # Get original cache file
-    old_cache_files = list(tmp_path.glob('.test.xml.*.pp-terminal.db'))
+    old_cache_files = list(tmp_path.glob('.test.*.pp-terminal.db'))
     assert len(old_cache_files) == 1
     old_cache_file = old_cache_files[0]
 
@@ -159,7 +159,7 @@ def test_cache_invalidation_on_xml_change(request: TopRequest, tmp_path: Path) -
     CachedPpPortfolioBuilder().construct(temp_xml)
 
     # New cache file should exist
-    new_cache_files = list(tmp_path.glob('.test.xml.*.pp-terminal.db'))
+    new_cache_files = list(tmp_path.glob('.test.*.pp-terminal.db'))
     assert len(new_cache_files) == 1
     new_cache_file = new_cache_files[0]
 
@@ -176,17 +176,17 @@ def test_old_cache_cleanup(request: TopRequest, tmp_path: Path) -> None:
     temp_xml.write_bytes(xml_file.read_bytes())
 
     # Create fake old cache files
-    (tmp_path / '.test.xml.abc123.pp-terminal.db').write_text('old cache 1')
-    (tmp_path / '.test.xml.def456.pp-terminal.db').write_text('old cache 2')
+    (tmp_path / '.test.abc123.pp-terminal.db').write_text('old cache 1')
+    (tmp_path / '.test.def456.pp-terminal.db').write_text('old cache 2')
 
     # Build portfolio: should cleanup old caches
     CachedPpPortfolioBuilder().construct(temp_xml)
 
     # Verify old caches deleted, only current cache exists
-    cache_files = list(tmp_path.glob('.test.xml.*.pp-terminal.db'))
+    cache_files = list(tmp_path.glob('.test.*.pp-terminal.db'))
     assert len(cache_files) == 1
-    assert not (tmp_path / '.test.xml.abc123.pp-terminal.db').exists()
-    assert not (tmp_path / '.test.xml.def456.pp-terminal.db').exists()
+    assert not (tmp_path / '.test.abc123.pp-terminal.db').exists()
+    assert not (tmp_path / '.test.def456.pp-terminal.db').exists()
 
 def test_cache_fallback_on_io_error(request: TopRequest, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Test graceful fallback to in-memory on cache I/O error."""

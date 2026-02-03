@@ -18,57 +18,43 @@
 """
 
 import logging
+import shutil
 from pathlib import Path
 from typing import cast
 
 from rich.console import Console
 import typer
 
-from pp_terminal.data.xml_anonymizer import XmlAnonymizer
 from pp_terminal.exceptions import InputError
 from pp_terminal.output.strategy import OutputStrategy
-from pp_terminal.utils.config import Config
-from pp_terminal.utils.config import get_command_config
 
 app = typer.Typer()
 console = Console()
 log = logging.getLogger(__name__)
 
 
-@app.command(name="anonymized")
-def export_anonymized(
+@app.command(name="export")
+def export_file(
     ctx: typer.Context,
     output_file: Path = typer.Option(
         ...,
-        help="Output path for anonymized XML file",
+        help="Output path for XML file",
         file_okay=True,
         dir_okay=False,
     ),
-    seed: int = typer.Option(42, help="Random seed for deterministic anonymization"),
 ) -> None:
     """
-    Create an anonymized copy of Portfolio Performance XML file.
+    Export Portfolio Performance XML file.
 
-    Anonymizes names, amounts, dates, and notes while preserving:
-    - XML structure and references
-    - UUIDs
-    - Financial identifiers (ISIN, WKN, ticker symbols)
-    - Relative timing between transactions
-    - Order of magnitude for amounts
-
-    Use the same seed to get reproducible anonymization.
+    When used with --anonymize flag, exports the anonymized version.
+    Otherwise exports the original file.
     """
 
-    input_file = cast(Path, ctx.obj.file_path)
+    source_file = cast(Path, ctx.obj.source_file)
     output = cast(OutputStrategy, ctx.obj.output)
-    config = cast(Config, ctx.obj.config)
 
     if output_file.exists():
         raise InputError(f"Output file {output_file} already exists")
 
-    log.debug("Using seed value %s", seed)
-
-    anonymizer = XmlAnonymizer(seed=seed, config=get_command_config(config, 'export.anonymized.attributes'))
-
-    anonymizer.anonymize_file(input_file, output_file)
-    console.print(output.text(f"Anonymized Portfolio Performance file saved to {output_file}"))
+    shutil.copy(source_file, output_file)
+    console.print(output.text(f"Portfolio Performance file saved to {output_file}"))

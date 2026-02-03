@@ -35,12 +35,12 @@ from pp_terminal.utils.helper import set_precision
 from pp_terminal.output.strategy import create_strategy, OutputFormat
 from pp_terminal.utils.plugins import load_command_plugins
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder, CachedPpPortfolioBuilder
+from pp_terminal.data.xml_anonymizer import XmlAnonymizer
 from . import __version__
 
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich")
 app.add_typer(typer.Typer(no_args_is_help=True), name="simulate")
 app.add_typer(typer.Typer(no_args_is_help=True), name="view")
-app.add_typer(typer.Typer(no_args_is_help=True), name="export")
 
 # init default logging (this is e.g. import for errors during command plugin load)
 logging.basicConfig(level=logging.WARN, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=False, show_time=False, show_path=False)])
@@ -58,18 +58,38 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+def _create_anonymized_temp_file(original_file: Path) -> Path:
+    """Create a deterministic anonymized version of the XML file next to the original."""
+    temp_path = original_file.parent / f".{original_file.stem}.anon{original_file.suffix}"
+
+    if temp_path.exists():
+        log.debug("Using existing anonymized file at %s", temp_path)
+        return temp_path
+
+    # Use deterministic seed based on file path
+    seed = hash(str(original_file.resolve())) % (2**31)
+    log.debug("Anonymizing data with seed %d", seed)
+
+    anonymizer = XmlAnonymizer(seed=seed, config=get_config().get('anonymization', {}).get('attributes', {}))
+    anonymizer.anonymize_file(original_file, temp_path)
+    log.debug("Created anonymized file at %s", temp_path)
+
+    return temp_path
+
+
 @app.callback(
     invoke_without_command=True,
     epilog="Small insights today, bigger returns tomorrow.",
     help=f"[bold]pp-terminal[/bold] version {__version__} by [link=https://dev-investor.de]dev-investor[/link]\n\nThe Analytic Companion for Portfolio Performance"
 )
 @use_config(validated_config_callback)
-def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
         ctx: typer.Context,
         file: Annotated[Path, typer.Option(help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)],
         format: OutputFormat = OutputFormat.TABLE,  # pylint: disable=redefined-builtin
         precision: int = 4,
         no_cache: Annotated[bool, typer.Option(help='Disable SQLite cache, use in-memory database')] = False,
+        anonymize: Annotated[bool, typer.Option(help='Anonymize data before processing')] = False,
         version: Annotated[  # pylint: disable=unused-argument
             Optional[bool],
             typer.Option("--version", callback=version_callback, is_eager=True),  # declared the option name to avoid --no-version
@@ -81,17 +101,14 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         logging.basicConfig(force=True, level=logging.DEBUG, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=True, show_time=False)])
 
     set_precision(precision)
+    source_file = _create_anonymized_temp_file(file) if anonymize else file
 
     try:
-        builder: PpPortfolioBuilder | CachedPpPortfolioBuilder
-        if no_cache:
-            builder = PpPortfolioBuilder(config=get_config())
-        else:
-            builder = CachedPpPortfolioBuilder(config=get_config())
+        builder = PpPortfolioBuilder(config=get_config()) if no_cache else CachedPpPortfolioBuilder(config=get_config())
 
         ctx.obj = SimpleNamespace(
-            file_path=file,
-            portfolio=builder.construct(file),
+            source_file=source_file,
+            portfolio=builder.construct(source_file),
             output=create_strategy(format),
             config=get_config())
 

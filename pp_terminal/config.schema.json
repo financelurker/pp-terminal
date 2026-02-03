@@ -14,6 +14,33 @@
       "type": "integer",
       "minimum": 0
     },
+    "anonymization": {
+      "description": "Anonymization configuration",
+      "type": "object",
+      "properties": {
+        "attributes": {
+          "description": "Attribute anonymization mapping. Keys are Portfolio Performance attribute UUIDs, values define how to replace them with fake data using Faker library providers.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["provider"],
+            "properties": {
+              "provider": {
+                "description": "Faker provider method name (e.g., 'pyfloat', 'iban', 'name', 'address'). See https://faker.readthedocs.io/en/master/providers.html",
+                "type": "string"
+              },
+              "args": {
+                "description": "Arguments to pass to the Faker provider method",
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "tax": {
       "description": "Tax-related configuration",
       "type": "object",
@@ -108,40 +135,6 @@
                     "type": "string"
                   },
                   "minItems": 1
-                }
-              },
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        },
-        "export": {
-          "description": "Configuration for export commands",
-          "type": "object",
-          "properties": {
-            "anonymized": {
-              "description": "Configuration for export anonymized command",
-              "type": "object",
-              "properties": {
-                "attributes": {
-                  "description": "Attribute anonymization mapping. Keys are Portfolio Performance attribute UUIDs, values define how to replace them with fake data using Faker library providers.",
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "object",
-                    "required": ["provider"],
-                    "properties": {
-                      "provider": {
-                        "description": "Faker provider method name (e.g., 'pyfloat', 'iban', 'name', 'address'). See https://faker.readthedocs.io/en/master/providers.html",
-                        "type": "string"
-                      },
-                      "args": {
-                        "description": "Arguments to pass to the Faker provider method",
-                        "type": "object",
-                        "additionalProperties": true
-                      }
-                    },
-                    "additionalProperties": false
-                  }
                 }
               },
               "additionalProperties": false

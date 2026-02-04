@@ -93,16 +93,16 @@ def _create_anonymized_temp_file(original_file: Path) -> Path:
 @use_config(validated_config_callback)
 def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
         ctx: typer.Context,
-        file: Annotated[Path, typer.Option(help="Path to the Portfolio Performance XML file", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)],
+        file: Annotated[Path, typer.Option(help="Portfolio Performance XML file.", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)],
         format: OutputFormat = OutputFormat.TABLE,  # pylint: disable=redefined-builtin
         precision: int = 4,
-        no_cache: Annotated[bool, typer.Option(help='Disable SQLite cache, use in-memory database')] = False,
-        anonymize: Annotated[bool, typer.Option(help='Anonymize data before processing')] = False,
+        cache: Annotated[bool, typer.Option('--cache/--no-cache', help='Create cache file for XML.')] = True,
+        anonymize: Annotated[bool, typer.Option(help='Anonymize data before processing.')] = False,
         version: Annotated[  # pylint: disable=unused-argument
             Optional[bool],
             typer.Option("--version", callback=version_callback, is_eager=True),  # declared the option name to avoid --no-version
         ] = None,
-        verbose: Annotated[Optional[bool], typer.Option('--verbose', help='Enable verbose logging')] = None,
+        verbose: Annotated[Optional[bool], typer.Option('--verbose', help='Enable verbose logging.')] = None,
 ) -> None:
 
     if verbose:
@@ -112,7 +112,7 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments,to
     source_file = _create_anonymized_temp_file(file) if anonymize else file
 
     try:
-        builder = PpPortfolioBuilder(config=get_config()) if no_cache else CachedPpPortfolioBuilder(config=get_config())
+        builder = CachedPpPortfolioBuilder(config=get_config()) if cache else PpPortfolioBuilder(config=get_config())
 
         ctx.obj = SimpleNamespace(
             source_file=source_file,

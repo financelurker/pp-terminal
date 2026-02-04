@@ -31,10 +31,11 @@ import typer
 from typing_extensions import Annotated
 from typer_config import use_config
 
+from pp_terminal.output.strategy_factory import create_strategy
 from pp_terminal.utils.config import validated_config_callback, get_config
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import set_precision
-from pp_terminal.output.strategy import create_strategy, OutputFormat
+from pp_terminal.output.strategy import OutputFormat
 from pp_terminal.utils.plugins import load_command_plugins
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder, CachedPpPortfolioBuilder
 from pp_terminal.data.xml_anonymizer import XmlAnonymizer

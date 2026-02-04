@@ -32,6 +32,7 @@ class OutputFormat(str, Enum):
     TABLE = 'table'
     CSV = 'csv'
     JSON = 'json'
+    EXCEL = 'excel'
 
 
 class Console(rich.console.Console):
@@ -95,15 +96,3 @@ class JsonOutputStrategy(OutputStrategy):
             return self.empty_result()
 
         return (df.to_json(index=options.show_index, orient='records'), )
-
-
-def create_strategy(output_format: OutputFormat) -> OutputStrategy:
-    match output_format:
-        case OutputFormat.TABLE:
-            return RichOutputStrategy()
-        case OutputFormat.CSV:
-            return CsvOutputStrategy()
-        case OutputFormat.JSON:
-            return JsonOutputStrategy()
-
-    raise NotImplementedError('output format "' + output_format + '" not supported yet')

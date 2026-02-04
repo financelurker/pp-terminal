@@ -73,13 +73,13 @@ def test_no_transactions() -> None:
 
     cost_basis = calculate_total_cost_basis(portfolio.securities_account_transactions.pipe(filter_by_security, security_id='sec-1'))
 
-    assert cost_basis == 0.0
+    assert cost_basis == pytest.approx(0.0)
 
 def test_no_purchases_for_security(portfolio_with_purchases: Portfolio) -> None:
     """Test with security that has no purchases."""
     cost_basis = calculate_total_cost_basis(portfolio_with_purchases.securities_account_transactions.pipe(filter_by_security, security_id='non-existent-security'))
 
-    assert cost_basis == 0.0
+    assert cost_basis == pytest.approx(0.0)
 
 
 def test_all_shares_sold(portfolio_with_purchases: Portfolio) -> None:
@@ -98,7 +98,7 @@ def test_all_shares_sold(portfolio_with_purchases: Portfolio) -> None:
 
     cost_basis = calculate_total_cost_basis(transactions.pipe(filter_by_security, security_id='sec-1'))
 
-    assert cost_basis == 0.0
+    assert cost_basis == pytest.approx(0.0)
 
 
 def test_sell_exceeds_purchases(portfolio_with_purchases: Portfolio, caplog: LogCaptureFixture) -> None:

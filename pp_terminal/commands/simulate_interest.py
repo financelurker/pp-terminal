@@ -24,6 +24,7 @@ from typing import Annotated, Any, cast
 import numpy as np
 import pandas as pd
 import typer
+from pandera.typing import DataFrame
 from rich.console import Console
 
 from pp_terminal.data.filters import filter_later_than, filter_by_type
@@ -31,7 +32,7 @@ from pp_terminal.utils.helper import get_last_year, footer
 from pp_terminal.output.strategy import OutputStrategy
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.domain.schemas import Percent, TransactionType, Money
+from pp_terminal.domain.schemas import Percent, TransactionType, Money, InterestResultSchema
 from pp_terminal.output.table_decorator import TableOptions, format_value
 
 app = typer.Typer()
@@ -42,7 +43,7 @@ log = logging.getLogger(__name__)
 _DAYS_PER_YEAR = 360
 
 
-def calculate_interest(snapshot_begin: PortfolioSnapshot, snapshot_end: PortfolioSnapshot, interest_rate: Percent) -> pd.DataFrame:
+def calculate_interest(snapshot_begin: PortfolioSnapshot, snapshot_end: PortfolioSnapshot, interest_rate: Percent) -> DataFrame[InterestResultSchema]:
     transactions = snapshot_end.deposit_account_transactions
 
     df = transactions.reset_index(level='date').sort_values(by=['accountId', 'currency', 'date'])
@@ -58,16 +59,32 @@ def calculate_interest(snapshot_begin: PortfolioSnapshot, snapshot_end: Portfoli
     df = df.groupby(['accountId', 'currency']).agg({'interest': 'sum', 'weighted_balance': 'sum', 'days_diff': 'sum'})
     df['mean_balance'] = (df['weighted_balance'] / df['days_diff']).fillna(0)
 
+    df = df.reset_index(level='currency')
+
     interest_transactions = (transactions.pipe(filter_by_type, transaction_types=[TransactionType.INTEREST, TransactionType.INTEREST_CHARGE])
                              .pipe(filter_later_than, target_date=snapshot_begin.date)
                              .reset_index(level='date'))
     interest_transactions['amount'] = interest_transactions['amount'] + interest_transactions['taxes']
-    df['actual_interest'] = interest_transactions.groupby(['accountId', 'currency'])['amount'].sum().fillna(0)
 
-    interest_per_account = (pd.merge(snapshot_end.portfolio.deposit_accounts, df, left_index=True, right_on='accountId', how="right", validate='one_to_one')
+    actual_interest_df = interest_transactions.groupby(['accountId', 'currency'])['amount'].sum().fillna(0).reset_index(level='currency')
+    actual_interest_df = actual_interest_df.rename(columns={'amount': 'actual_interest'})
+
+    # Merge actual interest into main dataframe
+    df = df.merge(actual_interest_df, left_index=True, right_index=True, how='left', suffixes=('', '_drop'))
+    # Handle potential duplicate currency columns from merge
+    if 'currency_drop' in df.columns:
+        df = df.drop(columns=['currency_drop'])
+
+    # Merge with account names - deposit_accounts also has currency, so we'll get currency_x and currency_y
+    interest_per_account = (pd.merge(snapshot_end.portfolio.deposit_accounts, df, left_index=True, right_index=True, how="right", validate='one_to_one', suffixes=('_account', ''))
                 .sort_values(by='interest'))
 
-    return interest_per_account[interest_per_account['interest'] > 0][['name', 'currency', 'mean_balance', 'interest', 'actual_interest']]
+    # Keep the currency from df (interest calculations), drop the one from accounts
+    if 'currency_account' in interest_per_account.columns:
+        interest_per_account = interest_per_account.drop(columns=['currency_account'])
+
+    result = interest_per_account[interest_per_account['interest'] > 0][['name', 'currency', 'mean_balance', 'interest', 'actual_interest']]
+    return InterestResultSchema.validate(result)
 
 
 def _format_value_wrapper(value: Any, index: str, row: pd.Series) -> str:

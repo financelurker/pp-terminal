@@ -21,7 +21,7 @@ from enum import Enum
 from typing import Optional, TypeAlias, Any
 
 import pandera.pandas as pa
-from pandera.typing import Index, Series
+from pandera.typing import DataFrame, Index, Series
 from pydantic import BaseModel
 
 Money: TypeAlias = float
@@ -133,3 +133,35 @@ class TaxLotSchema(pa.DataFrameModel):
 
     class Config:  # pylint: disable=too-few-public-methods
         add_missing_columns = True
+
+
+class InterestResultSchema(pa.DataFrameModel):
+    """Schema for interest calculation results."""
+    accountId: Index[str]
+    name: Series[str]
+    currency: Series[str]
+    mean_balance: Series[Money]
+    interest: Series[Money]
+    actual_interest: Series[Money] = pa.Field(nullable=True)
+
+    @classmethod
+    def empty(cls, *_args: Any) -> DataFrame['InterestResultSchema']:
+        """Create empty DataFrame with correct index name.
+
+        Overrides parent to fix Pandera limitation where .empty() doesn't preserve index names.
+        """
+        df = super().empty(*_args)
+        df.index.name = 'accountId'
+        return df
+
+
+class VapResultSchema(pa.DataFrameModel):
+    """Schema for Vorabpauschale (VAP) calculation results."""
+    wkn: Series[str] = pa.Field(nullable=True, coerce=True)
+    name: Series[str] = pa.Field(coerce=True)
+    currency: Series[str] = pa.Field(coerce=True)
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Allow additional columns for dynamic account names."""
+        strict = False  # Allow additional columns beyond those defined
+        coerce = True

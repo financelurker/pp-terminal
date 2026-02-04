@@ -146,8 +146,8 @@ def test_list_securities_share_calculation(securities_portfolio: Portfolio) -> N
     assert shares is not None
     shares_by_security = shares.groupby('securityId').sum()
 
-    assert shares_by_security.loc['sec1'] == 70.0  # 50 + 30 - 10
-    assert shares_by_security.loc['sec2'] == 25.5
+    assert shares_by_security.loc['sec1'] == pytest.approx(70.0)  # 50 + 30 - 10
+    assert shares_by_security.loc['sec2'] == pytest.approx(25.5)
     assert 'sec3' not in shares_by_security.index  # No transactions
 
 

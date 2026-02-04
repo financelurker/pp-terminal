@@ -72,14 +72,14 @@ def test_fifo_lots_single_purchase(share_sell_portfolio: Portfolio) -> None:
     lots = calculate_fifo_sell(transactions, datetime(2024, 12, 31), shares_to_sell=30.0, sell_price=160.0, tax_rate=26.375)
 
     assert len(lots) == 1
-    assert lots.iloc[0]['shares'] == 30.0
-    assert lots.iloc[0]['purchasePrice'] == 100.0
-    assert lots.iloc[0]['costBasis'] == 3000.0
-    assert lots.iloc[0]['capitalGain'] == 1800.0  # 30 * (160 - 100)
-    assert lots.iloc[0]['prepaidTax'] == 0.0  # No prepaid tax (no CSV provided)
-    assert lots.iloc[0]['taxableGain'] == 1800.0  # capitalGain - prepaidTax
-    assert lots.iloc[0]['totalTax'] == 474.75  # 1800 * 0.26375
-    assert lots.iloc[0]['netProceeds'] == 4325.25  # 4800 - 474.75
+    assert lots.iloc[0]['shares'] == pytest.approx(30.0)
+    assert lots.iloc[0]['purchasePrice'] == pytest.approx(100.0)
+    assert lots.iloc[0]['costBasis'] == pytest.approx(3000.0)
+    assert lots.iloc[0]['capitalGain'] == pytest.approx(1800.0)  # 30 * (160 - 100)
+    assert lots.iloc[0]['prepaidTax'] == pytest.approx(0.0)  # No prepaid tax (no CSV provided)
+    assert lots.iloc[0]['taxableGain'] == pytest.approx(1800.0)  # capitalGain - prepaidTax
+    assert lots.iloc[0]['totalTax'] == pytest.approx(474.75)  # 1800 * 0.26375
+    assert lots.iloc[0]['netProceeds'] == pytest.approx(4325.25)  # 4800 - 474.75
 
 
 def test_fifo_lots_multiple_purchases(share_sell_portfolio: Portfolio) -> None:
@@ -92,28 +92,28 @@ def test_fifo_lots_multiple_purchases(share_sell_portfolio: Portfolio) -> None:
     assert len(lots) == 3
 
     # First lot: 50 shares @ €100
-    assert lots.iloc[0]['shares'] == 50.0
-    assert lots.iloc[0]['purchasePrice'] == 100.0
-    assert lots.iloc[0]['costBasis'] == 5000.0
-    assert lots.iloc[0]['capitalGain'] == 3000.0  # 50 * (160 - 100)
-    assert lots.iloc[0]['prepaidTax'] == 0.0
-    assert lots.iloc[0]['totalTax'] == 791.25  # 3000 * 0.26375
+    assert lots.iloc[0]['shares'] == pytest.approx(50.0)
+    assert lots.iloc[0]['purchasePrice'] == pytest.approx(100.0)
+    assert lots.iloc[0]['costBasis'] == pytest.approx(5000.0)
+    assert lots.iloc[0]['capitalGain'] == pytest.approx(3000.0)  # 50 * (160 - 100)
+    assert lots.iloc[0]['prepaidTax'] == pytest.approx(0.0)
+    assert lots.iloc[0]['totalTax'] == pytest.approx(791.25)  # 3000 * 0.26375
 
     # Second lot: 50 shares @ €140
-    assert lots.iloc[1]['shares'] == 50.0
-    assert lots.iloc[1]['purchasePrice'] == 140.0
-    assert lots.iloc[1]['costBasis'] == 7000.0
-    assert lots.iloc[1]['capitalGain'] == 1000.0  # 50 * (160 - 140)
-    assert lots.iloc[1]['prepaidTax'] == 0.0
-    assert lots.iloc[1]['totalTax'] == 263.75  # 1000 * 0.26375
+    assert lots.iloc[1]['shares'] == pytest.approx(50.0)
+    assert lots.iloc[1]['purchasePrice'] == pytest.approx(140.0)
+    assert lots.iloc[1]['costBasis'] == pytest.approx(7000.0)
+    assert lots.iloc[1]['capitalGain'] == pytest.approx(1000.0)  # 50 * (160 - 140)
+    assert lots.iloc[1]['prepaidTax'] == pytest.approx(0.0)
+    assert lots.iloc[1]['totalTax'] == pytest.approx(263.75)  # 1000 * 0.26375
 
     # Third lot: 20 shares @ €150
-    assert lots.iloc[2]['shares'] == 20.0
-    assert lots.iloc[2]['purchasePrice'] == 150.0
-    assert lots.iloc[2]['costBasis'] == 3000.0
-    assert lots.iloc[2]['capitalGain'] == 200.0  # 20 * (160 - 150)
-    assert lots.iloc[2]['prepaidTax'] == 0.0
-    assert lots.iloc[2]['totalTax'] == 52.75  # 200 * 0.26375
+    assert lots.iloc[2]['shares'] == pytest.approx(20.0)
+    assert lots.iloc[2]['purchasePrice'] == pytest.approx(150.0)
+    assert lots.iloc[2]['costBasis'] == pytest.approx(3000.0)
+    assert lots.iloc[2]['capitalGain'] == pytest.approx(200.0)  # 20 * (160 - 150)
+    assert lots.iloc[2]['prepaidTax'] == pytest.approx(0.0)
+    assert lots.iloc[2]['totalTax'] == pytest.approx(52.75)  # 200 * 0.26375
 
 
 def test_fifo_lots_insufficient_shares(share_sell_portfolio: Portfolio) -> None:

@@ -90,7 +90,7 @@ def test_purchased_in_current_year_no_credit(tax_csv_data: pd.DataFrame) -> None
     credit = float(calculate_prepaid_tax_per_lot(df, current_date, tax_csv_data).sum())
 
     # Purchased in 2022, evaluated in 2022 -> last_year = 2021 < first_year = 2022
-    assert credit == 0.0
+    assert credit == pytest.approx(0.0)
 
 def test_missing_tax_data_ignored(tax_csv_data: pd.DataFrame) -> None:
     """Test that missing tax data for year/account/security is ignored (returns 0)."""
@@ -118,4 +118,4 @@ def test_no_tax_csv_returns_zero() -> None:
     current_date = datetime(2022, 12, 31)
     credit = float(calculate_prepaid_tax_per_lot(df, current_date, None).sum())
 
-    assert credit == 0.0
+    assert credit == pytest.approx(0.0)

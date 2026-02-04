@@ -22,11 +22,12 @@ from datetime import datetime
 import pandas as pd
 from _pytest.fixtures import TopRequest
 from pandas.testing import assert_frame_equal
+from pandera.typing import DataFrame
 import pytest
 
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.domain.schemas import TransactionType, AccountType, Percent, Money
+from pp_terminal.domain.schemas import TransactionType, AccountType, Percent, Money, VapResultSchema
 from pp_terminal.commands.simulate_vap import calculate
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
 
@@ -88,8 +89,9 @@ def test_inyear_buy(sample_accounts: pd.DataFrame, sample_transactions: pd.DataF
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2018, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2018, 12, 31))
 
-    expected_df = pd.DataFrame([['A23432', 'Some Share', 'EUR', 1.76]], columns=['wkn', 'name', 'currency', 'Testdepot'], index=['1234567890'])
+    expected_df = DataFrame[VapResultSchema]([['A23432', 'Some Share', 'EUR', 1.76]], columns=['wkn', 'name', 'currency', 'Testdepot'], index=['1234567890'])
     expected_df.index.name = 'securityId'
+    expected_df = VapResultSchema.validate(expected_df)
 
     result = calculate(snapshot_begin, snapshot_end, 2.29, 26.375)
 
@@ -135,8 +137,9 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))
 
-    expected_df = pd.DataFrame([['A23432', 'Some Share', 'EUR', expected_tax_value]], columns=['wkn', 'name', 'currency', 'Testdepot'], index=['1234567890'])
+    expected_df = DataFrame[VapResultSchema]([['A23432', 'Some Share', 'EUR', expected_tax_value]], columns=['wkn', 'name', 'currency', 'Testdepot'], index=['1234567890'])
     expected_df.index.name = 'securityId'
+    expected_df = VapResultSchema.validate(expected_df)
 
     result = calculate(snapshot_begin, snapshot_end, base_rate_percent, 26.375 * 0.7)
 
@@ -152,7 +155,7 @@ def test_kommer_2021(request: TopRequest) -> None:
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
 
-    expected_df = pd.DataFrame([
+    expected_df = DataFrame[VapResultSchema]([
         ['ETF013', 'Lyxor MSCI Pacific UCITS ETF', 'EUR', 2.064846],
         ['A0MZWQ', 'iShares Core MSCI Europe UCITS ETF EUR (Dist)', 'EUR', 5.549975],
         ['A2DK6R', 'iShares Diversified Commodity Swap UCITS ETF', 'EUR', 4.821648],
@@ -168,6 +171,7 @@ def test_kommer_2021(request: TopRequest) -> None:
         5,
     ])
     expected_df.index.name = 'securityId'
+    expected_df = VapResultSchema.validate(expected_df)
 
     result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375)
 
@@ -186,7 +190,7 @@ def test_kommer_2023(request: TopRequest) -> None:
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2023, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2023, 12, 31))
 
-    expected_df = pd.DataFrame([
+    expected_df = DataFrame[VapResultSchema]([
         ['ETF013', 'Lyxor MSCI Pacific UCITS ETF', 'EUR', 1.42471],
         ['A0RL83', 'iShares Core Euro Government Bond UCITS ETF (Dist)', 'EUR', 8.05472],
         ['A0MZWQ', 'iShares Core MSCI Europe UCITS ETF EUR (Dist)', 'EUR', 4.24526],
@@ -202,6 +206,7 @@ def test_kommer_2023(request: TopRequest) -> None:
         5,
     ])
     expected_df.index.name = 'securityId'
+    expected_df = VapResultSchema.validate(expected_df)
 
     result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375, 30.0, config['attributes']['securities']['exemption-rate'])
 

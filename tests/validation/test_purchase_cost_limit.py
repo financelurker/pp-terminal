@@ -174,11 +174,17 @@ def test_attribute_based_rule(portfolio_with_purchases_and_sales: Portfolio) -> 
     """Test purchase-cost-limit-from-attribute rule type."""
     test_attr_uuid = 'test-attr-uuid-12345'
 
-    # Add custom attribute with limit for sec-a
-    portfolio_with_purchases_and_sales.securities[test_attr_uuid] = pd.Series({
-        'sec-a': 5000.0,  # sec-a will pass
-        'sec-b': 1500.0,  # sec-b will fail
-    })
+    # Add custom attribute with limit for sec-a and sec-b
+    securities_df = portfolio_with_purchases_and_sales.securities.copy()
+    securities_df.loc['sec-a', test_attr_uuid] = 5000.0  # sec-a will pass
+    securities_df.loc['sec-b', test_attr_uuid] = 1500.0  # sec-b will fail
+
+    modified_portfolio = Portfolio(
+        accounts=portfolio_with_purchases_and_sales.securities_accounts,
+        transactions=portfolio_with_purchases_and_sales.securities_account_transactions,
+        securities=securities_df,
+        prices=portfolio_with_purchases_and_sales.prices
+    )
 
     config = {
         'commands': {
@@ -192,7 +198,7 @@ def test_attribute_based_rule(portfolio_with_purchases_and_sales: Portfolio) -> 
         }
     }
 
-    results = validate_securities(portfolio_with_purchases_and_sales, config)
+    results = validate_securities(modified_portfolio, config)
 
     # sec-a should pass
     assert not results['sec-a'].has_errors

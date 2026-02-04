@@ -62,6 +62,16 @@ columns = ["SecurityId", "Name", "Shares"]
 | `simulate share-sell` | Calculate gains and taxes if a security would be sold in future (based on FIFO capital gains)      |
 | `simulate vap`        | Run a simulation for the expected German preliminary tax ("Vorabpauschale") on the portfolio       |
 
+The tax configuration for the simulations can be customized in the [configuration file](#configuration-file):
+```toml
+[tax]
+rate = 26.375  # percentage
+# Optionally define the already paid taxes per share (e.g. for the share-sell command)
+file = "taxes_paid.csv"  # Format: date;account_id;security_id;tax_per_share
+exemption-rate = 30  # percentage
+exemption-rate-attribute = "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"  # for per-security exemption rates 
+```
+
 ### Validate Data
 
 | Command               | Description                                                 |
@@ -167,12 +177,6 @@ The CLI options always overwrite the settings in the configuration file.
 ```toml
 file = "portfolio_performance.xml"
 precision = 4
-
-[tax]
-rate = 26.375  # percentage
-file = "taxes_paid.csv"  # Format: date;account_id;security_id;tax_per_share
-exemption-rate = 30  # percentage
-exemption-rate-attribute = "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"  # for per-security exemption rates 
 ```
 
 ### Customize Number Formats

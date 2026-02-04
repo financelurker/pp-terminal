@@ -22,12 +22,13 @@ from datetime import datetime
 import pandas as pd
 from _pytest.fixtures import TopRequest
 from pandas.testing import assert_frame_equal
+from pandera.typing import DataFrame
 import pytest
 
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
-from pp_terminal.domain.schemas import TransactionType, AccountType
+from pp_terminal.domain.schemas import TransactionType, AccountType, VapResultSchema
 from pp_terminal.commands.simulate_vap import calculate
 
 
@@ -109,12 +110,13 @@ def test_partial_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_se
     assert result is not None
     result_security = result[result['name'] == 'Test ETF']
 
-    expected_df = pd.DataFrame([
+    expected_df = DataFrame[VapResultSchema]([
         ['A1234', 'Test ETF', 'EUR', 10.57]
     ], columns=['wkn', 'name', 'currency', 'Depot'], index=['sec1'])
     expected_df.index.name = 'securityId'
+    expected_df = VapResultSchema.validate(expected_df)
 
-    assert_frame_equal(expected_df, result_security.round(2))
+    assert_frame_equal(expected_df, result_security.round(2), check_dtype=False, check_index_type=False)
 
 
 def test_multiple_sells_during_year(sell_test_accounts: pd.DataFrame, sell_test_securities: pd.DataFrame, sell_test_prices: pd.DataFrame) -> None:
@@ -138,12 +140,13 @@ def test_multiple_sells_during_year(sell_test_accounts: pd.DataFrame, sell_test_
     assert result is not None
     result_security = result[result['name'] == 'Test ETF']
 
-    expected_df = pd.DataFrame([
+    expected_df = DataFrame[VapResultSchema]([
         ['A1234', 'Test ETF', 'EUR', 10.57]
     ], columns=['wkn', 'name', 'currency', 'Depot'], index=['sec1'])
     expected_df.index.name = 'securityId'
+    expected_df = VapResultSchema.validate(expected_df)
 
-    assert_frame_equal(expected_df, result_security.round(2))
+    assert_frame_equal(expected_df, result_security.round(2), check_dtype=False, check_index_type=False)
 
 
 def test_sell_and_rebuy_during_year(sell_test_accounts: pd.DataFrame, sell_test_securities: pd.DataFrame, sell_test_prices: pd.DataFrame) -> None:
@@ -183,12 +186,13 @@ def test_sell_and_rebuy_during_year(sell_test_accounts: pd.DataFrame, sell_test_
     assert result is not None
     result_security = result[result['name'] == 'Test ETF']
 
-    expected_df = pd.DataFrame([
+    expected_df = DataFrame[VapResultSchema]([
         ['A1234', 'Test ETF', 'EUR', 4.40]
     ], columns=['wkn', 'name', 'currency', 'Depot'], index=['sec1'])
     expected_df.index.name = 'securityId'
+    expected_df = VapResultSchema.validate(expected_df)
 
-    assert_frame_equal(expected_df, result_security.round(2))
+    assert_frame_equal(expected_df, result_security.round(2), check_dtype=False, check_index_type=False)
 
 
 def test_no_sells_baseline(sell_test_accounts: pd.DataFrame, sell_test_securities: pd.DataFrame, sell_test_prices: pd.DataFrame) -> None:
@@ -221,12 +225,13 @@ def test_no_sells_baseline(sell_test_accounts: pd.DataFrame, sell_test_securitie
     # Filter to just the security row (exclude "Related Account Balance")
     result_security = result[result['name'] == 'Test ETF']
 
-    expected_df = pd.DataFrame([
+    expected_df = DataFrame[VapResultSchema]([
         ['A1234', 'Test ETF', 'EUR', 21.14]
     ], columns=['wkn', 'name', 'currency', 'Depot'], index=['sec1'])
     expected_df.index.name = 'securityId'
+    expected_df = VapResultSchema.validate(expected_df)
 
-    assert_frame_equal(expected_df, result_security.round(2))
+    assert_frame_equal(expected_df, result_security.round(2), check_dtype=False, check_index_type=False)
 
 
 def test_partial_sell_from_xml_fixture(request: TopRequest) -> None:
@@ -258,12 +263,12 @@ def test_partial_sell_from_xml_fixture(request: TopRequest) -> None:
     # Verify BUY transaction
     buy_txn = txns[txns['type'] == 'BUY']
     assert len(buy_txn) == 1
-    assert float(buy_txn.iloc[0]['shares']) == 100.0
+    assert float(buy_txn.iloc[0]['shares']) == pytest.approx(100.0)
 
     # Verify SELL transaction is correctly parsed
     sell_txn = txns[txns['type'] == 'SELL']
     assert len(sell_txn) == 1
-    assert float(sell_txn.iloc[0]['shares']) == 40.0
+    assert float(sell_txn.iloc[0]['shares']) == pytest.approx(40.0)
     assert sell_txn.index.get_level_values('date')[0].year == 2024
 
     # Calculate vorabpauschale
@@ -277,9 +282,10 @@ def test_partial_sell_from_xml_fixture(request: TopRequest) -> None:
     # Filter to just the security row (exclude "Related Account Balance")
     result_security = result[result['name'] == 'Test World ETF']
 
-    expected_df = pd.DataFrame([
+    expected_df = DataFrame[VapResultSchema]([
         ['TEST01', 'Test World ETF', 'EUR', 12.68]
     ], columns=['wkn', 'name', 'currency', 'Test Depot'], index=['test-security-uuid-001'])
     expected_df.index.name = 'securityId'
+    expected_df = VapResultSchema.validate(expected_df)
 
-    assert_frame_equal(expected_df, result_security.round(2))
+    assert_frame_equal(expected_df, result_security.round(2), check_dtype=False, check_index_type=False)

@@ -25,6 +25,7 @@ import pandas as pd
 import typer
 from typing_extensions import Annotated
 import numpy as np
+from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_by_type, drop_empty_values
 from pp_terminal.utils.config import Config
@@ -33,7 +34,7 @@ from pp_terminal.utils.options import tax_rate_callback, exemption_rate_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot, _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.schemas import TransactionType, Percent, Money
+from pp_terminal.domain.schemas import TransactionType, Percent, Money, VapResultSchema
 from pp_terminal.output.table_decorator import TableOptions, format_value
 
 app = typer.Typer()
@@ -66,7 +67,7 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
         tax_rate_percent: Percent,
         default_exemption_rate_percent: Percent = 30.0,
         exempt_rate_attr_uuid: str | None = None
-) -> pd.DataFrame | None:
+) -> DataFrame[VapResultSchema] | None:
     base_rate = max(base_rate_percent, 0) / 100
 
     payouts = _calculate_payouts(snapshot_period_end)
@@ -151,7 +152,8 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
             | {'name': 'Related Account Balance', 'currency': snapshot_period_end.portfolio.base_currency}
         )
 
-    return vap.rename(columns=securities_accounts['name'])
+    result = vap.rename(columns=securities_accounts['name'])
+    return VapResultSchema.validate(result)
 
 
 def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series:
@@ -305,7 +307,7 @@ def print_tax_table(  # pylint: disable=too-many-locals
     console.print(*output.result_table(
         result,
         TableOptions(
-            title=f"Estimated Taxes on vap {year.year} (§18 InvStG)",
+            title=f"Estimated Taxes on Vorabpauschale {year.year} (§18 InvStG)",
             show_index=False,
             footer_lines=1,
             value_formatter=format_value_with_balance_check

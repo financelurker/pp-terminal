@@ -51,10 +51,10 @@ def test_partial_sell_remaining_shares(partial_sell_portfolio: Portfolio) -> Non
 
     # All remaining 60 shares come from the original purchase at 5€
     assert len(lots) == 1
-    assert lots.iloc[0]['shares'] == 60.0
-    assert lots.iloc[0]['purchasePrice'] == 5.0
-    assert lots.iloc[0]['costBasis'] == 300.0
-    assert lots.iloc[0]['capitalGain'] == 3300.0  # 60 * (60 - 5)
+    assert lots.iloc[0]['shares'] == pytest.approx(60.0)
+    assert lots.iloc[0]['purchasePrice'] == pytest.approx(5.0)
+    assert lots.iloc[0]['costBasis'] == pytest.approx(300.0)
+    assert lots.iloc[0]['capitalGain'] == pytest.approx(3300.0)  # 60 * (60 - 5)
 
 
 def test_partial_sell_insufficient_shares_error(partial_sell_portfolio: Portfolio) -> None:
@@ -76,9 +76,9 @@ def test_sell_on_purchase_date(partial_sell_portfolio: Portfolio) -> None:
     lots = calculate_fifo_sell(transactions, snapshot.date, shares_to_sell=10.0, sell_price=5.0, tax_rate=TEST_TAX_RATE)
 
     assert len(lots) == 1
-    assert lots.iloc[0]['shares'] == 10.0
-    assert lots.iloc[0]['purchasePrice'] == 5.0
-    assert lots.iloc[0]['capitalGain'] == 0.0  # No gain when selling at purchase price
+    assert lots.iloc[0]['shares'] == pytest.approx(10.0)
+    assert lots.iloc[0]['purchasePrice'] == pytest.approx(5.0)
+    assert lots.iloc[0]['capitalGain'] == pytest.approx(0.0)  # No gain when selling at purchase price
 
 
 def test_capital_loss_scenario(partial_sell_portfolio: Portfolio) -> None:
@@ -90,9 +90,9 @@ def test_capital_loss_scenario(partial_sell_portfolio: Portfolio) -> None:
     lots = calculate_fifo_sell(transactions, snapshot.date, shares_to_sell=20.0, sell_price=4.0, tax_rate=TEST_TAX_RATE)
 
     assert len(lots) == 1
-    assert lots.iloc[0]['shares'] == 20.0
-    assert lots.iloc[0]['purchasePrice'] == 5.0
-    assert lots.iloc[0]['capitalGain'] == -20.0  # 20 * (4 - 5)
+    assert lots.iloc[0]['shares'] == pytest.approx(20.0)
+    assert lots.iloc[0]['purchasePrice'] == pytest.approx(5.0)
+    assert lots.iloc[0]['capitalGain'] == pytest.approx(-20.0)  # 20 * (4 - 5)
 
 
 def test_no_vorabpauschale_credit_same_year_sale(partial_sell_portfolio: Portfolio) -> None:
@@ -105,7 +105,7 @@ def test_no_vorabpauschale_credit_same_year_sale(partial_sell_portfolio: Portfol
     # No Vorabpauschale credit for same-year sale (no CSV provided)
     credit = float(calculate_prepaid_tax_per_lot(lots, datetime(2023, 12, 30), None).sum())
 
-    assert credit == 0.0
+    assert credit == pytest.approx(0.0)
 
 
 def test_empty_transactions() -> None:
@@ -123,7 +123,7 @@ def test_zero_price_error(partial_sell_portfolio: Portfolio) -> None:
     # Zero price should work but result in negative capital gain
     lots = calculate_fifo_sell(transactions, snapshot.date, shares_to_sell=10.0, sell_price=0.0, tax_rate=TEST_TAX_RATE)
 
-    assert lots.iloc[0]['capitalGain'] == -50.0  # 10 * (0 - 5)
+    assert lots.iloc[0]['capitalGain'] == pytest.approx(-50.0)  # 10 * (0 - 5)
 
 
 def test_very_small_shares(partial_sell_portfolio: Portfolio) -> None:
@@ -136,9 +136,9 @@ def test_very_small_shares(partial_sell_portfolio: Portfolio) -> None:
     lots = calculate_fifo_sell(transactions, snapshot.date, shares_to_sell=0.5, sell_price=60.0, tax_rate=TEST_TAX_RATE)
 
     assert len(lots) == 1
-    assert lots.iloc[0]['shares'] == 0.5
-    assert lots.iloc[0]['costBasis'] == 2.5  # 0.5 * 5
-    assert lots.iloc[0]['capitalGain'] == 27.5  # 0.5 * (60 - 5)
+    assert lots.iloc[0]['shares'] == pytest.approx(0.5)
+    assert lots.iloc[0]['costBasis'] == pytest.approx(2.5)  # 0.5 * 5
+    assert lots.iloc[0]['capitalGain'] == pytest.approx(27.5)  # 0.5 * (60 - 5)
 
 
 def test_exact_share_match(partial_sell_portfolio: Portfolio) -> None:
@@ -151,9 +151,9 @@ def test_exact_share_match(partial_sell_portfolio: Portfolio) -> None:
     lots = calculate_fifo_sell(transactions, snapshot.date, shares_to_sell=60.0, sell_price=60.0, tax_rate=TEST_TAX_RATE)
 
     assert len(lots) == 1
-    assert lots.iloc[0]['shares'] == 60.0
+    assert lots.iloc[0]['shares'] == pytest.approx(60.0)
     total_shares = lots['shares'].sum()
-    assert total_shares == 60.0
+    assert total_shares == pytest.approx(60.0)
 
 
 def test_snapshot_at_different_dates(partial_sell_portfolio: Portfolio) -> None:
@@ -171,14 +171,14 @@ def test_snapshot_at_different_dates(partial_sell_portfolio: Portfolio) -> None:
     transactions = snapshot_mid.securities_account_transactions.pipe(
         filter_by_account_and_security, account_id='test-portfolio-uuid-001', security_id='test-security-uuid-001')
     lots = calculate_fifo_sell(transactions, snapshot_mid.date, shares_to_sell=100.0, sell_price=50.0, tax_rate=TEST_TAX_RATE)
-    assert lots['shares'].sum() == 100.0
+    assert lots['shares'].sum() == pytest.approx(100.0)
 
     # After sell - should have 60 shares
     snapshot_after = PortfolioSnapshot(partial_sell_portfolio, datetime(2024, 12, 31))
     transactions = snapshot_after.securities_account_transactions.pipe(
         filter_by_account_and_security, account_id='test-portfolio-uuid-001', security_id='test-security-uuid-001')
     lots = calculate_fifo_sell(transactions, snapshot_after.date, shares_to_sell=60.0, sell_price=60.0, tax_rate=TEST_TAX_RATE)
-    assert lots['shares'].sum() == 60.0
+    assert lots['shares'].sum() == pytest.approx(60.0)
 
 
 def test_vorabpauschale_csv_calculation(partial_sell_portfolio: Portfolio) -> None:

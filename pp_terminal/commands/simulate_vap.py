@@ -44,7 +44,7 @@ begin = None  # pylint: disable=invalid-name
 
 # Basiszinssatz (base interest rate) by year for German tax calculations
 # @link https://www.bundesbank.de/de/statistiken/geld-und-kapitalmaerkte/zinssaetze-und-renditen/basiszinssatz
-BASISZINS_BY_YEAR: dict[int, Percent] = {
+_BASE_RATE_BY_YEAR: dict[int, Percent] = {
     2016: 1.1,
     2018: 0.87,
     2019: 0.52,
@@ -257,7 +257,7 @@ def get_base_rate_percent_by_year() -> Percent | None:
     if begin is None:
         return None
 
-    return BASISZINS_BY_YEAR.get(begin.year, 3.2)
+    return _BASE_RATE_BY_YEAR.get(begin.year, 3.2)
 
 
 @app.command(name="vap")

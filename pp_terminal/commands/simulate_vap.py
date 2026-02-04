@@ -253,12 +253,7 @@ def set_begin(value: datetime | None) -> datetime | None:
 
 
 def get_base_rate_percent_by_year() -> Percent | None:
-    """
-    Get the base rate (Basiszinssatz) for the selected year.
-
-    Returns the official Basiszins rate for German tax calculations.
-    Defaults to 3.2% for years not explicitly defined in BASISZINS_BY_YEAR.
-    """
+    """Get the base rate (Basiszinssatz) for the selected year."""
     if begin is None:
         return None
 
@@ -271,7 +266,7 @@ def print_tax_table(  # pylint: disable=too-many-locals
         year: Annotated[datetime, typer.Option(formats=["%Y"], help="The year to calculate the preliminary tax for", prompt=True, callback=set_begin, default_factory=get_last_year)],
         base_rate: Annotated[Percent, typer.Option(help="The base rate (Basiszinssatz)", min=-100, max=100, prompt="Base Rate (%)", prompt_required=True, default_factory=get_base_rate_percent_by_year)],
         tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, callback=tax_rate_callback)] = None,  # type: ignore
-        exemption_rate: Annotated[Percent, typer.Option(help="The default exemption rate (Teilfreistellung), can be overwritten for each security.", min=0, max=100, callback=exemption_rate_callback)] = None  # type: ignore
+        exemption_rate: Annotated[Percent, typer.Option(help="Default exemption rate (Teilfreistellung), can be overwritten for each security.", min=0, max=100, callback=exemption_rate_callback)] = None  # type: ignore
 ) -> None:
     """
     Show a detailed table with calculated German preliminary tax values ("Vorabpauschale"/VAP) for a specified year, per each security and account.

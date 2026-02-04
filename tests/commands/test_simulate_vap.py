@@ -27,7 +27,7 @@ import pytest
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.schemas import TransactionType, AccountType, Percent, Money
-from pp_terminal.commands.simulate_vorabpauschale import calculate
+from pp_terminal.commands.simulate_vap import calculate
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
 
 

@@ -28,7 +28,7 @@ from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
 from pp_terminal.domain.schemas import TransactionType, AccountType
-from pp_terminal.commands.simulate_vorabpauschale import calculate
+from pp_terminal.commands.simulate_vap import calculate
 
 
 @pytest.fixture(name='sell_test_accounts')

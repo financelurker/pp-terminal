@@ -22,13 +22,14 @@ from typing import Any
 import uuid
 
 import pandas as pd
-from openpyxl.styles import Font, numbers
+from openpyxl.styles import Font, PatternFill, numbers
 from openpyxl.utils import get_column_letter
 
 from .strategy import OutputStrategy
-from .table_decorator import TableOptions
+from .table_decorator import TableOptions, camel_case_to_title
 from ..domain.schemas import Money
 
+_HEADER_BG_COLOR = 'D3D3D3'
 
 class ExcelOutputStrategy(OutputStrategy):
     def __init__(self) -> None:
@@ -88,14 +89,25 @@ class ExcelOutputStrategy(OutputStrategy):
 
             formatted_df = pd.concat([formatted_df, summary_row.to_frame().T], ignore_index=True)
 
+        if 'currency' in formatted_df.columns:
+            formatted_df = formatted_df.drop(columns=['currency'])
+
         return formatted_df
 
     @staticmethod
     def _apply_formatting(worksheet: Any, formatted_df: pd.DataFrame, options: TableOptions, original_df: pd.DataFrame) -> None:  # pylint: disable=too-many-locals
         """Apply rich formatting to the worksheet."""
-        # Bold header row
-        for cell in worksheet[1]:
+        # Format header row
+        gray_fill = PatternFill(start_color=_HEADER_BG_COLOR, end_color=_HEADER_BG_COLOR, fill_type='solid')
+        for idx, cell in enumerate(worksheet[1]):
             cell.font = Font(bold=True)
+            cell.fill = gray_fill
+            # Apply camel_case_to_title to column headers (skip index column if present)
+            if options.show_index and idx == 0:
+                continue  # Keep index header as-is
+            col_idx = idx - 1 if options.show_index else idx
+            if col_idx < len(formatted_df.columns):
+                cell.value = camel_case_to_title(str(formatted_df.columns[col_idx]))
 
         # Freeze top row
         worksheet.freeze_panes = 'A2'

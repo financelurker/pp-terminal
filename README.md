@@ -56,11 +56,11 @@ columns = ["SecurityId", "Name", "Shares"]
 
 ### Simulate Scenarios
 
-| Command                   | Description                                                                                        |
-|---------------------------|----------------------------------------------------------------------------------------------------|
-| `simulate interest`       | Calculate how much interest you should have been earned per account and compare with actual values |
-| `simulate share-sell`     | Calculate gains and taxes if a security would be sold in future (based on FIFO capital gains)      |
-| `simulate vorabpauschale` | Run a simulation for the expected German preliminary tax ("Vorabpauschale") on the portfolio       |
+| Command               | Description                                                                                        |
+|-----------------------|----------------------------------------------------------------------------------------------------|
+| `simulate interest`   | Calculate how much interest you should have been earned per account and compare with actual values |
+| `simulate share-sell` | Calculate gains and taxes if a security would be sold in future (based on FIFO capital gains)      |
+| `simulate vap`        | Run a simulation for the expected German preliminary tax ("Vorabpauschale") on the portfolio       |
 
 ### Validate Data
 

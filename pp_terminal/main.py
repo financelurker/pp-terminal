@@ -42,8 +42,8 @@ from pp_terminal.data.xml_anonymizer import XmlAnonymizer
 from . import __version__
 
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich")
-app.add_typer(typer.Typer(no_args_is_help=True), name="simulate")
-app.add_typer(typer.Typer(no_args_is_help=True), name="view")
+app.add_typer(typer.Typer(no_args_is_help=True), name="simulate", help="Run simulations on the portfolio data, like share sells or German Vorabpauschale.")
+app.add_typer(typer.Typer(no_args_is_help=True), name="view", help="View details about portfolio entities like accounts or securities.")
 
 # init default logging (this is e.g. import for errors during command plugin load)
 logging.basicConfig(level=logging.WARN, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=False, show_time=False, show_path=False)])

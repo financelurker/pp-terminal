@@ -39,7 +39,7 @@ console = Console()
 log = logging.getLogger(__name__)
 
 validate_app = typer.Typer()
-app.add_typer(validate_app, name="validate", help='Run configured validation rules on the portfolio data')
+app.add_typer(validate_app, name="validate", help='Run configured validation rules on the portfolio data.')
 
 exit_code = 0  # pylint: disable=invalid-name
 

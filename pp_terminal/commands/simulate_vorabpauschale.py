@@ -111,35 +111,35 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
     base_yield.name = 'Base Yield'
     logging.debug(base_yield)
 
-    vorabpauschale = base_yield.subtract(payouts, fill_value=0) if payouts is not None else base_yield
-    vorabpauschale = vorabpauschale.clip(lower=0).fillna(0)  # replace negative values with zero
+    vap = base_yield.subtract(payouts, fill_value=0) if payouts is not None else base_yield
+    vap = vap.clip(lower=0).fillna(0)  # replace negative values with zero
 
-    vorabpauschale = vorabpauschale * tax_rate_percent / 100
+    vap = vap * tax_rate_percent / 100
 
     # Apply exemption rate if configured
     if exempt_rate_attr_uuid and exempt_rate_attr_uuid in snapshot_period_end.portfolio.securities.columns:
         exempt_rate_per_security = (1 - snapshot_period_end.portfolio.securities[[exempt_rate_attr_uuid]]
                                     .astype(float)
                                     .fillna(default_exemption_rate_percent / 100)
-                                    .rename(columns={exempt_rate_attr_uuid: 0}))  # column name must match vorabpauschale
-        vorabpauschale = exempt_rate_per_security.mul(vorabpauschale.to_frame(), level='securityId')
+                                    .rename(columns={exempt_rate_attr_uuid: 0}))  # column name must match vap
+        vap = exempt_rate_per_security.mul(vap.to_frame(), level='securityId')
 
-    if not vorabpauschale.empty:
-        vorabpauschale = vorabpauschale.unstack(level='accountId')
+    if not vap.empty:
+        vap = vap.unstack(level='accountId')
         # Only extract from tuple if it's a MultiIndex
-        if isinstance(vorabpauschale.columns, pd.MultiIndex):
-            vorabpauschale.columns = [col[1] if len(col) > 1 else col[0] for col in vorabpauschale.columns]
+        if isinstance(vap.columns, pd.MultiIndex):
+            vap.columns = [col[1] if len(col) > 1 else col[0] for col in vap.columns]
 
-    vorabpauschale = vorabpauschale.pipe(drop_empty_values)
-    if vorabpauschale.empty:
+    vap = vap.pipe(drop_empty_values)
+    if vap.empty:
         return None
 
-    vorabpauschale = pd.merge(snapshot_period_end.portfolio.securities[['wkn', 'name', 'currency']], vorabpauschale, left_index=True, right_index=True, how='right', validate='one_to_one').sort_values(by='name')
+    vap = pd.merge(snapshot_period_end.portfolio.securities[['wkn', 'name', 'currency']], vap, left_index=True, right_index=True, how='right', validate='one_to_one').sort_values(by='name')
 
     securities_accounts = snapshot_period_end.portfolio.securities_accounts
     if not securities_accounts.empty and 'referenceAccount' in securities_accounts:
         # add the reference account balance
-        vorabpauschale.loc[len(vorabpauschale)] = (
+        vap.loc[len(vap)] = (
             pd.merge(
                 securities_accounts,
                 snapshot_period_end.balances.groupby(['accountId']).sum(),
@@ -151,7 +151,7 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
             | {'name': 'Related Account Balance', 'currency': snapshot_period_end.portfolio.base_currency}
         )
 
-    return vorabpauschale.rename(columns=securities_accounts['name'])
+    return vap.rename(columns=securities_accounts['name'])
 
 
 def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series:
@@ -265,7 +265,7 @@ def get_base_rate_percent_by_year() -> Percent | None:
     return BASISZINS_BY_YEAR.get(begin.year, 3.2)
 
 
-@app.command(name="vorabpauschale")
+@app.command(name="vap")
 def print_tax_table(  # pylint: disable=too-many-locals
         ctx: typer.Context,
         year: Annotated[datetime, typer.Option(formats=["%Y"], help="The year to calculate the preliminary tax for", prompt=True, callback=set_begin, default_factory=get_last_year)],
@@ -274,7 +274,7 @@ def print_tax_table(  # pylint: disable=too-many-locals
         exemption_rate: Annotated[Percent, typer.Option(help="The default exemption rate (Teilfreistellung), can be overwritten for each security.", min=0, max=100, callback=exemption_rate_callback)] = None  # type: ignore
 ) -> None:
     """
-    Print a detailed table with calculated German preliminary tax values ("Vorabpauschale") for a specified year, per each security and account.
+    Show a detailed table with calculated German preliminary tax values ("Vorabpauschale"/VAP) for a specified year, per each security and account.
     """
 
     portfolio = cast(Portfolio, ctx.obj.portfolio)
@@ -293,24 +293,24 @@ def print_tax_table(  # pylint: disable=too-many-locals
     result = calculate(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate, exempt_rate_uuid)
     result = result.round(2) if result is not None else result
 
-    vorabpauschale_totals = {}
+    vap_totals = {}
     if result is not None and not result.empty:
         balance_row_index = result[result['name'] == 'Related Account Balance'].index
         if len(balance_row_index) > 0:
-            vorabpauschale_data = result.drop(balance_row_index)
+            vap_data = result.drop(balance_row_index)
             account_columns = [col for col in result.columns if col not in ['wkn', 'name', 'currency']]
-            vorabpauschale_totals = vorabpauschale_data[account_columns].sum().to_dict()
+            vap_totals = vap_data[account_columns].sum().to_dict()
 
     def format_value_with_balance_check(value: Any, index: str, row: pd.Series) -> str:
-        if 'name' in row.index and row['name'] == 'Related Account Balance' and isinstance(value, Money) and index in vorabpauschale_totals:
-            color = 'red' if value < vorabpauschale_totals[index] else 'green'
+        if 'name' in row.index and row['name'] == 'Related Account Balance' and isinstance(value, Money) and index in vap_totals:
+            color = 'red' if value < vap_totals[index] else 'green'
             return f"[{color}]{format_value(value, index, row)}[/{color}]"
         return format_value(value, index, row)
 
     console.print(*output.result_table(
         result,
         TableOptions(
-            title=f"Estimated Taxes on Vorabpauschale {year.year} (§18 InvStG)",
+            title=f"Estimated Taxes on vap {year.year} (§18 InvStG)",
             show_index=False,
             footer_lines=1,
             value_formatter=format_value_with_balance_check

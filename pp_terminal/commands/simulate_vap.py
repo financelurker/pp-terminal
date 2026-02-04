@@ -32,6 +32,7 @@ from pp_terminal.utils.config import Config
 from pp_terminal.utils.helper import get_last_year, footer
 from pp_terminal.utils.options import tax_rate_callback, exemption_rate_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
+from pp_terminal.output.strategy_excel import ExcelOutputStrategy
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot, _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TransactionType, Percent, Money, VapResultSchema
@@ -41,6 +42,7 @@ app = typer.Typer()
 console = Console()
 log = logging.getLogger(__name__)
 
+_debug_data: dict[str, pd.DataFrame | None] = {}
 begin = None  # pylint: disable=invalid-name
 
 # Basiszinssatz (base interest rate) by year for German tax calculations
@@ -71,7 +73,7 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
     base_rate = max(base_rate_percent, 0) / 100
 
     payouts = _calculate_payouts(snapshot_period_end)
-    log.debug(payouts)
+    _debug_data['payouts'] = payouts.reset_index() if payouts is not None else None
 
     # @todo convert all values to EUR with rates from ECB, for the moment we simply remove currency
     # Calculate begin values only for shares held continuously from year start to year end
@@ -101,7 +103,7 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
     # use df.subtract to align both matrices
     outcome = end_values_in_eur.subtract(begin_values_in_eur, fill_value=0)
     outcome.name = 'Outcome'
-    log.debug(outcome)
+    _debug_data['outcome'] = outcome.reset_index()
 
     # for securities that have been bought within the year we need to take the number of months held into account
     pro_rata_shares = _calculate_prorata_shares_for_inyear_buys(snapshot_period_end)
@@ -110,7 +112,7 @@ def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-po
     base_yield = modified_values_begin * base_rate * 0.7
     base_yield = outcome.combine(base_yield, np.minimum)
     base_yield.name = 'Base Yield'
-    logging.debug(base_yield)
+    _debug_data['base_yield'] = base_yield.reset_index()
 
     vap = base_yield.subtract(payouts, fill_value=0) if payouts is not None else base_yield
     vap = vap.clip(lower=0).fillna(0)  # replace negative values with zero
@@ -236,7 +238,7 @@ def _calculate_prorata_shares_for_inyear_buys(snapshot_end: PortfolioSnapshot) -
     transactions_inyear['months_held'] = snapshot_end.date.month - transactions_inyear.index.get_level_values('date').month + 1
     transactions_inyear['shares_original'] = transactions_inyear['shares']
     transactions_inyear['shares'] = transactions_inyear['shares'] * transactions_inyear['months_held']/12
-    log.debug(transactions_inyear[['shares_original', 'months_held', 'shares']].reset_index(level='date', drop=True).sort_values(by=['accountId', 'securityId', 'months_held']))
+    _debug_data['transactions_inyear'] = transactions_inyear[['shares_original', 'months_held', 'shares']].reset_index(level='date', drop=True).sort_values(by=['accountId', 'securityId', 'months_held']).reset_index()
 
     return transactions_inyear.groupby(['accountId', 'securityId'])['shares'].sum().abs()
 
@@ -273,6 +275,7 @@ def print_tax_table(  # pylint: disable=too-many-locals
     """
     Show a detailed table with calculated German preliminary tax values ("Vorabpauschale"/VAP) for a specified year, per each security and account.
     """
+    _debug_data.clear()
 
     portfolio = cast(Portfolio, ctx.obj.portfolio)
     output = cast(OutputStrategy, ctx.obj.output)
@@ -313,6 +316,29 @@ def print_tax_table(  # pylint: disable=too-many-locals
             value_formatter=format_value_with_balance_check
         )
     ))
+
+    # Add debug sheets if verbose and Excel format
+    verbose = cast(bool, ctx.obj.verbose)
+    is_excel = isinstance(output, ExcelOutputStrategy)
+
+    for key, df in _debug_data.items():
+        if df is None:
+            continue
+
+        if verbose and is_excel:
+            title = '(DBG) ' + key.replace('_', ' ').title()
+            result_output = output.result_table(
+                df,
+                TableOptions(
+                    title=title,
+                    show_index=False,
+                    show_total=False
+                )
+            )
+            if result_output is not None:
+                console.print(*result_output)
+        else:
+            log.debug(df)
 
     console.print(output.warning('This simulation assumes that all amounts are in EUR excl. Sparerpauschbetrag.'))
     console.print(output.text(footer()), style="dim")

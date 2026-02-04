@@ -46,7 +46,7 @@ class ExcelOutputStrategy(OutputStrategy):
             self._filename = Path.cwd() / f"output_{unique_id}.xlsx"
 
         self._sheet_counter += 1
-        sheet_name = f"Sheet{self._sheet_counter}"
+        sheet_name = self._sanitize_sheet_name(options.title) if options.title else f"Sheet{self._sheet_counter}"
 
         formatted_df = self._prepare_dataframe(df, options)
 
@@ -135,3 +135,13 @@ class ExcelOutputStrategy(OutputStrategy):
             total_row_idx = len(formatted_df) + 1
             for cell in worksheet[total_row_idx]:
                 cell.font = Font(bold=True)
+
+    @staticmethod
+    def _sanitize_sheet_name(name: str) -> str:
+        """Sanitize sheet name for Excel compatibility."""
+        invalid_chars = [':', '\\', '/', '?', '*', '[', ']']
+        sanitized = name
+        for char in invalid_chars:
+            sanitized = sanitized.replace(char, '')
+        # Truncate to 31 characters (Excel limit)
+        return sanitized[:31]

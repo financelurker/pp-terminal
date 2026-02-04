@@ -119,7 +119,8 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments,to
             source_file=source_file,
             portfolio=builder.construct(source_file),
             output=create_strategy(format),
-            config=get_config())
+            config=get_config(),
+            verbose=verbose or False)
 
     except (RuntimeError, InputError) as e:
         if verbose:

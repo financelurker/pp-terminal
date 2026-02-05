@@ -26,6 +26,7 @@ from _pytest.fixtures import TopRequest
 
 from pp_terminal.exceptions import InputError
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder, CachedPpPortfolioBuilder
+from tests.data.conftest import EXEMPTION_RATE_CONFIG
 
 
 def test_import_non_existent_file() -> None:
@@ -212,3 +213,18 @@ def test_cache_fallback_on_io_error(request: TopRequest, tmp_path: Path, caplog:
     finally:
         # Restore permissions for cleanup
         readonly_dir.chmod(0o755)
+
+def test_securities_percent_attributes_converted(request: TopRequest) -> None:
+    """Test that securities with PercentPlainConverter attributes are loaded as decimals, not raw values."""
+    portfolio = PpPortfolioBuilder(config=EXEMPTION_RATE_CONFIG).construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+
+    exemption_attr_uuid = '2baac2d0-459b-4b41-a0ef-d7dad0866892'
+    assert exemption_attr_uuid in portfolio.securities.columns
+
+    securities_with_exemption = portfolio.securities[portfolio.securities[exemption_attr_uuid].notna()]
+    assert len(securities_with_exemption) > 0, "Should have at least one security with exemption rate"
+
+    # Verify values are decimals (0.0-1.0 range), not raw percentages (0-100)
+    for value in securities_with_exemption[exemption_attr_uuid]:
+        assert isinstance(value, float), f"Exemption rate should be float, got {type(value)}"
+        assert 0.0 <= value <= 1.0, f"Exemption rate should be normalized (0.0-1.0), got {value}"

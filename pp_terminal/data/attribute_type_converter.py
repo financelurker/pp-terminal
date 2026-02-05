@@ -76,7 +76,7 @@ def _convert_single_value(value: Any, converter: Any, attr_name: str, attr_uuid:
     convert_func = _get_converter_function(converter_str)
 
     if convert_func is None:
-        log.warning(
+        log.debug(
             "Unknown converter type '%s' for attribute '%s' (%s). Keeping raw value.",
             converter_str, attr_name, attr_uuid
         )
@@ -103,12 +103,12 @@ def convert_attribute_types(df: pd.DataFrame, attributes: Dict[str, str]) -> pd.
     Args:
         df: DataFrame containing attribute columns (as UUIDs) and corresponding
             {uuid}_converter columns with converter class names
-        attributes: Dictionary mapping friendly attribute names to their UUIDs
+        attributes: Dictionary mapping attribute UUIDs to their friendly names
 
     Returns:
         DataFrame with converted attribute values and converter columns removed
     """
-    for attr_name, attr_uuid in attributes.items():
+    for attr_uuid, attr_name in attributes.items():
         value_col = attr_uuid
         converter_col = get_converter_column_name(attr_uuid)
 

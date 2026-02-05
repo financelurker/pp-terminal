@@ -17,6 +17,8 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
+import logging
+
 import pandas as pd
 import numpy as np
 import pytest
@@ -39,7 +41,7 @@ def test_convert_percent_plain_converter() -> None:
         ]
     })
 
-    attributes = {'test-attr': attr_uuid}
+    attributes = {attr_uuid: 'test-attr'}
     result = convert_attribute_types(df, attributes)
 
     assert result.loc[0, attr_uuid] == pytest.approx(0.30)
@@ -62,7 +64,7 @@ def test_convert_percent_converter() -> None:
         ]
     })
 
-    attributes = {'test-attr': attr_uuid}
+    attributes = {attr_uuid: 'test-attr'}
     result = convert_attribute_types(df, attributes)
 
     assert result.loc[0, attr_uuid] == pytest.approx(0.30)
@@ -83,7 +85,7 @@ def test_convert_date_converter() -> None:
         ]
     })
 
-    attributes = {'test-date-attr': attr_uuid}
+    attributes = {attr_uuid: 'test-date-attr'}
     result = convert_attribute_types(df, attributes)
 
     assert pd.Timestamp(result.loc[0, attr_uuid]) == pd.Timestamp('2025-12-31')
@@ -103,7 +105,7 @@ def test_convert_long_converter() -> None:
         ]
     })
 
-    attributes = {'test-long-attr': attr_uuid}
+    attributes = {attr_uuid: 'test-long-attr'}
     result = convert_attribute_types(df, attributes)
 
     assert result.loc[0, attr_uuid] == pytest.approx(100000.0)
@@ -123,7 +125,7 @@ def test_convert_string_converter() -> None:
         ]
     })
 
-    attributes = {'test-string-attr': attr_uuid}
+    attributes = {attr_uuid: 'test-string-attr'}
     result = convert_attribute_types(df, attributes)
 
     assert result.loc[0, attr_uuid] == 'Value 1'
@@ -132,7 +134,6 @@ def test_convert_string_converter() -> None:
 
 
 def test_convert_unknown_converter(caplog: LogCaptureFixture) -> None:
-    """Test handling of unknown converter type (keeps raw value with warning)."""
     attr_uuid = 'test-attr-uuid-006'
     df = pd.DataFrame({
         'name': ['ETF Unknown'],
@@ -141,7 +142,9 @@ def test_convert_unknown_converter(caplog: LogCaptureFixture) -> None:
         f'{get_converter_column_name(attr_uuid)}': ['some.unknown.Converter'],
     })
 
-    attributes = {'test-unknown-attr': attr_uuid}
+    attributes = {attr_uuid: 'test-unknown-attr'}
+
+    caplog.set_level(logging.DEBUG)
     result = convert_attribute_types(df, attributes)
 
     # Unknown converter should keep raw value
@@ -159,7 +162,7 @@ def test_convert_invalid_format(caplog: LogCaptureFixture) -> None:
         f'{get_converter_column_name(attr_uuid)}': ['name.abuchen.portfolio.model.AttributeType$PercentPlainConverter'],
     })
 
-    attributes = {'test-invalid-attr': attr_uuid}
+    attributes = {attr_uuid: 'test-invalid-attr'}
     result = convert_attribute_types(df, attributes)
 
     # Invalid format should be set to NaN
@@ -180,7 +183,7 @@ def test_convert_missing_values(caplog: LogCaptureFixture) -> None:
         ]
     })
 
-    attributes = {'test-missing-attr': attr_uuid}
+    attributes = {attr_uuid: 'test-missing-attr'}
     result = convert_attribute_types(df, attributes)
 
     # All should remain NaN
@@ -214,8 +217,8 @@ def test_convert_multiple_attributes() -> None:
     })
 
     attributes = {
-        'exemption-rate': attr1_uuid,
-        'valid-until': attr2_uuid
+        attr1_uuid: 'exemption-rate',
+        attr2_uuid: 'valid-until'
     }
     result = convert_attribute_types(df, attributes)
 

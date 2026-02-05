@@ -30,6 +30,7 @@ from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.schemas import TransactionType, AccountType, Percent, Money, VapResultSchema
 from pp_terminal.commands.simulate_vap import calculate
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
+from tests.data.conftest import EXEMPTION_RATE_CONFIG
 
 
 @pytest.fixture(name='sample_securities')
@@ -223,3 +224,29 @@ def test_empty_file(request: TopRequest) -> None:
     result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375)
 
     assert result is None
+
+
+def test_custom_exemption_rate_produces_positive_vap(request: TopRequest) -> None:
+    portfolio = PpPortfolioBuilder(config=EXEMPTION_RATE_CONFIG).construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(2023, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(2023, 12, 31))
+
+    result = calculate(
+        snapshot_begin,
+        snapshot_end,
+        base_rate_percent=2.0,
+        tax_rate_percent=26.375,
+        default_exemption_rate_percent=30.0,
+        exempt_rate_attr_uuid=EXEMPTION_RATE_CONFIG['attributes']['securities']['exemption-rate']
+    )
+
+    assert result is not None
+
+    vap_values = result[result['name'] != 'Related Account Balance']
+    account_columns = [col for col in vap_values.columns if col not in ['wkn', 'name', 'currency']]
+
+    for col in account_columns:
+        for idx, value in vap_values[col].items():
+            if pd.notna(value):
+                assert value >= 0, f"VAP should be non-negative, got {value} for {vap_values.loc[idx, 'name']} in {col}"

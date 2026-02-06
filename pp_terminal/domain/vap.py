@@ -222,30 +222,8 @@ def calculate_vap(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     vap = pd.merge(snapshot_period_end.portfolio.securities[['wkn', 'name', 'currency']], vap, left_index=True, right_index=True, how='right', validate='one_to_one').sort_values(by='name')
 
     securities_accounts = snapshot_period_end.portfolio.securities_accounts
-    if not securities_accounts.empty and 'referenceAccount' in securities_accounts:
-        # add the reference account balance
-        vap.loc[len(vap)] = (
-            pd.merge(
-                securities_accounts,
-                snapshot_period_end.balances.groupby(['accountId']).sum(),
-                left_on='referenceAccount',
-                right_index=True,
-                how='left',
-                validate='many_to_one'
-            )['balance'].dropna().to_dict()
-            | {'name': 'Related Account Balance', 'currency': snapshot_period_end.portfolio.base_currency}
-        )
-
     result = vap.rename(columns=securities_accounts['name'])
     return VapResultSchema.validate(result)
-
-
-def _extract_vap_data_excluding_balance(vap_detailed: DataFrame[VapResultSchema]) -> pd.DataFrame:
-    """Extract VAP data excluding the 'Related Account Balance' row."""
-    balance_row_index = vap_detailed[vap_detailed['name'] == 'Related Account Balance'].index
-    if len(balance_row_index) > 0:
-        return vap_detailed.drop(balance_row_index)
-    return vap_detailed
 
 
 def calculate_vap_by_security(
@@ -278,14 +256,12 @@ def calculate_vap_by_security(
     if vap_detailed is None or vap_detailed.empty:
         return None
 
-    vap_data = _extract_vap_data_excluding_balance(vap_detailed)
-    account_columns = [col for col in vap_data.columns if col not in ['wkn', 'name', 'currency']]
-
+    account_columns = [col for col in vap_detailed.columns if col not in ['wkn', 'name', 'currency']]
     if not account_columns:
         return None
 
-    vap_data['total_vap'] = vap_data[account_columns].sum(axis=1)
-    result: dict[str, Money] = {str(k): Money(v) for k, v in vap_data['total_vap'].to_dict().items()}
+    vap_detailed['total_vap'] = vap_detailed[account_columns].sum(axis=1)
+    result: dict[str, Money] = {str(k): Money(v) for k, v in vap_detailed['total_vap'].to_dict().items()}
     return result
 
 
@@ -319,14 +295,13 @@ def calculate_vap_by_account(  # pylint: disable=too-many-arguments,too-many-pos
     if vap_detailed is None or vap_detailed.empty:
         return None
 
-    vap_data = _extract_vap_data_excluding_balance(vap_detailed)
-    account_columns = [col for col in vap_data.columns if col not in ['wkn', 'name', 'currency']]
+    account_columns = [col for col in vap_detailed.columns if col not in ['wkn', 'name', 'currency']]
     if not account_columns:
         return None
 
     vap_totals_by_securities_account = {}
     for col in account_columns:
-        total = vap_data[col].sum()
+        total = vap_detailed[col].sum()
         if pd.notna(total) and total > 0:
             vap_totals_by_securities_account[col] = total
 
@@ -352,3 +327,33 @@ def calculate_vap_by_account(  # pylint: disable=too-many-arguments,too-many-pos
             )
 
     return vap_by_deposit_account if vap_by_deposit_account else None
+
+
+def add_balance_info_to_vap(
+        vap_result: DataFrame[VapResultSchema],
+        portfolio: Portfolio,
+        snapshot_end: PortfolioSnapshot
+) -> DataFrame[VapResultSchema]:
+    """
+    Add reference account balance row to VAP result for display purposes.
+
+    Returns:
+        VAP result with balance row appended at the end.
+    """
+    securities_accounts = portfolio.securities_accounts
+    if securities_accounts.empty or 'referenceAccount' not in securities_accounts:
+        return vap_result
+
+    balance_by_account = pd.merge(
+        securities_accounts,
+        snapshot_end.balances.groupby(['accountId']).sum(),
+        left_on='referenceAccount',
+        right_index=True,
+        how='left',
+        validate='many_to_one'
+    ).set_index('name')['balance'].dropna().to_dict()
+
+    balance_data = balance_by_account | {'name': 'Related Account Balance', 'currency': portfolio.base_currency}
+
+    vap_result.loc[len(vap_result)] = balance_data
+    return VapResultSchema.validate(vap_result)

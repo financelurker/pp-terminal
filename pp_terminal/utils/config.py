@@ -33,6 +33,19 @@ type Config = Dict[str, Any]
 _loaded_config: Config = {}
 
 
+def get_tax_rate(config: Config) -> float:
+    return float(config.get('tax', {}).get('rate', 26.375))
+
+
+def get_exemption_rate(config: Config) -> float:
+    return float(config.get('tax', {}).get('exemption-rate', 30.0))
+
+
+def get_exemption_rate_attribute(config: Config) -> str | None:
+    value = config.get('tax', {}).get('exemption-rate-attribute')
+    return str(value) if value is not None else None
+
+
 
 def _load_schema() -> dict[str, Any]:
     schema_path = Path(__file__).parent.parent / 'config.schema.json'

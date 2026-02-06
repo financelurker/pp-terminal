@@ -25,14 +25,14 @@ import pandas as pd
 import typer
 from typing_extensions import Annotated
 
-from pp_terminal.utils.config import Config
+from pp_terminal.utils.config import Config, get_exemption_rate_attribute
 from pp_terminal.utils.helper import get_last_year, footer
 from pp_terminal.utils.options import tax_rate_callback, exemption_rate_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import Percent, Money
-from pp_terminal.domain.vap import calculate_vap, get_base_rate_for_year
+from pp_terminal.domain.vap import calculate_vap, get_base_rate_for_year, add_balance_info_to_vap
 from pp_terminal.output.table_decorator import TableOptions, format_value
 
 app = typer.Typer()
@@ -77,9 +77,7 @@ def print_tax_table(  # pylint: disable=too-many-locals
     output = cast(OutputStrategy, ctx.obj.output)
     config = cast(Config, ctx.obj.config)
 
-    exempt_rate_uuid = None
-    if config:
-        exempt_rate_uuid = config.get('tax', {}).get('exemption-rate-attribute')
+    exempt_rate_uuid = get_exemption_rate_attribute(config)
 
     console.print(output.hint('You can define the exemption rate per each security individually by creating a custom security attribute of type "Percent Number" in Portfolio Performance and add it to pp-terminal configuration file.'))
 
@@ -87,15 +85,12 @@ def print_tax_table(  # pylint: disable=too-many-locals
     snapshot_end = PortfolioSnapshot(portfolio, datetime(year.year, 12, 31))
 
     result = calculate_vap(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate, exempt_rate_uuid)
-    result = result.round(2) if result is not None else result
 
     vap_totals = {}
     if result is not None and not result.empty:
-        balance_row_index = result[result['name'] == 'Related Account Balance'].index
-        if len(balance_row_index) > 0:
-            vap_data = result.drop(balance_row_index)
-            account_columns = [col for col in result.columns if col not in ['wkn', 'name', 'currency']]
-            vap_totals = vap_data[account_columns].sum().to_dict()
+        account_columns = [col for col in result.columns if col not in ['wkn', 'name', 'currency']]
+        vap_totals = result[account_columns].sum().to_dict()
+        result = add_balance_info_to_vap(result, portfolio, snapshot_end)
 
     def format_value_with_balance_check(value: Any, index: str, row: pd.Series) -> str:
         if 'name' in row.index and row['name'] == 'Related Account Balance' and isinstance(value, Money) and index in vap_totals:

@@ -29,7 +29,7 @@ from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
 from pp_terminal.domain.schemas import TransactionType, AccountType, VapResultSchema
-from pp_terminal.domain.vap_calculator import calculate_vap
+from pp_terminal.domain.vap import calculate_vap
 
 
 @pytest.fixture(name='sell_test_accounts')

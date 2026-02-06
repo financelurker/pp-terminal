@@ -32,7 +32,7 @@ from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import Percent, Money
-from pp_terminal.domain.vap_calculator import calculate_vap, get_base_rate_for_year
+from pp_terminal.domain.vap import calculate_vap, get_base_rate_for_year
 from pp_terminal.output.table_decorator import TableOptions, format_value
 
 app = typer.Typer()

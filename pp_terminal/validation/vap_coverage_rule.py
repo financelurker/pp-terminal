@@ -23,7 +23,7 @@ import logging
 import pandas as pd
 
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.vap_calculator import calculate_total_vap_by_account
+from pp_terminal.domain.vap import calculate_total_vap_by_account
 from pp_terminal.validation.base import ValidationRule
 
 log = logging.getLogger(__name__)

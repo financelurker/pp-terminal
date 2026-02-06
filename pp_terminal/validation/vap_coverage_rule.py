@@ -1,0 +1,75 @@
+"""
+    Copyright (C) 2025-26 Dipl.-Ing. Christoph Massmann <chris@dev-investor.de>
+
+    This file is part of pp-terminal.
+
+    pp-terminal is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    pp-terminal is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
+"""
+
+from datetime import datetime
+from typing import Any, cast
+import logging
+import pandas as pd
+
+from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.vap_calculator import calculate_total_vap_by_account
+from pp_terminal.validation.base import ValidationRule
+
+log = logging.getLogger(__name__)
+
+
+class VapCoverageRule(ValidationRule):
+    """Validates that deposit account has sufficient balance to cover VAP liability."""
+
+    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:  # pylint: disable=too-many-locals
+        is_error, message = super().validate(entity, entity_id, context)
+        if not self._should_apply():
+            return is_error, message
+
+        now = datetime.now()
+        vap_year = now.year if now.month == 12 else now.year - 1
+
+        portfolio = cast(Portfolio, context.get('portfolio'))
+        config = context.get('config', {})
+        balance = context.get('balance', 0.0)
+
+        if not portfolio:
+            log.debug('VAP coverage check skipped: no portfolio in context')
+            return False, None
+
+        tax_config = config.get('tax', {})
+        tax_rate = tax_config.get('rate', 26.375)
+        exemption_rate = tax_config.get('exemption-rate', 30.0)
+        exempt_rate_attr = tax_config.get('exemption-rate-attribute')
+
+        vap_totals = calculate_total_vap_by_account(
+            portfolio, vap_year, tax_rate,
+            exemption_rate, exempt_rate_attr
+        )
+
+        if vap_totals is None:
+            log.debug('VAP coverage check skipped for account %s: no VAP calculated', entity_id)
+            return False, None
+
+        vap_liability = vap_totals.get(entity_id, 0.0)
+        if vap_liability == 0.0:
+            log.debug('VAP coverage check skipped for account %s: no VAP liability', entity_id)
+            return False, None
+
+        if balance < vap_liability:
+            currency = entity.get('currency', 'EUR')
+            message = f'insufficient balance ({balance:.2f} {currency}) to cover estimated VAP liability ({vap_liability:.2f} {currency}) for {vap_year}'
+            return self.is_error(), message
+
+        return False, None

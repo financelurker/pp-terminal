@@ -28,7 +28,7 @@ import pytest
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.schemas import TransactionType, AccountType, Percent, Money, VapResultSchema
-from pp_terminal.commands.simulate_vap import calculate
+from pp_terminal.domain.vap_calculator import calculate_vap
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
 from tests.data.conftest import EXEMPTION_RATE_CONFIG
 
@@ -66,7 +66,7 @@ def test_calculate_empty_if_no_securities_accounts(sample_accounts: pd.DataFrame
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2022, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2022, 12, 31))
 
-    result = calculate(snapshot_begin, snapshot_end, 2.29, 26.375)
+    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375)
 
     assert result is None
 
@@ -80,7 +80,7 @@ def test_calculate_empty_if_no_security_prices(sample_accounts: pd.DataFrame, sa
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2022, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2022, 12, 31))
 
-    result = calculate(snapshot_begin, snapshot_end, 2.29, 26.375)
+    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375)
 
     assert result is None
 
@@ -94,7 +94,7 @@ def test_inyear_buy(sample_accounts: pd.DataFrame, sample_transactions: pd.DataF
     expected_df.index.name = 'securityId'
     expected_df = VapResultSchema.validate(expected_df)
 
-    result = calculate(snapshot_begin, snapshot_end, 2.29, 26.375)
+    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375)
 
     assert result is not None
     assert_frame_equal(expected_df, result.round(2))
@@ -142,7 +142,7 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
     expected_df.index.name = 'securityId'
     expected_df = VapResultSchema.validate(expected_df)
 
-    result = calculate(snapshot_begin, snapshot_end, base_rate_percent, 26.375 * 0.7)
+    result = calculate_vap(snapshot_begin, snapshot_end, base_rate_percent, 26.375 * 0.7)
 
     if expected_tax_value == 0:
         assert result is None
@@ -174,7 +174,7 @@ def test_kommer_2021(request: TopRequest) -> None:
     expected_df.index.name = 'securityId'
     expected_df = VapResultSchema.validate(expected_df)
 
-    result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375)
+    result = calculate_vap(snapshot_begin, snapshot_end, 2.0, 26.375)
 
     assert_frame_equal(expected_df, result)
 
@@ -209,7 +209,7 @@ def test_kommer_2023(request: TopRequest) -> None:
     expected_df.index.name = 'securityId'
     expected_df = VapResultSchema.validate(expected_df)
 
-    result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375, 30.0, config['attributes']['securities']['exemption-rate'])
+    result = calculate_vap(snapshot_begin, snapshot_end, 2.0, 26.375, 30.0, config['attributes']['securities']['exemption-rate'])
 
     assert result is not None
     assert_frame_equal(expected_df, result.round(5))
@@ -221,7 +221,7 @@ def test_empty_file(request: TopRequest) -> None:
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
 
-    result = calculate(snapshot_begin, snapshot_end, 2.0, 26.375)
+    result = calculate_vap(snapshot_begin, snapshot_end, 2.0, 26.375)
 
     assert result is None
 
@@ -232,7 +232,7 @@ def test_custom_exemption_rate_produces_positive_vap(request: TopRequest) -> Non
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2023, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2023, 12, 31))
 
-    result = calculate(
+    result = calculate_vap(
         snapshot_begin,
         snapshot_end,
         base_rate_percent=2.0,

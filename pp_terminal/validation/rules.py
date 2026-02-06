@@ -17,7 +17,6 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
@@ -25,74 +24,22 @@ import logging
 import pandas as pd
 from pandera.typing import DataFrame
 
-from pp_terminal.data.cost_basis import calculate_total_cost_basis
 from pp_terminal.data.filters import filter_by_security
 from pp_terminal.data.tax import load_prepaid_tax_data_from_csv
+from pp_terminal.domain.cost_basis import calculate_total_cost_basis
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TaxPaidSchema
+from pp_terminal.validation.base import ValidationRule
+from pp_terminal.validation.vap_coverage_rule import VapCoverageRule
 
 log = logging.getLogger(__name__)
 
 
-class ValidationRule(ABC):
-    def __init__(
-        self,
-        rule_type: str,
-        value: Any,
-        severity: str = 'error',
-        applies_to: list[str] | None = None
-    ):
-        self.rule_type = rule_type
-        self._value = value
-        self.severity = severity
-        self.applies_to = applies_to
-
-    @abstractmethod
-    def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
-        """
-        Validate entity and return (is_error, message) tuple.
-
-        Returns:
-            tuple[bool, str | None]:
-                - First element: True if error occurred (severity='error' and validation failed)
-                - Second element: Violation message if validation failed, None otherwise
-        """
-        log.debug('Validating %s of "%s" (%s) using value %s %s', str(self), entity["name"], entity_id, str(self._get_value(entity)), '(' + str(self._value) + ')' if self._value != self._get_value(entity) else '')
-
-        return (False, None)
-
-    def matches_entity(self, entity: pd.Series, entity_id: str) -> bool:
-        if self.rule_type.endswith('-from-attribute'):
-            attr_uuid = self._value
-            return attr_uuid in entity.index and pd.notna(entity.get(attr_uuid))
-
-        if self.applies_to is not None:
-            return entity_id in self.applies_to
-
-        return True
-
-    def _get_value(self, entity: pd.Series) -> Any:
-        if self.rule_type.endswith('-from-attribute'):
-            attr_uuid = self._value
-            return entity.get(attr_uuid)
-        return self._value
-
-    def log_violation(self, message: str) -> None:
-        if self.severity == 'error':
-            log.error(message)
-        else:
-            log.warning(message)
-
-    def is_error(self) -> bool:
-        return bool(self.severity == 'error')
-
-    def __str__(self) -> str:
-        return self.rule_type
-
-
 class BalanceLimitRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
-        super().validate(entity, entity_id, context)
+        is_error, message = super().validate(entity, entity_id, context)
+        if not self._should_apply():
+            return is_error, message
 
         limit = self._get_value(entity)
         balance = context['balance']
@@ -105,7 +52,9 @@ class BalanceLimitRule(ValidationRule):
 
 class DatePassedRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
-        super().validate(entity, entity_id, context)
+        is_error, message = super().validate(entity, entity_id, context)
+        if not self._should_apply():
+            return is_error, message
 
         date_value = self._get_value(entity)
 
@@ -133,7 +82,9 @@ class DatePassedRule(ValidationRule):
 
 class PriceStalenessRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
-        super().validate(entity, entity_id, context)
+        is_error, message = super().validate(entity, entity_id, context)
+        if not self._should_apply():
+            return is_error, message
 
         max_days = self._get_value(entity)
         latest_price_date = context.get('latest_price_date')
@@ -153,7 +104,9 @@ class PriceStalenessRule(ValidationRule):
 
 class PriceLimitRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
-        super().validate(entity, entity_id, context)
+        is_error, message = super().validate(entity, entity_id, context)
+        if not self._should_apply():
+            return is_error, message
 
         limit = self._get_value(entity)
         current_price = context.get('current_price')
@@ -170,7 +123,9 @@ class PriceLimitRule(ValidationRule):
 
 class PurchaseCostLimitRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
-        super().validate(entity, entity_id, context)
+        is_error, message = super().validate(entity, entity_id, context)
+        if not self._should_apply():
+            return is_error, message
 
         limit = self._get_value(entity)
         portfolio = cast(Portfolio, context.get('portfolio'))
@@ -200,7 +155,7 @@ class PurchaseCostLimitRule(ValidationRule):
         return load_prepaid_tax_data_from_csv(Path(tax_csv_path), tax_rate)
 
 
-RULE_TYPES = {
+_RULE_TYPES = {
     'balance-limit': BalanceLimitRule,
     'balance-limit-from-attribute': BalanceLimitRule,
     'date-passed-from-attribute': DatePassedRule,
@@ -209,25 +164,28 @@ RULE_TYPES = {
     'price-limit-from-attribute': PriceLimitRule,
     'purchase-cost-limit': PurchaseCostLimitRule,
     'purchase-cost-limit-from-attribute': PurchaseCostLimitRule,
+    'vap-coverage': VapCoverageRule,
 }
 
 
 def create_rule(rule_config: dict[str, Any]) -> ValidationRule:
     rule_type = rule_config['type']
-    if rule_type not in RULE_TYPES:
+    if rule_type not in _RULE_TYPES:
         raise ValueError(f'Unknown rule type: {rule_type}')
 
-    value = rule_config['value']
+    value = rule_config.get('value', None)
     severity = rule_config.get('severity', 'error')
     applies_to = rule_config.get('applies-to', None)
+    valid_months = rule_config.get('valid-months', None)
 
-    rule_class = RULE_TYPES[rule_type]
-    return rule_class(
+    rule_class = _RULE_TYPES[rule_type]
+    return rule_class(  # type: ignore[abstract]
         rule_type=rule_type,
         value=value,
         severity=severity,
-        applies_to=applies_to
-    )  # type: ignore[abstract]
+        applies_to=applies_to,
+        valid_months=valid_months
+    )
 
 
 def get_applicable_rules(entity_id: str, entity: pd.Series, rules: list[ValidationRule]) -> list[ValidationRule]:

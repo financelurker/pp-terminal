@@ -24,8 +24,8 @@ from typing import cast
 from typing_extensions import Annotated
 
 import typer
-from pp_terminal.data.cost_basis import calculate_fifo_sell
 from pp_terminal.data.filters import filter_by_account_and_security
+from pp_terminal.domain.cost_basis import calculate_fifo_sell
 
 from pp_terminal.data.tax import load_prepaid_tax_data_from_csv
 from pp_terminal.exceptions import InputError

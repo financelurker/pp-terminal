@@ -26,7 +26,8 @@ from pp_terminal.data.filters import filter_not_retired
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.utils.config import get_command_config
-from .rules import ValidationRule, create_rule, get_applicable_rules
+from .base import ValidationRule
+from .rules import create_rule, get_applicable_rules
 
 
 @dataclass
@@ -108,6 +109,7 @@ def validate_accounts(
             'balance': account['TotalBalance'],
             'portfolio': portfolio,
             'snapshot': snapshot,
+            'config': config,
         }
         result = _validate_entity(str(account_id), account, rules, context)
         results[str(account_id)] = result

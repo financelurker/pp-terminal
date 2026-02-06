@@ -24,223 +24,22 @@ from typing import Any, cast
 import pandas as pd
 import typer
 from typing_extensions import Annotated
-import numpy as np
-from pandera.typing import DataFrame
 
-from pp_terminal.data.filters import filter_by_type, drop_empty_values
 from pp_terminal.utils.config import Config
 from pp_terminal.utils.helper import get_last_year, footer
 from pp_terminal.utils.options import tax_rate_callback, exemption_rate_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
-from pp_terminal.output.strategy_excel import ExcelOutputStrategy
-from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot, _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.schemas import TransactionType, Percent, Money, VapResultSchema
+from pp_terminal.domain.schemas import Percent, Money
+from pp_terminal.domain.vap_calculator import calculate_vap, get_base_rate_for_year
 from pp_terminal.output.table_decorator import TableOptions, format_value
 
 app = typer.Typer()
 console = Console()
 log = logging.getLogger(__name__)
 
-_debug_data: dict[str, pd.DataFrame | None] = {}
 begin = None  # pylint: disable=invalid-name
-
-# Basiszinssatz (base interest rate) by year for German tax calculations
-# @link https://www.bundesbank.de/de/statistiken/geld-und-kapitalmaerkte/zinssaetze-und-renditen/basiszinssatz
-_BASE_RATE_BY_YEAR: dict[int, Percent] = {
-    2016: 1.1,
-    2018: 0.87,
-    2019: 0.52,
-    2020: 0.07,
-    2021: -0.45,
-    2022: -0.05,
-    2023: 2.55,
-    2024: 2.29,
-    2025: 2.53,
-    2026: 3.2,
-}
-
-
-# @see https://www.gesetze-im-internet.de/invstg_2018/__18.html
-def calculate(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
-        snapshot_period_begin: PortfolioSnapshot,
-        snapshot_period_end: PortfolioSnapshot,
-        base_rate_percent: Percent,
-        tax_rate_percent: Percent,
-        default_exemption_rate_percent: Percent = 30.0,
-        exempt_rate_attr_uuid: str | None = None
-) -> DataFrame[VapResultSchema] | None:
-    base_rate = max(base_rate_percent, 0) / 100
-
-    payouts = _calculate_payouts(snapshot_period_end)
-    _debug_data['payouts'] = payouts.reset_index() if payouts is not None else None
-
-    # @todo convert all values to EUR with rates from ECB, for the moment we simply remove currency
-    # Calculate begin values only for shares held continuously from year start to year end
-    shares_begin = snapshot_period_begin.shares
-    shares_end = snapshot_period_end.shares
-
-    if shares_begin is not None and shares_end is not None and not shares_begin.empty and not shares_end.empty:
-        # Calculate minimum position during the year to detect complete sells
-        min_shares_during_year = _calculate_minimum_shares_during_year(snapshot_period_end)
-
-        if min_shares_during_year is not None:
-            # Only count shares held continuously (never went to zero)
-            effective_begin_shares = shares_begin.combine(min_shares_during_year, min, fill_value=0).clip(lower=0)
-        else:
-            # Fallback: cap by end shares (assumes continuous holding)
-            effective_begin_shares = shares_begin.combine(shares_end, min, fill_value=0).clip(lower=0)
-
-        effective_begin_shares.name = 'shares'
-
-        # Calculate begin values using continuously held shares
-        begin_values_in_eur = (snapshot_period_begin.latest_prices * effective_begin_shares).groupby(['accountId', 'securityId']).sum()
-    else:
-        begin_values_in_eur = snapshot_period_begin.values.groupby(['accountId', 'securityId']).sum()
-
-    end_values_in_eur = snapshot_period_end.values.groupby(['accountId', 'securityId']).sum()
-
-    # use df.subtract to align both matrices
-    outcome = end_values_in_eur.subtract(begin_values_in_eur, fill_value=0)
-    outcome.name = 'Outcome'
-    _debug_data['outcome'] = outcome.reset_index()
-
-    # for securities that have been bought within the year we need to take the number of months held into account
-    pro_rata_shares = _calculate_prorata_shares_for_inyear_buys(snapshot_period_end)
-    modified_values_begin = begin_values_in_eur.add(pro_rata_shares.mul(snapshot_period_begin.latest_prices, fill_value=0), fill_value=0) if pro_rata_shares is not None else snapshot_period_begin.values
-
-    base_yield = modified_values_begin * base_rate * 0.7
-    base_yield = outcome.combine(base_yield, np.minimum)
-    base_yield.name = 'Base Yield'
-    _debug_data['base_yield'] = base_yield.reset_index()
-
-    vap = base_yield.subtract(payouts, fill_value=0) if payouts is not None else base_yield
-    vap = vap.clip(lower=0).fillna(0)  # replace negative values with zero
-
-    vap = vap * tax_rate_percent / 100
-
-    # Apply exemption rate if configured
-    if exempt_rate_attr_uuid and exempt_rate_attr_uuid in snapshot_period_end.portfolio.securities.columns:
-        exempt_rate_per_security = (1 - snapshot_period_end.portfolio.securities[[exempt_rate_attr_uuid]]
-                                    .astype(float)
-                                    .fillna(default_exemption_rate_percent / 100)
-                                    .rename(columns={exempt_rate_attr_uuid: 0}))  # column name must match vap
-        vap = exempt_rate_per_security.mul(vap.to_frame(), level='securityId')
-
-    if not vap.empty:
-        vap = vap.unstack(level='accountId')
-        # Only extract from tuple if it's a MultiIndex
-        if isinstance(vap.columns, pd.MultiIndex):
-            vap.columns = [col[1] if len(col) > 1 else col[0] for col in vap.columns]
-
-    vap = vap.pipe(drop_empty_values)
-    if vap.empty:
-        return None
-
-    vap = pd.merge(snapshot_period_end.portfolio.securities[['wkn', 'name', 'currency']], vap, left_index=True, right_index=True, how='right', validate='one_to_one').sort_values(by='name')
-
-    securities_accounts = snapshot_period_end.portfolio.securities_accounts
-    if not securities_accounts.empty and 'referenceAccount' in securities_accounts:
-        # add the reference account balance
-        vap.loc[len(vap)] = (
-            pd.merge(
-                securities_accounts,
-                snapshot_period_end.balances.groupby(['accountId']).sum(),
-                left_on='referenceAccount',
-                right_index=True,
-                how='left',
-                validate='many_to_one'
-            )['balance'].dropna().to_dict()
-            | {'name': 'Related Account Balance', 'currency': snapshot_period_end.portfolio.base_currency}
-        )
-
-    result = vap.rename(columns=securities_accounts['name'])
-    return VapResultSchema.validate(result)
-
-
-def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series:
-    transactions = snapshot_end.securities_account_transactions
-    transactions = transactions[transactions.index.get_level_values('date').year == snapshot_end.date.year] if not transactions.index.get_level_values('date').empty else transactions
-
-    payouts = transactions.pipe(filter_by_type, transaction_types=TransactionType.DIVIDENDS).groupby(['accountId', 'securityId'])['amount'].sum()
-    payouts.name = 'Payouts'
-
-    return payouts
-
-
-def _calculate_minimum_shares_during_year(snapshot_end: PortfolioSnapshot) -> pd.Series | None:  # pylint: disable=too-many-locals
-    """
-    Calculate the minimum share position during the tax year for each security.
-    This detects if a position went to zero (complete sell) and was then rebought.
-    Returns minimum shares held at any point during the year.
-    """
-    transactions = snapshot_end.securities_account_transactions
-
-    # Get year-start position
-    year_start = datetime(snapshot_end.date.year, 1, 2)
-    snapshot_begin = PortfolioSnapshot(snapshot_end.portfolio, year_start)
-    begin_shares = snapshot_begin.shares
-
-    if begin_shares is None or begin_shares.empty:
-        # No position at year start, minimum is 0 for all
-        return None
-
-    # Get only in-year transactions
-    transactions_inyear = transactions[
-        transactions.index.get_level_values('date').year == snapshot_end.date.year
-    ] if not transactions.index.get_level_values('date').empty else pd.DataFrame()
-
-    if transactions_inyear.empty:
-        # No transactions during year, minimum = begin shares
-        return begin_shares
-
-    # Calculate cumulative changes during the year
-    def sign_shares(row: pd.Series) -> float:
-        return float(-row['shares'] if row['type'] in [t.value for t in _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES] else row['shares'])
-
-    # Group by account/security and calculate minimum cumulative position
-    result_dict = {}
-
-    for (account_id, security_id, currency), begin_count in begin_shares.items():
-        # Get transactions for this specific account/security
-        mask = (
-            (transactions_inyear.index.get_level_values('accountId') == account_id) &
-            (transactions_inyear.index.get_level_values('securityId') == security_id)
-        )
-        security_txns = transactions_inyear[mask].copy() if mask.any() else pd.DataFrame()
-
-        if security_txns.empty:
-            # No transactions, min = begin
-            result_dict[(account_id, security_id, currency)] = begin_count
-        else:
-            # Calculate cumulative position starting from begin_count
-            security_txns = security_txns.reset_index().sort_values('date')
-            security_txns['signed_shares'] = security_txns.apply(sign_shares, axis=1)
-            cumulative = begin_count + security_txns['signed_shares'].cumsum()
-            min_position = min(begin_count, cumulative.min())
-            result_dict[(account_id, security_id, currency)] = max(0, min_position)
-
-    if not result_dict:
-        return None
-
-    index = pd.MultiIndex.from_tuples(result_dict.keys(), names=['accountId', 'securityId', 'currency'])
-    return pd.Series(list(result_dict.values()), index=index, name='MinShares')
-
-
-def _calculate_prorata_shares_for_inyear_buys(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
-    transactions = snapshot_end.securities_account_transactions
-
-    transactions_inyear = transactions[transactions.index.get_level_values('date').year == snapshot_end.date.year] if not transactions.index.get_level_values('date').empty else None
-    if transactions_inyear is None:
-        return pd.Series([], name='Amount', index=pd.MultiIndex.from_tuples([], names=['accountId', 'securityId']), dtype='float64')
-
-    transactions_inyear = transactions_inyear.pipe(filter_by_type, transaction_types=[TransactionType.BUY, TransactionType.DELIVERY_INBOUND])
-    transactions_inyear['months_held'] = snapshot_end.date.month - transactions_inyear.index.get_level_values('date').month + 1
-    transactions_inyear['shares_original'] = transactions_inyear['shares']
-    transactions_inyear['shares'] = transactions_inyear['shares'] * transactions_inyear['months_held']/12
-    _debug_data['transactions_inyear'] = transactions_inyear[['shares_original', 'months_held', 'shares']].reset_index(level='date', drop=True).sort_values(by=['accountId', 'securityId', 'months_held']).reset_index()
-
-    return transactions_inyear.groupby(['accountId', 'securityId'])['shares'].sum().abs()
 
 
 def set_begin(value: datetime | None) -> datetime | None:
@@ -256,27 +55,24 @@ def set_begin(value: datetime | None) -> datetime | None:
     return value
 
 
-def get_base_rate_percent_by_year() -> Percent | None:
-    """Get the base rate (Basiszinssatz) for the selected year."""
+def _get_base_rate_percent_by_year() -> Percent | None:
     if begin is None:
         return None
 
-    return _BASE_RATE_BY_YEAR.get(begin.year, 3.2)
+    return get_base_rate_for_year(begin.year)
 
 
 @app.command(name="vap")
 def print_tax_table(  # pylint: disable=too-many-locals
         ctx: typer.Context,
         year: Annotated[datetime, typer.Option(formats=["%Y"], help="The year to calculate the preliminary tax for", prompt=True, callback=set_begin, default_factory=get_last_year)],
-        base_rate: Annotated[Percent, typer.Option(help="The base rate (Basiszinssatz)", min=-100, max=100, prompt="Base Rate (%)", prompt_required=True, default_factory=get_base_rate_percent_by_year)],
+        base_rate: Annotated[Percent, typer.Option(help="The base rate (Basiszinssatz)", min=-100, max=100, prompt="Base Rate (%)", prompt_required=True, default_factory=_get_base_rate_percent_by_year)],
         tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, callback=tax_rate_callback)] = None,  # type: ignore
         exemption_rate: Annotated[Percent, typer.Option(help="Default exemption rate (Teilfreistellung), can be overwritten for each security.", min=0, max=100, callback=exemption_rate_callback)] = None  # type: ignore
 ) -> None:
     """
     Show a detailed table with calculated German preliminary tax values ("Vorabpauschale"/VAP) for a specified year, per each security and account.
     """
-    _debug_data.clear()
-
     portfolio = cast(Portfolio, ctx.obj.portfolio)
     output = cast(OutputStrategy, ctx.obj.output)
     config = cast(Config, ctx.obj.config)
@@ -290,7 +86,7 @@ def print_tax_table(  # pylint: disable=too-many-locals
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(year.year, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(year.year, 12, 31))
 
-    result = calculate(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate, exempt_rate_uuid)
+    result = calculate_vap(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate, exempt_rate_uuid)
     result = result.round(2) if result is not None else result
 
     vap_totals = {}
@@ -316,29 +112,6 @@ def print_tax_table(  # pylint: disable=too-many-locals
             value_formatter=format_value_with_balance_check
         )
     ))
-
-    # Add debug sheets if verbose and Excel format
-    verbose = cast(bool, ctx.obj.verbose)
-    is_excel = isinstance(output, ExcelOutputStrategy)
-
-    for key, df in _debug_data.items():
-        if df is None:
-            continue
-
-        if verbose and is_excel:
-            title = '(DBG) ' + key.replace('_', ' ').title()
-            result_output = output.result_table(
-                df,
-                TableOptions(
-                    title=title,
-                    show_index=False,
-                    show_total=False
-                )
-            )
-            if result_output is not None:
-                console.print(*result_output)
-        else:
-            log.debug(df)
 
     console.print(output.warning('This simulation assumes that all amounts are in EUR excl. Sparerpauschbetrag.'))
     console.print(output.text(footer()), style="dim")

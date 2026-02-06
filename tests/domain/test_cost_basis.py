@@ -25,8 +25,8 @@ import pandas as pd
 import pytest
 from _pytest.logging import LogCaptureFixture
 
-from pp_terminal.data.cost_basis import calculate_total_cost_basis
 from pp_terminal.data.filters import filter_by_security
+from pp_terminal.domain.cost_basis import calculate_total_cost_basis
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import AccountType, TransactionType
 

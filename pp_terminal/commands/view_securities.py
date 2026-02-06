@@ -22,8 +22,8 @@ from datetime import datetime
 from typing import cast
 
 import typer
-from pp_terminal.data.cost_basis import calculate_total_cost_basis
 from pp_terminal.data.filters import filter_by_security
+from pp_terminal.domain.cost_basis import calculate_total_cost_basis
 from pp_terminal.output.column_utils import normalize_columns
 from pp_terminal.utils.config import Config
 from pp_terminal.utils.helper import footer

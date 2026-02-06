@@ -9,13 +9,13 @@ For example, _pp-terminal_ includes a command to calculate the preliminary tax v
 
 ![Vorabpauschale command in pp-terminal](docs/sample_vorabpauschale.png)
 
-_pp-terminal_ is a lightweight tool for all the nice-to-have features that won't make it into the official Portfolio Performance app.
-This can be because of country-dependant tax rules, complex Java implementation, highly individual requirements, 
-too many edge-cases, etc.
-
 > [!IMPORTANT]
 > I am not a tax consultant. All results of this application are just a non-binding indication and without guarantee.
 > They may deviate from the actual values.
+
+_pp-terminal_ is a lightweight tool for all the nice-to-have features that won't make it into the official Portfolio Performance app.
+This can be because of country-dependant tax rules, complex Java implementation, highly individual requirements, 
+too many edge-cases, etc.
 
 1. [Available Commands](#available-commands)
 2. [Requirements](#requirements)
@@ -115,6 +115,23 @@ value = 30
 type = "purchase-cost-limit"
 value = 500000.0
 severity = "warning"
+```
+
+#### Temporal Validation
+
+All validation rules optionally support temporal constraints through the `valid-months` configuration option. This allows rules to run only during specific months of the year:
+
+```toml
+# VAP coverage check runs only in December and January (when VAP is calculated)
+[[commands.validate.accounts.rules]]
+type = "vap-coverage"
+valid-months = [12, 1]  # 1=January, 12=December
+
+# Price staleness check runs only in March (e.g. for annual review)
+[[commands.validate.securities.rules]]
+type = "price-staleness"
+value = 90
+valid-months = [3]
 ```
 
 ### Export

@@ -21,8 +21,8 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
-from pp_terminal.data.cost_basis import calculate_fifo_sell
 from pp_terminal.data.filters import filter_by_account_and_security
+from pp_terminal.domain.cost_basis import calculate_fifo_sell
 
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TransactionSchema

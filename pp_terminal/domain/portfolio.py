@@ -19,6 +19,7 @@
 
 import logging
 
+import pandas as pd
 import pandera.pandas as pa
 from pandera.errors import SchemaError
 from pandera.typing import DataFrame
@@ -122,4 +123,7 @@ def get_security_by_id(portfolio: Portfolio, security_id: str) -> Security:
     if security_id not in portfolio.securities.index:
         raise InputError(f"Security '{security_id}' not found in portfolio")
 
-    return Security(**portfolio.securities.reset_index().set_index('securityId', drop=False).loc[security_id])
+    security_data = portfolio.securities.reset_index().set_index('securityId', drop=False).loc[security_id].to_dict()
+    # Replace NaN with None for optional fields
+    security_data = {k: (None if pd.isna(v) else v) for k, v in security_data.items()}
+    return Security(**security_data)

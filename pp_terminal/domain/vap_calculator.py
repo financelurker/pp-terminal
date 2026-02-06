@@ -1,0 +1,311 @@
+"""
+    Copyright (C) 2025-26 Dipl.-Ing. Christoph Massmann <chris@dev-investor.de>
+
+    This file is part of pp-terminal.
+
+    pp-terminal is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    pp-terminal is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
+"""
+
+from datetime import datetime
+import logging
+
+import pandas as pd
+import numpy as np
+from pandera.typing import DataFrame
+
+from pp_terminal.data.filters import filter_by_type, drop_empty_values
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot, _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES
+from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.schemas import TransactionType, Percent, Money, VapResultSchema
+
+log = logging.getLogger(__name__)
+
+# Basiszinssatz (base interest rate) by year for German tax calculations
+# @link https://www.bundesbank.de/de/statistiken/geld-und-kapitalmaerkte/zinssaetze-und-renditen/basiszinssatz
+_BASE_RATE_BY_YEAR: dict[int, Percent] = {
+    2016: 1.1,
+    2018: 0.87,
+    2019: 0.52,
+    2020: 0.07,
+    2021: -0.45,
+    2022: -0.05,
+    2023: 2.55,
+    2024: 2.29,
+    2025: 2.53,
+    2026: 3.2,
+}
+
+
+def get_base_rate_for_year(year: int, fallback: Percent = 3.2) -> Percent:
+    return _BASE_RATE_BY_YEAR.get(year, fallback)
+
+
+def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series:
+    """Calculate dividend payouts for the tax year."""
+    transactions = snapshot_end.securities_account_transactions
+    transactions = transactions[transactions.index.get_level_values('date').year == snapshot_end.date.year] if not transactions.index.get_level_values('date').empty else transactions
+
+    payouts = transactions.pipe(filter_by_type, transaction_types=TransactionType.DIVIDENDS).groupby(['accountId', 'securityId'])['amount'].sum()
+    payouts.name = 'Payouts'
+
+    return payouts
+
+
+def _calculate_minimum_shares_during_year(snapshot_end: PortfolioSnapshot) -> pd.Series | None:  # pylint: disable=too-many-locals
+    """
+    Calculate the minimum share position during the tax year for each security.
+    This detects if a position went to zero (complete sell) and was then rebought.
+    Returns minimum shares held at any point during the year.
+    """
+    transactions = snapshot_end.securities_account_transactions
+
+    # Get year-start position
+    year_start = datetime(snapshot_end.date.year, 1, 2)
+    snapshot_begin = PortfolioSnapshot(snapshot_end.portfolio, year_start)
+    begin_shares = snapshot_begin.shares
+
+    if begin_shares is None or begin_shares.empty:
+        # No position at year start, minimum is 0 for all
+        return None
+
+    # Get only in-year transactions
+    transactions_inyear = transactions[
+        transactions.index.get_level_values('date').year == snapshot_end.date.year
+    ] if not transactions.index.get_level_values('date').empty else pd.DataFrame()
+
+    if transactions_inyear.empty:
+        # No transactions during year, minimum = begin shares
+        return begin_shares
+
+    # Calculate cumulative changes during the year
+    def sign_shares(row: pd.Series) -> float:
+        return float(-row['shares'] if row['type'] in [t.value for t in _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES] else row['shares'])
+
+    # Group by account/security and calculate minimum cumulative position
+    result_dict = {}
+
+    for (account_id, security_id, currency), begin_count in begin_shares.items():
+        # Get transactions for this specific account/security
+        mask = (
+            (transactions_inyear.index.get_level_values('accountId') == account_id) &
+            (transactions_inyear.index.get_level_values('securityId') == security_id)
+        )
+        security_txns = transactions_inyear[mask].copy() if mask.any() else pd.DataFrame()
+
+        if security_txns.empty:
+            # No transactions, min = begin
+            result_dict[(account_id, security_id, currency)] = begin_count
+        else:
+            # Calculate cumulative position starting from begin_count
+            security_txns = security_txns.reset_index().sort_values('date')
+            security_txns['signed_shares'] = security_txns.apply(sign_shares, axis=1)
+            cumulative = begin_count + security_txns['signed_shares'].cumsum()
+            min_position = min(begin_count, cumulative.min())
+            result_dict[(account_id, security_id, currency)] = max(0, min_position)
+
+    if not result_dict:
+        return None
+
+    index = pd.MultiIndex.from_tuples(result_dict.keys(), names=['accountId', 'securityId', 'currency'])
+    return pd.Series(list(result_dict.values()), index=index, name='MinShares')
+
+
+def _calculate_prorata_shares_for_inyear_buys(snapshot_end: PortfolioSnapshot) -> pd.Series | None:
+    """Calculate pro-rata shares for securities bought during the tax year."""
+    transactions = snapshot_end.securities_account_transactions
+
+    transactions_inyear = transactions[transactions.index.get_level_values('date').year == snapshot_end.date.year] if not transactions.index.get_level_values('date').empty else None
+    if transactions_inyear is None:
+        return pd.Series([], name='Amount', index=pd.MultiIndex.from_tuples([], names=['accountId', 'securityId']), dtype='float64')
+
+    transactions_inyear = transactions_inyear.pipe(filter_by_type, transaction_types=[TransactionType.BUY, TransactionType.DELIVERY_INBOUND])
+    transactions_inyear['months_held'] = snapshot_end.date.month - transactions_inyear.index.get_level_values('date').month + 1
+    transactions_inyear['shares'] = transactions_inyear['shares'] * transactions_inyear['months_held']/12
+
+    return transactions_inyear.groupby(['accountId', 'securityId'])['shares'].sum().abs()
+
+
+# @see https://www.gesetze-im-internet.de/invstg_2018/__18.html
+def calculate_vap(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
+        snapshot_period_begin: PortfolioSnapshot,
+        snapshot_period_end: PortfolioSnapshot,
+        base_rate_percent: Percent,
+        tax_rate_percent: Percent,
+        default_exemption_rate_percent: Percent = 30.0,
+        exempt_rate_attr_uuid: str | None = None
+) -> DataFrame[VapResultSchema] | None:
+    """
+    Calculate detailed Vorabpauschale (VAP) for German tax purposes.
+
+    Returns:
+        DataFrame with VAP amounts per security and account, including deposit account balances.
+        Returns None if no VAP can be calculated.
+
+    Reference:
+        https://www.gesetze-im-internet.de/invstg_2018/__18.html
+    """
+    base_rate = max(base_rate_percent, 0) / 100
+
+    payouts = _calculate_payouts(snapshot_period_end)
+
+    # @todo convert all values to EUR with rates from ECB, for the moment we simply remove currency
+    # Calculate begin values only for shares held continuously from year start to year end
+    shares_begin = snapshot_period_begin.shares
+    shares_end = snapshot_period_end.shares
+
+    if shares_begin is not None and shares_end is not None and not shares_begin.empty and not shares_end.empty:
+        # Calculate minimum position during the year to detect complete sells
+        min_shares_during_year = _calculate_minimum_shares_during_year(snapshot_period_end)
+
+        if min_shares_during_year is not None:
+            # Only count shares held continuously (never went to zero)
+            effective_begin_shares = shares_begin.combine(min_shares_during_year, min, fill_value=0).clip(lower=0)
+        else:
+            # Fallback: cap by end shares (assumes continuous holding)
+            effective_begin_shares = shares_begin.combine(shares_end, min, fill_value=0).clip(lower=0)
+
+        effective_begin_shares.name = 'shares'
+
+        # Calculate begin values using continuously held shares
+        begin_values_in_eur = (snapshot_period_begin.latest_prices * effective_begin_shares).groupby(['accountId', 'securityId']).sum()
+    else:
+        begin_values_in_eur = snapshot_period_begin.values.groupby(['accountId', 'securityId']).sum()
+
+    end_values_in_eur = snapshot_period_end.values.groupby(['accountId', 'securityId']).sum()
+
+    # use df.subtract to align both matrices
+    outcome = end_values_in_eur.subtract(begin_values_in_eur, fill_value=0)
+    outcome.name = 'Outcome'
+
+    # for securities that have been bought within the year we need to take the number of months held into account
+    pro_rata_shares = _calculate_prorata_shares_for_inyear_buys(snapshot_period_end)
+    modified_values_begin = begin_values_in_eur.add(pro_rata_shares.mul(snapshot_period_begin.latest_prices, fill_value=0), fill_value=0) if pro_rata_shares is not None else snapshot_period_begin.values
+
+    base_yield = modified_values_begin * base_rate * 0.7
+    base_yield = outcome.combine(base_yield, np.minimum)
+    base_yield.name = 'Base Yield'
+
+    vap = base_yield.subtract(payouts, fill_value=0) if payouts is not None else base_yield
+    vap = vap.clip(lower=0).fillna(0)  # replace negative values with zero
+
+    vap = vap * tax_rate_percent / 100
+
+    # Apply exemption rate if configured
+    if exempt_rate_attr_uuid and exempt_rate_attr_uuid in snapshot_period_end.portfolio.securities.columns:
+        exempt_rate_per_security = (1 - snapshot_period_end.portfolio.securities[[exempt_rate_attr_uuid]]
+                                    .astype(float)
+                                    .fillna(default_exemption_rate_percent / 100)
+                                    .rename(columns={exempt_rate_attr_uuid: 0}))  # column name must match vap
+        vap = exempt_rate_per_security.mul(vap.to_frame(), level='securityId')
+
+    if not vap.empty:
+        vap = vap.unstack(level='accountId')
+        # Only extract from tuple if it's a MultiIndex
+        if isinstance(vap.columns, pd.MultiIndex):
+            vap.columns = [col[1] if len(col) > 1 else col[0] for col in vap.columns]
+
+    vap = vap.pipe(drop_empty_values)
+    if vap.empty:
+        return None
+
+    vap = pd.merge(snapshot_period_end.portfolio.securities[['wkn', 'name', 'currency']], vap, left_index=True, right_index=True, how='right', validate='one_to_one').sort_values(by='name')
+
+    securities_accounts = snapshot_period_end.portfolio.securities_accounts
+    if not securities_accounts.empty and 'referenceAccount' in securities_accounts:
+        # add the reference account balance
+        vap.loc[len(vap)] = (
+            pd.merge(
+                securities_accounts,
+                snapshot_period_end.balances.groupby(['accountId']).sum(),
+                left_on='referenceAccount',
+                right_index=True,
+                how='left',
+                validate='many_to_one'
+            )['balance'].dropna().to_dict()
+            | {'name': 'Related Account Balance', 'currency': snapshot_period_end.portfolio.base_currency}
+        )
+
+    result = vap.rename(columns=securities_accounts['name'])
+    return VapResultSchema.validate(result)
+
+
+def calculate_total_vap_by_account(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+        portfolio: Portfolio,
+        year: int,
+        tax_rate_percent: Percent,
+        default_exemption_rate_percent: Percent = 30.0,
+        exempt_rate_attr_uuid: str | None = None
+) -> dict[str, Money] | None:
+    """
+    Calculate total VAP liability per deposit account.
+
+    Returns:
+        Dictionary mapping deposit account IDs to total VAP liability.
+        Returns None if VAP cannot be calculated (no securities, no prices, etc.).
+    """
+    base_rate_percent = get_base_rate_for_year(year)
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(year, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(year, 12, 31))
+
+    vap_detailed = calculate_vap(
+        snapshot_begin,
+        snapshot_end,
+        base_rate_percent,
+        tax_rate_percent,
+        default_exemption_rate_percent,
+        exempt_rate_attr_uuid
+    )
+
+    if vap_detailed is None or vap_detailed.empty:
+        return None
+
+    # Extract VAP totals by securities account (exclude balance row)
+    balance_row_index = vap_detailed[vap_detailed['name'] == 'Related Account Balance'].index
+    if len(balance_row_index) > 0:
+        vap_data = vap_detailed.drop(balance_row_index)
+    else:
+        vap_data = vap_detailed
+
+    account_columns = [col for col in vap_data.columns if col not in ['wkn', 'name', 'currency']]
+    if not account_columns:
+        return None
+
+    vap_totals_by_securities_account = {}
+    for col in account_columns:
+        total = vap_data[col].sum()
+        if pd.notna(total) and total > 0:
+            vap_totals_by_securities_account[col] = total
+
+    if not vap_totals_by_securities_account:
+        return None
+
+    # Map securities account names to deposit account IDs via referenceAccount
+    securities_accounts = portfolio.securities_accounts
+    if securities_accounts.empty or 'referenceAccount' not in securities_accounts.columns:
+        log.debug('Cannot map VAP to deposit accounts: no referenceAccount field')
+        return None
+
+    name_to_deposit = securities_accounts.set_index('name')['referenceAccount'].to_dict()
+
+    # Aggregate VAP by deposit account
+    vap_by_deposit_account: dict[str, Money] = {}
+    for securities_account_name, vap_amount in vap_totals_by_securities_account.items():
+        deposit_account_id = name_to_deposit.get(securities_account_name)
+        if deposit_account_id and pd.notna(deposit_account_id):
+            deposit_account_id = str(deposit_account_id)
+            vap_by_deposit_account[deposit_account_id] = Money(
+                vap_by_deposit_account.get(deposit_account_id, 0) + vap_amount
+            )
+
+    return vap_by_deposit_account if vap_by_deposit_account else None

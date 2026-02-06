@@ -164,16 +164,27 @@
       },
       "minItems": 1
     },
+    "validMonths": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 12
+      },
+      "uniqueItems": true,
+      "minItems": 0,
+      "description": "Months when this rule is active (1=January, 12=December). Rule runs every year in specified months. Empty array means rule never runs."
+    },
     "accountRule": {
       "type": "object",
-      "required": ["type", "value"],
+      "required": ["type"],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["balance-limit", "balance-limit-from-attribute", "date-passed-from-attribute"]
+          "enum": ["balance-limit", "balance-limit-from-attribute", "date-passed-from-attribute", "vap-coverage"]
         },
         "value": {
-          "description": "For balance-limit: a number. For *-from-attribute rules: Portfolio Performance attribute UUID.",
+          "description": "For balance-limit: a number. For *-from-attribute rules: Portfolio Performance attribute UUID. For vap-coverage: not used (can be omitted).",
           "oneOf": [
             {
               "type": "number",
@@ -189,6 +200,9 @@
         },
         "applies-to": {
           "$ref": "#/$defs/appliesTo"
+        },
+        "valid-months": {
+          "$ref": "#/$defs/validMonths"
         }
       },
       "additionalProperties": false
@@ -218,6 +232,9 @@
         },
         "applies-to": {
           "$ref": "#/$defs/appliesTo"
+        },
+        "valid-months": {
+          "$ref": "#/$defs/validMonths"
         }
       },
       "additionalProperties": false

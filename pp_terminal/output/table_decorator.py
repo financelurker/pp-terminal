@@ -50,10 +50,8 @@ def camel_case_to_title(column_name: str) -> str:
     # XMLParser -> XML Parser
     text = re.sub(r'(?<=[A-Z])(?=[A-Z][a-z])', ' ', text)
 
-    # Title case each word
     text = text.title()
 
-    # Replace known acronyms with uppercase versions
     for acronym, replacement in acronyms.items():
         text = re.sub(rf'\b{acronym}\b', replacement, text)
 

@@ -27,7 +27,7 @@ import pytest
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import AccountType, TransactionType
 from pp_terminal.validation.engine import validate_securities
-from pp_terminal.validation.rules import PurchaseCostLimitRule
+from pp_terminal.validation.rules import CostBasisLimitRule
 
 
 @pytest.fixture(name='portfolio_with_purchases_and_sales')
@@ -100,14 +100,14 @@ def test_no_validation_config(portfolio_with_purchases_and_sales: Portfolio) -> 
     assert all(not result.has_errors for result in results.values())
 
 
-def test_purchase_cost_limit_pass(portfolio_with_purchases_and_sales: Portfolio) -> None:
-    """Test purchase cost limit validation when all securities pass."""
+def test_cost_basis_limit_pass(portfolio_with_purchases_and_sales: Portfolio) -> None:
+    """Test cost basis limit validation when all securities pass."""
     config = {
         'commands': {
             'validate': {
                 'securities': {
                     'rules': [
-                        {'type': 'purchase-cost-limit', 'value': 10000.0}
+                        {'type': 'cost-basis-limit', 'value': 10000.0}
                     ]
                 }
             }
@@ -120,14 +120,14 @@ def test_purchase_cost_limit_pass(portfolio_with_purchases_and_sales: Portfolio)
     assert all(not result.has_errors for result in results.values())
 
 
-def test_purchase_cost_limit_fail(portfolio_with_purchases_and_sales: Portfolio) -> None:
-    """Test purchase cost limit validation when security exceeds limit."""
+def test_cost_basis_limit_fail(portfolio_with_purchases_and_sales: Portfolio) -> None:
+    """Test cost basis limit validation when security exceeds limit."""
     config = {
         'commands': {
             'validate': {
                 'securities': {
                     'rules': [
-                        {'type': 'purchase-cost-limit', 'value': 3000.0}
+                        {'type': 'cost-basis-limit', 'value': 3000.0}
                     ]
                 }
             }
@@ -154,7 +154,7 @@ def test_entity_specific_rule(portfolio_with_purchases_and_sales: Portfolio) -> 
             'validate': {
                 'securities': {
                     'rules': [
-                        {'type': 'purchase-cost-limit', 'value': 3000.0, 'applies-to': ['sec-a']}
+                        {'type': 'cost-basis-limit', 'value': 3000.0, 'applies-to': ['sec-a']}
                     ]
                 }
             }
@@ -171,7 +171,7 @@ def test_entity_specific_rule(portfolio_with_purchases_and_sales: Portfolio) -> 
 
 
 def test_attribute_based_rule(portfolio_with_purchases_and_sales: Portfolio) -> None:
-    """Test purchase-cost-limit-from-attribute rule type."""
+    """Test cost-basis-limit-from-attribute rule type."""
     test_attr_uuid = 'test-attr-uuid-12345'
 
     # Add custom attribute with limit for sec-a and sec-b
@@ -191,7 +191,7 @@ def test_attribute_based_rule(portfolio_with_purchases_and_sales: Portfolio) -> 
             'validate': {
                 'securities': {
                     'rules': [
-                        {'type': 'purchase-cost-limit-from-attribute', 'value': test_attr_uuid}
+                        {'type': 'cost-basis-limit-from-attribute', 'value': test_attr_uuid}
                     ]
                 }
             }
@@ -215,7 +215,7 @@ def test_warning_severity(portfolio_with_purchases_and_sales: Portfolio) -> None
             'validate': {
                 'securities': {
                     'rules': [
-                        {'type': 'purchase-cost-limit', 'value': 3000.0, 'severity': 'warning'}
+                        {'type': 'cost-basis-limit', 'value': 3000.0, 'severity': 'warning'}
                     ]
                 }
             }
@@ -237,8 +237,8 @@ def test_mixed_severities(portfolio_with_purchases_and_sales: Portfolio) -> None
             'validate': {
                 'securities': {
                     'rules': [
-                        {'type': 'purchase-cost-limit', 'value': 3000.0, 'severity': 'warning', 'applies-to': ['sec-a']},
-                        {'type': 'purchase-cost-limit', 'value': 1500.0, 'applies-to': ['sec-b']}
+                        {'type': 'cost-basis-limit', 'value': 3000.0, 'severity': 'warning', 'applies-to': ['sec-a']},
+                        {'type': 'cost-basis-limit', 'value': 1500.0, 'applies-to': ['sec-b']}
                     ]
                 }
             }
@@ -277,7 +277,7 @@ def test_multiple_accounts_aggregated(portfolio_with_purchases_and_sales: Portfo
             'validate': {
                 'securities': {
                     'rules': [
-                        {'type': 'purchase-cost-limit', 'value': 4500.0}
+                        {'type': 'cost-basis-limit', 'value': 4500.0}
                     ]
                 }
             }
@@ -291,11 +291,11 @@ def test_multiple_accounts_aggregated(portfolio_with_purchases_and_sales: Portfo
     assert '5000.00' in results['sec-a'].messages
 
 
-def test_purchase_cost_limit_rule_direct(caplog: pytest.LogCaptureFixture) -> None:
+def test_cost_basis_limit_rule_direct(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.WARNING)
 
-    rule = PurchaseCostLimitRule(
-        rule_type='purchase-cost-limit',
+    rule = CostBasisLimitRule(
+        rule_type='cost-basis-limit',
         value=1000.0,
         severity='error',
         applies_to=None

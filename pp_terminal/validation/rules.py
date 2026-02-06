@@ -121,7 +121,7 @@ class PriceLimitRule(ValidationRule):
         return False, None
 
 
-class PurchaseCostLimitRule(ValidationRule):
+class CostBasisLimitRule(ValidationRule):
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:
         is_error, message = super().validate(entity, entity_id, context)
         if not self._should_apply():
@@ -131,7 +131,7 @@ class PurchaseCostLimitRule(ValidationRule):
         portfolio = cast(Portfolio, context.get('portfolio'))
 
         if portfolio is None:
-            raise RuntimeError('No portfolio in context for purchase-cost-limit validation')
+            raise RuntimeError('No portfolio in context for cost-basis-limit validation')
 
         current_cost = calculate_total_cost_basis(portfolio.securities_account_transactions.pipe(filter_by_security, security_id=entity_id))
 
@@ -144,7 +144,6 @@ class PurchaseCostLimitRule(ValidationRule):
 
     @staticmethod
     def _load_tax_csv(context: dict[str, Any]) -> DataFrame[TaxPaidSchema] | None:
-        """Load tax credit CSV from config if available."""
         config = context.get('config', {})
         tax_csv_path = config.get('tax', {}).get('file')
         tax_rate = config.get('tax', {}).get('rate', 0)
@@ -162,8 +161,8 @@ _RULE_TYPES = {
     'price-staleness': PriceStalenessRule,
     'price-limit': PriceLimitRule,
     'price-limit-from-attribute': PriceLimitRule,
-    'purchase-cost-limit': PurchaseCostLimitRule,
-    'purchase-cost-limit-from-attribute': PurchaseCostLimitRule,
+    'cost-basis-limit': CostBasisLimitRule,
+    'cost-basis-limit-from-attribute': CostBasisLimitRule,
     'vap-liquidity': VapLiquidityRule,
 }
 

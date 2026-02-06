@@ -112,7 +112,7 @@ value = 30
 
 # Validate current cost basis (FIFO) against limit, e.g. for exit taxation thresholds ("Wegzugsbesteuerung")
 [[commands.validate.securities.rules]]
-type = "purchase-cost-limit"
+type = "cost-basis-limit"
 value = 500000.0
 severity = "warning"
 ```

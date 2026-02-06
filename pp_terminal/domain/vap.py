@@ -240,7 +240,56 @@ def calculate_vap(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     return VapResultSchema.validate(result)
 
 
-def calculate_total_vap_by_account(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+def _extract_vap_data_excluding_balance(vap_detailed: DataFrame[VapResultSchema]) -> pd.DataFrame:
+    """Extract VAP data excluding the 'Related Account Balance' row."""
+    balance_row_index = vap_detailed[vap_detailed['name'] == 'Related Account Balance'].index
+    if len(balance_row_index) > 0:
+        return vap_detailed.drop(balance_row_index)
+    return vap_detailed
+
+
+def calculate_vap_by_security(
+        portfolio: Portfolio,
+        year: int,
+        tax_rate_percent: Percent,
+        default_exemption_rate_percent: Percent = 30.0,
+        exempt_rate_attr_uuid: str | None = None
+) -> dict[str, Money] | None:
+    """
+    Calculate total VAP per security, summed across all securities accounts.
+
+    Returns:
+        Dictionary mapping security IDs to total VAP amounts.
+        Returns None if VAP cannot be calculated.
+    """
+    base_rate_percent = get_base_rate_for_year(year)
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(year, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(year, 12, 31))
+
+    vap_detailed = calculate_vap(
+        snapshot_begin,
+        snapshot_end,
+        base_rate_percent,
+        tax_rate_percent,
+        default_exemption_rate_percent,
+        exempt_rate_attr_uuid
+    )
+
+    if vap_detailed is None or vap_detailed.empty:
+        return None
+
+    vap_data = _extract_vap_data_excluding_balance(vap_detailed)
+    account_columns = [col for col in vap_data.columns if col not in ['wkn', 'name', 'currency']]
+
+    if not account_columns:
+        return None
+
+    vap_data['total_vap'] = vap_data[account_columns].sum(axis=1)
+    result: dict[str, Money] = {str(k): Money(v) for k, v in vap_data['total_vap'].to_dict().items()}
+    return result
+
+
+def calculate_vap_by_account(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
         portfolio: Portfolio,
         year: int,
         tax_rate_percent: Percent,
@@ -270,13 +319,7 @@ def calculate_total_vap_by_account(  # pylint: disable=too-many-arguments,too-ma
     if vap_detailed is None or vap_detailed.empty:
         return None
 
-    # Extract VAP totals by securities account (exclude balance row)
-    balance_row_index = vap_detailed[vap_detailed['name'] == 'Related Account Balance'].index
-    if len(balance_row_index) > 0:
-        vap_data = vap_detailed.drop(balance_row_index)
-    else:
-        vap_data = vap_detailed
-
+    vap_data = _extract_vap_data_excluding_balance(vap_detailed)
     account_columns = [col for col in vap_data.columns if col not in ['wkn', 'name', 'currency']]
     if not account_columns:
         return None

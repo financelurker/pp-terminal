@@ -31,7 +31,7 @@ too many edge-cases, etc.
 ## Available Commands
 
 Code completion for commands and options is available.  
-You can choose between different output formats like JSON or CSV with the `--format` option.
+You can choose between different output formats like JSON, CSV or Excel with the `--format` option.
 
 In addition to the standard set, you can easily [create your own commands](#user-content-create-your-own-command-️) 
 and share them with the community.

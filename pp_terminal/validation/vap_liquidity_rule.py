@@ -23,7 +23,7 @@ import logging
 import pandas as pd
 
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.vap import calculate_total_vap_by_account
+from pp_terminal.domain.vap import calculate_vap_by_account
 from pp_terminal.validation.base import ValidationRule
 
 log = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class VapLiquidityRule(ValidationRule):
         exemption_rate = tax_config.get('exemption-rate', 30.0)
         exempt_rate_attr = tax_config.get('exemption-rate-attribute')
 
-        vap_totals = calculate_total_vap_by_account(
+        vap_totals = calculate_vap_by_account(
             portfolio, vap_year, tax_rate,
             exemption_rate, exempt_rate_attr
         )

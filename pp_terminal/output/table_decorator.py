@@ -40,7 +40,7 @@ def camel_case_to_title(column_name: str) -> str:
         wkn -> WKN
         isin -> ISIN
     """
-    acronyms = {'Id': 'ID', 'Wkn': 'WKN', 'Isin': 'ISIN', 'Eur': 'EUR', 'Usd': 'USD'}
+    acronyms = {'Id': 'ID', 'Wkn': 'WKN', 'Isin': 'ISIN', 'Eur': 'EUR', 'Usd': 'USD', 'Vap': 'VAP'}
 
     # Insert space before uppercase letters that follow lowercase letters
     # accountId -> account Id

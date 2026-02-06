@@ -24,6 +24,7 @@ from typing import cast
 import typer
 from pp_terminal.data.filters import filter_by_security
 from pp_terminal.domain.cost_basis import calculate_total_cost_basis
+from pp_terminal.domain.vap import calculate_vap_by_security
 from pp_terminal.output.column_utils import normalize_columns
 from pp_terminal.utils.config import Config
 from pp_terminal.utils.helper import footer
@@ -87,6 +88,16 @@ def print_securities(  # pylint: disable=too-many-locals
     df['costBasis'] = df['securityId'].map(
         lambda sid: calculate_total_cost_basis(portfolio.securities_account_transactions.pipe(filter_by_security, security_id=sid))
     )
+
+    tax_config = config.get('tax', {})
+    vap_by_security = calculate_vap_by_security(
+        portfolio,
+        by.year,
+        tax_config.get('rate', 26.375),
+        tax_config.get('exemption-rate', 30.0),
+        tax_config.get('exemption-rate-attribute')
+    )
+    df['vap'] = df['securityId'].map(vap_by_security) if vap_by_security else None
 
     requested_columns = [col.strip() for col in columns.split(',')]
     selected_columns = normalize_columns(requested_columns, list(df.columns), portfolio.security_attributes)

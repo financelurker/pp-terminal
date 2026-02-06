@@ -29,7 +29,7 @@ from pp_terminal.validation.base import ValidationRule
 log = logging.getLogger(__name__)
 
 
-class VapCoverageRule(ValidationRule):
+class VapLiquidityRule(ValidationRule):
     """Validates that deposit account has sufficient balance to cover VAP liability."""
 
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:  # pylint: disable=too-many-locals

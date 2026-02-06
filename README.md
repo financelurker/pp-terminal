@@ -122,9 +122,9 @@ severity = "warning"
 All validation rules optionally support temporal constraints through the `valid-months` configuration option. This allows rules to run only during specific months of the year:
 
 ```toml
-# VAP coverage check runs only in December and January (when VAP is calculated)
+# VAP liquidity check runs only in December and January (when VAP is calculated)
 [[commands.validate.accounts.rules]]
-type = "vap-coverage"
+type = "vap-liquidity"
 valid-months = [12, 1]  # 1=January, 12=December
 
 # Price staleness check runs only in March (e.g. for annual review)

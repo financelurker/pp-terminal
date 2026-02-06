@@ -30,7 +30,7 @@ from pp_terminal.domain.cost_basis import calculate_total_cost_basis
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TaxPaidSchema
 from pp_terminal.validation.base import ValidationRule
-from pp_terminal.validation.vap_coverage_rule import VapCoverageRule
+from pp_terminal.validation.vap_liquidity_rule import VapLiquidityRule
 
 log = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ _RULE_TYPES = {
     'price-limit-from-attribute': PriceLimitRule,
     'purchase-cost-limit': PurchaseCostLimitRule,
     'purchase-cost-limit-from-attribute': PurchaseCostLimitRule,
-    'vap-coverage': VapCoverageRule,
+    'vap-liquidity': VapLiquidityRule,
 }
 
 

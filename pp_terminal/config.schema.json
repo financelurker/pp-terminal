@@ -181,10 +181,10 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["balance-limit", "balance-limit-from-attribute", "date-passed-from-attribute", "vap-coverage"]
+          "enum": ["balance-limit", "balance-limit-from-attribute", "date-passed-from-attribute", "vap-liquidity"]
         },
         "value": {
-          "description": "For balance-limit: a number. For *-from-attribute rules: Portfolio Performance attribute UUID. For vap-coverage: not used (can be omitted).",
+          "description": "For balance-limit: a number. For *-from-attribute rules: Portfolio Performance attribute UUID. For vap-liquidity: not used (can be omitted).",
           "oneOf": [
             {
               "type": "number",

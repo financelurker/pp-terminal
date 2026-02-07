@@ -86,9 +86,9 @@ def provide_portfolio_with_purchases_and_sales() -> Portfolio:
 def provide_tax_csv_data_df() -> pd.DataFrame:
     """Tax CSV data for testing."""
     data = pd.DataFrame([
-        [2020, 'acc-1', 'sec-a', 0.10],
-        [2021, 'acc-1', 'sec-a', 0.12],
-    ], columns=['year', 'account_id', 'security_id', 'tax_per_share'])
+        [2020, 'acc-1', 'sec-a', 0.379147],
+        [2021, 'acc-1', 'sec-a', 0.454976],
+    ], columns=['year', 'account_id', 'security_id', 'deemed_income'])
     return data.set_index(['year', 'account_id', 'security_id'])
 
 

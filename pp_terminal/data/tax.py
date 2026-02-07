@@ -27,6 +27,7 @@ from pandera.typing import DataFrame
 
 from pp_terminal.exceptions import InputError
 from pp_terminal.output.strategy import Console
+from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TaxPaidSchema, Percent, TaxLotSchema
 
 app = typer.Typer()
@@ -34,18 +35,56 @@ console = Console()
 log = logging.getLogger(__name__)
 
 
-def load_prepaid_tax_data_from_csv(csv_path: Path, tax_rate: Percent) -> DataFrame[TaxPaidSchema]:
+def get_exemption_multiplier_per_security(
+    portfolio: Portfolio,
+    default_exemption_rate_percent: Percent,
+    exempt_rate_attr_uuid: str | None = None
+) -> pd.Series:
     """
-    Load paid tax data from CSV (e.g. "Vorabpauschale").
+    Calculate exemption multiplier (1 - exemption_rate) for each security.
+
+    Returns:
+        Series indexed by securityId with multiplier values (e.g., 0.70 for 30% exemption)
     """
-    log.debug('Loading paid tax data from "%s"..', csv_path)
+    if portfolio.securities.empty:
+        return pd.Series(dtype=float)
+
+    if exempt_rate_attr_uuid and exempt_rate_attr_uuid in portfolio.securities.columns:
+        exemption_multiplier = (
+            1 - portfolio.securities[[exempt_rate_attr_uuid]]
+            .astype(float)
+            .fillna(default_exemption_rate_percent / 100)
+        )
+        exemption_multiplier.columns = ['multiplier']
+        return exemption_multiplier['multiplier']
+
+    default_multiplier = 1 - default_exemption_rate_percent / 100
+    return pd.Series(
+        default_multiplier,
+        index=portfolio.securities.index,
+        name='multiplier'
+    )
+
+
+def load_prepaid_tax_data_from_csv(csv_path: Path) -> DataFrame[TaxPaidSchema]:
+    """
+    Load prepaid deemed income base from CSV (e.g. Vorabpauschale).
+
+    CSV format: year;account_id;security_id;[any_column_name]
+    The last column is used as deemed income per share.
+    """
+    log.debug('Loading prepaid deemed income data from "%s"..', csv_path)
 
     try:
         df = pd.read_csv(csv_path, sep=';', comment='#')
-        df['tax_per_share'] = df['deemed_income_base_per_share'] * tax_rate
+
+        # Use last column as deemed income, regardless of its name
+        value_column = df.columns[-1]
+        df = df.rename(columns={value_column: 'deemed_income'})
+
         df = df.set_index(['year', 'account_id', 'security_id'])
 
-        return TaxPaidSchema.validate(df[['tax_per_share', 'tax_free_allowance']])
+        return TaxPaidSchema.validate(df[['deemed_income']])
     except FileNotFoundError as e:
         raise InputError(f"Prepaid tax data CSV file not found: {csv_path}") from e
     except Exception as e:
@@ -58,15 +97,15 @@ def calculate_prepaid_tax_per_lot(
     tax_csv_data: DataFrame[TaxPaidSchema] | None
 ) -> pd.Series:
     """
-    Calculate prepaid tax per lot (e.g. Vorabpauschale).
+    Calculate prepaid deemed income base per lot (e.g. Vorabpauschale deemed income).
 
     Args:
         lots: Current FIFO lots DataFrame (after matching sales)
         current_date: Evaluation date (for year range calculation)
-        tax_csv_data: CSV data with taxes paid per share, indexed by (year, account_id, security_id)
+        tax_csv_data: CSV data with deemed income base per share, indexed by (year, account_id, security_id)
 
     Returns:
-        Series of prepaid tax amounts, indexed to match the input lots dataframe.
+        Series of prepaid deemed income base amounts, indexed to match the input lots dataframe.
     """
     if lots.empty or tax_csv_data is None or tax_csv_data.empty:
         return pd.Series(0.0, index=lots.index)
@@ -76,7 +115,7 @@ def calculate_prepaid_tax_per_lot(
     lots_with_years['first_year'] = lots_with_years['date'].dt.year
     lots_with_years['last_year'] = current_date.year - 1
 
-    # Filter out current year purchases (no prepaid tax yet)
+    # Filter out current year purchases (no prepaid deemed income yet)
     lots_with_years = lots_with_years[lots_with_years['last_year'] >= lots_with_years['first_year']]
 
     if lots_with_years.empty:
@@ -108,17 +147,12 @@ def calculate_prepaid_tax_per_lot(
     if lot_years.empty:
         return pd.Series(0.0, index=lots.index)
 
-    if 'tax_free_allowance' not in lot_years.columns:
-        lot_years['tax_free_allowance'] = 0.0
-    else:
-        lot_years['tax_free_allowance'] = lot_years['tax_free_allowance'].fillna(0.0)
-
-    lot_years['taxes'] = (
-        lot_years['shares'] * lot_years['tax_per_share'] * lot_years['month_factor'] - lot_years['tax_free_allowance']
+    lot_years['deemed_income_total'] = (
+        lot_years['shares'] * lot_years['deemed_income'] * lot_years['month_factor']
     )
 
-    # Group by original lot identity (MultiIndex columns) to sum taxes across all years
-    per_lot_tax = lot_years.groupby(['date', 'accountId', 'securityId'])['taxes'].sum()
+    # Group by original lot identity (MultiIndex columns) to sum deemed income across all years
+    per_lot_deemed_income = lot_years.groupby(['date', 'accountId', 'securityId'])['deemed_income_total'].sum()
 
     # Reindex to match original lots dataframe, filling missing with 0
-    return per_lot_tax.reindex(lots.index, fill_value=0.0)
+    return per_lot_deemed_income.reindex(lots.index, fill_value=0.0)

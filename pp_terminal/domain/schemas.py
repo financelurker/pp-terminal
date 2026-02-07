@@ -116,8 +116,7 @@ class TaxPaidSchema(pa.DataFrameModel):
     year: Index[int] = pa.Field(coerce=True)
     account_id: Index[str]
     security_id: Index[str]
-    tax_per_share: Series[Money]
-    tax_free_allowance: Series[Money] = pa.Field(nullable=True, coerce=True)
+    deemed_income: Series[Money]
 
 
 class TaxLotSchema(pa.DataFrameModel):
@@ -132,9 +131,10 @@ class TaxLotSchema(pa.DataFrameModel):
 
     # Sell simulation (nullable until _calculate_sell_metrics)
     salePrice: Series[Money] = pa.Field(nullable=True)
+    exemptionRate: Series[Percent] = pa.Field(nullable=True)
     capitalGain: Series[Money] = pa.Field(nullable=True)
     grossProceeds: Series[Money] = pa.Field(nullable=True)
-    prepaidTax: Series[Money] = pa.Field(nullable=True)
+    deemedIncome: Series[Money] = pa.Field(nullable=True)
     taxableGain: Series[Money] = pa.Field(nullable=True, ge=0)
     totalTax: Series[Money] = pa.Field(nullable=True)
     netProceeds: Series[Money] = pa.Field(nullable=True)

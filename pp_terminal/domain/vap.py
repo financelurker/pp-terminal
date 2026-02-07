@@ -25,6 +25,7 @@ import numpy as np
 from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_by_type, drop_empty_values
+from pp_terminal.data.tax import get_exemption_multiplier_per_security
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot, _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TransactionType, Percent, Money, VapResultSchema
@@ -202,12 +203,16 @@ def calculate_vap(  # pylint: disable=too-many-locals,too-many-arguments,too-man
     vap = vap * tax_rate_percent / 100
 
     # Apply exemption rate if configured
-    if exempt_rate_attr_uuid and exempt_rate_attr_uuid in snapshot_period_end.portfolio.securities.columns:
-        exempt_rate_per_security = (1 - snapshot_period_end.portfolio.securities[[exempt_rate_attr_uuid]]
-                                    .astype(float)
-                                    .fillna(default_exemption_rate_percent / 100)
-                                    .rename(columns={exempt_rate_attr_uuid: 0}))  # column name must match vap
-        vap = exempt_rate_per_security.mul(vap.to_frame(), level='securityId')
+    if not vap.empty and exempt_rate_attr_uuid:
+        exemption_multiplier = get_exemption_multiplier_per_security(
+            snapshot_period_end.portfolio,
+            default_exemption_rate_percent,
+            exempt_rate_attr_uuid
+        )
+
+        if not exemption_multiplier.empty:
+            exempt_rate_df = exemption_multiplier.to_frame(0)
+            vap = exempt_rate_df.mul(vap.to_frame(), level='securityId').iloc[:, 0]
 
     if not vap.empty:
         vap = vap.unstack(level='accountId')

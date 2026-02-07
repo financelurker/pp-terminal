@@ -38,10 +38,10 @@ def test_single_year_full_year(tax_csv_data: pd.DataFrame) -> None:
     current_date = datetime(2022, 12, 31)
     tax = float(calculate_prepaid_tax_per_lot(df, current_date, tax_csv_data).sum())
 
-    # 2020: 100 shares * €0.05 = €5.00 (full year)
-    # 2021: 100 shares * €0.06 = €6.00 (full year)
-    # Total: €11.00
-    assert tax == pytest.approx(11.0, abs=0.01)
+    # 2020: 100 shares * €0.189573 = €18.96 (full year)
+    # 2021: 100 shares * €0.227488 = €22.75 (full year)
+    # Total: €41.71
+    assert tax == pytest.approx(41.7061, abs=0.01)
 
 def test_purchase_year_month_proration(tax_csv_data: pd.DataFrame) -> None:
     """Test that purchase year is prorated by months held."""
@@ -53,10 +53,10 @@ def test_purchase_year_month_proration(tax_csv_data: pd.DataFrame) -> None:
     current_date = datetime(2022, 12, 31)
     credit = float(calculate_prepaid_tax_per_lot(df, current_date, tax_csv_data).sum())
 
-    # 2020: 100 shares * €0.05 * (13-6)/12 = 100 * 0.05 * 7/12 = €2.92
-    # 2021: 100 shares * €0.06 * 1.0 = €6.00
-    # Total: €8.92
-    assert credit == pytest.approx(8.92, abs=0.01)
+    # 2020: 100 shares * €0.189573 * (13-6)/12 = 100 * 0.189573 * 7/12 = €11.06
+    # 2021: 100 shares * €0.227488 * 1.0 = €22.75
+    # Total: €33.81
+    assert credit == pytest.approx(33.8073, abs=0.01)
 
 def test_multiple_lots_different_accounts(tax_csv_data: pd.DataFrame) -> None:
     """Test tax credit across multiple lots in different accounts."""
@@ -72,12 +72,12 @@ def test_multiple_lots_different_accounts(tax_csv_data: pd.DataFrame) -> None:
     credit = float(calculate_prepaid_tax_per_lot(df, current_date, tax_csv_data).sum())
 
     # Lot 1 (acc-1):
-    #   2020: 50 * €0.05 = €2.50
-    #   2021: 50 * €0.06 = €3.00
+    #   2020: 50 * €0.189573 = €9.48
+    #   2021: 50 * €0.227488 = €11.37
     # Lot 2 (acc-2):
-    #   2021: 30 * €0.06 = €1.80
-    # Total: €7.30
-    assert credit == pytest.approx(7.30, abs=0.01)
+    #   2021: 30 * €0.227488 = €6.82
+    # Total: €27.68
+    assert credit == pytest.approx(27.6777, abs=0.01)
 
 def test_purchased_in_current_year_no_credit(tax_csv_data: pd.DataFrame) -> None:
     """Test that lots purchased in current year have no tax credit."""
@@ -103,10 +103,10 @@ def test_missing_tax_data_ignored(tax_csv_data: pd.DataFrame) -> None:
     credit = float(calculate_prepaid_tax_per_lot(df, current_date, tax_csv_data).sum())
 
     # 2019: No data in CSV -> €0.00
-    # 2020: 100 * €0.05 = €5.00
-    # 2021: 100 * €0.06 = €6.00
-    # Total: €11.00 (2019 silently ignored)
-    assert credit == pytest.approx(11.0, abs=0.01)
+    # 2020: 100 * €0.189573 = €18.96
+    # 2021: 100 * €0.227488 = €22.75
+    # Total: €41.71 (2019 silently ignored)
+    assert credit == pytest.approx(41.7061, abs=0.01)
 
 def test_no_tax_csv_returns_zero() -> None:
     """Test that None tax CSV returns zero credit."""

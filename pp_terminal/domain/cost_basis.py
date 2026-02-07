@@ -140,7 +140,7 @@ def _calculate_gains(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
     df = _calculate_cost_basis(df)
     df['grossProceeds'] = df['shares'] * df['salePrice']
     df['capitalGain'] = df['grossProceeds'] - df['costBasis']
-    df['taxableGain'] = df.apply(lambda row: max(0.0, row['capitalGain'] - row['prepaidTax']), axis=1)
+    df['taxableGain'] = (df['capitalGain'] * (1 - df['exemptionRate'] / 100)).clip(lower=0)
 
     return TaxLotSchema.validate(df)
 
@@ -151,7 +151,8 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
         sell_price: Money,
         tax_rate: Percent,
         shares_to_sell: float | None = None,
-        tax_csv_data: DataFrame[TaxPaidSchema] | None = None
+        tax_csv_data: DataFrame[TaxPaidSchema] | None = None,
+        exemption_rate: Percent = 0.0
 ) -> DataFrame[TaxLotSchema]:
     """Calculate FIFO lots for shares being sold, including prepaid tax calculations."""
     df = transactions.copy()
@@ -165,11 +166,17 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
 
     df = TaxLotSchema.validate(df)
     df['salePrice'] = sell_price
+    df['exemptionRate'] = exemption_rate
+    df['deemedIncome'] = calculate_prepaid_tax_per_lot(df, sell_date, tax_csv_data).values
 
-    df['prepaidTax'] = calculate_prepaid_tax_per_lot(df, sell_date, tax_csv_data).values
+    df = _calculate_cost_basis(df)
+    df['grossProceeds'] = df['shares'] * df['salePrice']
+    df['capitalGain'] = df['grossProceeds'] - df['costBasis']
 
-    df = _calculate_gains(df)
-    df['totalTax'] = df['taxableGain'] * (tax_rate / 100.0)
+    adjusted_gain = (df['capitalGain'] - df['deemedIncome']).clip(lower=0)
+    df['taxableGain'] = (adjusted_gain * (1 - df['exemptionRate'] / 100)).clip(lower=0)
+    df['totalTax'] = (df['taxableGain'] * (tax_rate / 100.0)).clip(lower=0)
+
     df['netProceeds'] = df['grossProceeds'] - df['totalTax']
 
     return TaxLotSchema.validate(df)

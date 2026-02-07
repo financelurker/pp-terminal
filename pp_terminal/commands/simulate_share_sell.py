@@ -29,6 +29,7 @@ from pp_terminal.domain.cost_basis import calculate_fifo_sell
 
 from pp_terminal.data.tax import load_prepaid_tax_data_from_csv
 from pp_terminal.exceptions import InputError
+from pp_terminal.utils.config import Config, get_exemption_rate
 from pp_terminal.utils.helper import footer
 from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
@@ -82,12 +83,13 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     """
     portfolio = cast(Portfolio, ctx.obj.portfolio)
     output = cast(OutputStrategy, ctx.obj.output)
+    config = cast(Config, ctx.obj.config)
 
     if date is None:
         date = get_today()
 
     try:
-        _tax_csv_data = load_prepaid_tax_data_from_csv(tax_csv, tax_rate) if tax_csv else None
+        _tax_csv_data = load_prepaid_tax_data_from_csv(tax_csv) if tax_csv else None
     except InputError as e:
         log.error("unable to load prepaid tax from csv, skipping: %s", e)
         _tax_csv_data = None
@@ -114,10 +116,18 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         raise InputError(f"Insufficient shares. Available: {available_shares:.8f}, Requested: {shares:.8f}")
 
     transactions = snapshot.securities_account_transactions.pipe(filter_by_account_and_security, security_id=security_id, account_id=account_id)
-    fifo_lots = calculate_fifo_sell(transactions, snapshot.date, sale_price, tax_rate, shares, _tax_csv_data).reset_index()
+    fifo_lots = calculate_fifo_sell(
+        transactions,
+        snapshot.date,
+        sale_price,
+        tax_rate,
+        shares,
+        _tax_csv_data,
+        exemption_rate=get_exemption_rate(config)
+    ).reset_index()
 
     console.print(*output.result_table(
-        fifo_lots[['date', 'shares', 'currency', 'purchasePrice', 'costBasis', 'fees', 'salePrice', 'capitalGain', 'prepaidTax', 'taxableGain', 'grossProceeds', 'totalTax', 'netProceeds']],
+        fifo_lots[['date', 'shares', 'currency', 'purchasePrice', 'costBasis', 'fees', 'salePrice', 'grossProceeds', 'capitalGain', 'deemedIncome', 'taxableGain', 'totalTax', 'netProceeds']],
         TableOptions(title=f"FIFO Lots on {date.strftime('%Y-%m-%d')}", caption=f"{security.name} ({security.wkn}) in {account.name}", show_index=False, show_total=True)
     ))
 

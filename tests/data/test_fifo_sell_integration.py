@@ -18,6 +18,8 @@
 """
 
 from datetime import datetime
+from pathlib import Path
+import tempfile
 
 import pandas as pd
 import pytest
@@ -26,7 +28,7 @@ from pp_terminal.domain.cost_basis import calculate_fifo_sell
 
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TransactionSchema
-from pp_terminal.data.tax import calculate_prepaid_tax_per_lot
+from pp_terminal.data.tax import calculate_prepaid_tax_per_lot, load_prepaid_tax_data_from_csv
 from pp_terminal.exceptions import InputError
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
@@ -188,7 +190,7 @@ def test_vorabpauschale_csv_calculation(partial_sell_portfolio: Portfolio) -> No
         'year': [2023, 2024],
         'account_id': ['test-portfolio-uuid-001', 'test-portfolio-uuid-001'],
         'security_id': ['test-security-uuid-001', 'test-security-uuid-001'],
-        'tax_per_share': [0.1, 0.2]
+        'deemed_income': [0.379147, 0.758294],
     })
     csv_data = csv_data.set_index(['year', 'account_id', 'security_id'])
 
@@ -198,14 +200,14 @@ def test_vorabpauschale_csv_calculation(partial_sell_portfolio: Portfolio) -> No
         filter_by_account_and_security, account_id='test-portfolio-uuid-001', security_id='test-security-uuid-001')
     lots = calculate_fifo_sell(transactions, snapshot.date, shares_to_sell=50.0, sell_price=60.0, tax_rate=TEST_TAX_RATE, tax_csv_data=csv_data)
 
-    tax = lots['prepaidTax'].sum()
+    deemed_income = lots['deemedIncome'].sum()
 
     # Expected calculation:
     # Lot: 50 shares purchased 2023-12-30
-    # Year 2023: 50 * 0.1 * (13-12)/12 = 50 * 0.1 * 1/12 = 0.41666...  (purchased in December = 1 month)
-    # Year 2024: 50 * 0.2 * 1.0 = 10.0  (full year)
-    # Total: 10.41666...
-    assert abs(tax - 10.41666) < 0.01
+    # Year 2023: 50 * 0.379147 * (13-12)/12 = 50 * 0.379147 * 1/12 = 1.58€  (purchased in December = 1 month)
+    # Year 2024: 50 * 0.758294 * 1.0 = 37.91€  (full year)
+    # Total: 39.49€
+    assert abs(deemed_income - 39.4945) < 0.01
 
 
 def test_vorabpauschale_csv_missing_data(partial_sell_portfolio: Portfolio) -> None:
@@ -215,7 +217,7 @@ def test_vorabpauschale_csv_missing_data(partial_sell_portfolio: Portfolio) -> N
         'year': [2024],
         'account_id': ['test-portfolio-uuid-001'],
         'security_id': ['test-security-uuid-001'],
-        'tax_per_share': [0.2]
+        'deemed_income': [0.758294],  # Equivalent to old tax_per_share 0.2
     })
     csv_data = csv_data.set_index(['year', 'account_id', 'security_id'])
 
@@ -226,6 +228,207 @@ def test_vorabpauschale_csv_missing_data(partial_sell_portfolio: Portfolio) -> N
 
     credit = float(calculate_prepaid_tax_per_lot(lots, datetime(2025, 3, 1), csv_data).sum())
 
-    # Only 2024 has data: 50 * 0.2 * 1.0 = 10.0
+    # Only 2024 has data: 50 shares * 0.758294 deemed_income * 1.0 month_factor = 37.9147
     # 2023 is missing, so 0.0 is used
-    assert abs(credit - 10.0) < 0.01
+    # Note: calculate_prepaid_tax_per_lot now returns deemed income base, not tax
+    assert abs(credit - 37.9147) < 0.01
+
+
+def test_exemption_rate_applied_to_total_capital_gain() -> None:
+    """
+    Test simplified tax formula where exemption rate is applied once to adjusted capital gain.
+
+    German tax law (§18 InvStG): The exemption rate applies to all taxable gains from a security.
+    The simplified tax calculation:
+      adjustedGain = capitalGain - deemedIncome
+      taxableGain = adjustedGain * (1 - exemption_rate)
+      totalTax = taxableGain * tax_rate
+
+    This avoids duplicate application of exemption rate (once in CSV loading, once in sell calculation).
+    """
+    exemption_rate = 30.0  # 30% exemption for equity ETFs
+    tax_rate = 26.375
+
+    # Create portfolio with single security
+    accounts = pd.DataFrame({
+        'name': ['Test Account'],
+        'type': ['portfolio'],
+        'referenceAccount': [None],
+        'isRetired': [False],
+        'currency': ['EUR']
+    }, index=['acc-1'])
+    accounts.index.name = 'accountId'
+
+    securities = pd.DataFrame({
+        'name': ['Test ETF'],
+        'wkn': ['ETF123'],
+        'currency': ['EUR'],
+        'isRetired': [False]
+    }, index=['sec-1'])
+    securities.index.name = 'securityId'
+
+    # Buy 100 shares at 100€ on 2020-01-01
+    transactions = pd.DataFrame({
+        'type': ['BUY'],
+        'amount': [10000.0],
+        'shares': [100.0],
+        'accountType': ['portfolio'],
+        'currency': ['EUR'],
+        'taxes': [0.0],
+        'fees': [10.0]  # 10€ fees
+    }, index=pd.MultiIndex.from_tuples([
+        (pd.Timestamp('2020-01-01'), 'acc-1', 'sec-1')
+    ], names=['date', 'accountId', 'securityId']))
+
+    portfolio = Portfolio(accounts, transactions, securities, pd.DataFrame())
+
+    # CSV with VAP deemed income: deemed_income = 100€/year total, 1€ per share
+    # Note: Exemption rate is now applied during sell calculation, not during CSV loading
+    # This ensures consistent application of exemption to all gains
+    csv_data = pd.DataFrame({
+        'year': [2020, 2021],
+        'account_id': ['acc-1', 'acc-1'],
+        'security_id': ['sec-1', 'sec-1'],
+        'deemed_income': [1.0, 1.0],  # 100€ total / 100 shares
+    })
+
+    # Load CSV and apply exemption rate (simulating what happens with real portfolio)
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+        csv_data.to_csv(f.name, sep=';', index=False)
+        csv_path = Path(f.name)
+
+    csv_data = load_prepaid_tax_data_from_csv(csv_path)
+
+    # Sell 100 shares at 150€ on 2022-06-01
+    # Capital gain = 150*100 - (100*100 + 10) = 15000 - 10010 = 4990€
+    snapshot = PortfolioSnapshot(portfolio, datetime(2022, 6, 1))
+    transactions = snapshot.securities_account_transactions.pipe(
+        filter_by_account_and_security,
+        account_id='acc-1',
+        security_id='sec-1'
+    )
+
+    lots = calculate_fifo_sell(
+        transactions,
+        datetime(2022, 6, 1),
+        sell_price=150.0,
+        shares_to_sell=100.0,
+        tax_rate=tax_rate,
+        tax_csv_data=csv_data,
+        exemption_rate=exemption_rate
+    )
+
+    # Expected calculation with simplified formula:
+    # Capital gain: 4990€
+    # Prepaid deemed income base: 100 shares * 1€ * 2 years = 200€
+    # Adjusted gain: 4990 - 200 = 4790€
+    # Taxable gain (after 30% exemption): 4790 * 0.7 = 3353€
+    # Total tax: 3353 * 0.26375 = 884.35€
+
+    assert len(lots) == 1
+    lot = lots.iloc[0]
+
+    # Verify core calculations with new simplified formula
+    assert abs(lot['capitalGain'] - 4990.0) < 0.01, f"Capital gain should be 4990, got {lot['capitalGain']}"
+    assert abs(lot['deemedIncome'] - 200.0) < 0.01, f"Prepaid deemed income base should be 200, got {lot['deemedIncome']}"
+    # New formula: taxableGain = (capitalGain - deemedIncome) * (1 - exemption)
+    # = (4990 - 200) * 0.7 = 4790 * 0.7 = 3353
+    assert abs(lot['taxableGain'] - 3353.0) < 0.01, f"Taxable gain should be 3353 ((4990-200) * 0.7), got {lot['taxableGain']}"
+    assert abs(lot['totalTax'] - 884.35375) < 0.01, f"Total tax should be ~884.35, got {lot['totalTax']}"
+
+
+def test_simplified_tax_formula_with_deemed_income_base() -> None:
+    """
+    Test simplified tax formula: totalTax = (capitalGain - deemedIncome) * (1 - exemption) * taxRate
+
+    This approach:
+    - Stores deemed income base (not tax) from CSV
+    - Applies exemption rate only once in final calculation
+    - Removes duplicate exemption logic
+    """
+    exemption_rate = 30.0
+    tax_rate = 26.375
+
+    # Create portfolio with single security
+    accounts = pd.DataFrame({
+        'name': ['Test Account'],
+        'type': ['portfolio'],
+        'referenceAccount': [None],
+        'isRetired': [False],
+        'currency': ['EUR']
+    }, index=['acc-1'])
+    accounts.index.name = 'accountId'
+
+    securities = pd.DataFrame({
+        'name': ['Test ETF'],
+        'wkn': ['ETF123'],
+        'currency': ['EUR'],
+        'isRetired': [False]
+    }, index=['sec-1'])
+    securities.index.name = 'securityId'
+
+    # Buy 100 shares at 100€ on 2020-01-01
+    transactions = pd.DataFrame({
+        'type': ['BUY'],
+        'amount': [10000.0],
+        'shares': [100.0],
+        'accountType': ['portfolio'],
+        'currency': ['EUR'],
+        'taxes': [0.0],
+        'fees': [10.0]
+    }, index=pd.MultiIndex.from_tuples([
+        (pd.Timestamp('2020-01-01'), 'acc-1', 'sec-1')
+    ], names=['date', 'accountId', 'securityId']))
+
+    portfolio = Portfolio(accounts, transactions, securities, pd.DataFrame())
+
+    # CSV with VAP deemed income base: 1€ per share per year
+    csv_data = pd.DataFrame({
+        'year': [2020, 2021],
+        'account_id': ['acc-1', 'acc-1'],
+        'security_id': ['sec-1', 'sec-1'],
+        'deemed_income': [1.0, 1.0],
+    })
+
+    # Load CSV WITHOUT applying exemption rate
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+        csv_data.to_csv(f.name, sep=';', index=False)
+        csv_path = Path(f.name)
+
+    # This should load deemed income base as-is (no tax calculation)
+    csv_data_loaded = load_prepaid_tax_data_from_csv(csv_path)
+
+    # Sell 100 shares at 150€ on 2022-06-01
+    snapshot = PortfolioSnapshot(portfolio, datetime(2022, 6, 1))
+    transactions_filtered = snapshot.securities_account_transactions.pipe(
+        filter_by_account_and_security,
+        account_id='acc-1',
+        security_id='sec-1'
+    )
+
+    lots = calculate_fifo_sell(
+        transactions_filtered,
+        datetime(2022, 6, 1),
+        sell_price=150.0,
+        shares_to_sell=100.0,
+        tax_rate=tax_rate,
+        tax_csv_data=csv_data_loaded,
+        exemption_rate=exemption_rate
+    )
+
+    # Expected calculation with simplified formula:
+    # Capital gain: 15000 - 10010 = 4990€
+    # Prepaid deemed income base: 100 shares * 1€ * 2 years = 200€
+    # Adjusted gain: 4990 - 200 = 4790€
+    # Total tax: 4790 * (1 - 0.30) * 0.26375 = 4790 * 0.7 * 0.26375 = 884.35375€
+
+    assert len(lots) == 1
+    lot = lots.iloc[0]
+
+    assert abs(lot['capitalGain'] - 4990.0) < 0.01
+    assert abs(lot['deemedIncome'] - 200.0) < 0.01, f"Prepaid deemed income base should be 200, got {lot['deemedIncome']}"
+    assert abs(lot['totalTax'] - 884.35375) < 0.01, f"Total tax should be ~884.35 (simplified formula), got {lot['totalTax']}"
+
+    # Verify the simplified formula is applied correctly
+    expected_total_tax = (lot['capitalGain'] - lot['deemedIncome']) * (1 - exemption_rate / 100) * (tax_rate / 100)
+    assert abs(lot['totalTax'] - expected_total_tax) < 0.01, f"Total tax calculation mismatch: got {lot['totalTax']}, expected {expected_total_tax}"

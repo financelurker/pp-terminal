@@ -16,6 +16,8 @@
     You should have received a copy of the GNU General Public License
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
+# pylint: disable=duplicate-code
+
 from datetime import datetime
 
 import pandas as pd
@@ -94,13 +96,13 @@ def provide_portfolio_with_sells(portfolio_with_purchases: Portfolio) -> Portfol
 
 @pytest.fixture(name='tax_csv_data')
 def provide_tax_csv_data() -> DataFrame[TaxPaidSchema]:
-    """Tax CSV data with taxes paid per share."""
+    """Tax CSV data with deemed income base per share."""
     data = DataFrame[TaxPaidSchema]([
-        [0.05, 0],
-        [0.06, 0],
-        [0.06, 0],
-        [0.07, 0],
-    ], columns=['tax_per_share', 'tax_free_allowance'],
+        [0.189573],
+        [0.227488],
+        [0.227488],
+        [0.265403],
+    ], columns=['deemed_income'],
         index=pd.MultiIndex.from_arrays(
             [[2020, 2021, 2021, 2022], ['acc-1', 'acc-1', 'acc-2', 'acc-1'], ['sec-1', 'sec-1', 'sec-1', 'sec-1']],
             names=['year', 'account_id', 'security_id']

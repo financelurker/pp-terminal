@@ -150,7 +150,7 @@ def test_convert_unknown_converter(caplog: LogCaptureFixture) -> None:
 
     # Unknown converter should keep raw value
     assert result.loc[0, attr_uuid] == '30'
-    assert f"Unknown converter type 'some.unknown.Converter' for attribute 'test-unknown-attr' ({attr_uuid}). Keeping raw value." in caplog.text
+    assert f"Unknown converter type 'some.unknown.Converter' for attribute 'test-unknown-attr' ({attr_uuid})" in caplog.text
 
 
 def test_convert_invalid_format(caplog: LogCaptureFixture) -> None:

@@ -23,7 +23,6 @@ from pathlib import Path
 
 import pandas as pd
 import typer
-from pandera.errors import SchemaError
 from pandera.typing import DataFrame
 
 from pp_terminal.exceptions import InputError
@@ -39,23 +38,18 @@ def load_prepaid_tax_data_from_csv(csv_path: Path, tax_rate: Percent) -> DataFra
     """
     Load paid tax data from CSV (e.g. "Vorabpauschale").
     """
-    log.debug('Loading paid tax data from "%s"', csv_path)
+    log.debug('Loading paid tax data from "%s"..', csv_path)
 
     try:
-        df = pd.read_csv(csv_path, sep=';', parse_dates=['date'])
+        df = pd.read_csv(csv_path, sep=';', comment='#')
+        df['tax_per_share'] = df['deemed_income_base_per_share'] * tax_rate
+        df = df.set_index(['year', 'account_id', 'security_id'])
+
+        return TaxPaidSchema.validate(df[['tax_per_share', 'tax_free_allowance']])
     except FileNotFoundError as e:
         raise InputError(f"Prepaid tax data CSV file not found: {csv_path}") from e
     except Exception as e:
         raise InputError(f"Failed to read prepaid tax data CSV: {e}") from e
-
-    df['year'] = df['date'].dt.year
-    df['tax_per_share'] = df['deemed_income_base_per_share'] * tax_rate
-    df = df.set_index(['year', 'account_id', 'security_id'])
-
-    try:
-        return TaxPaidSchema.validate(df[['tax_per_share', 'tax_free_allowance']])
-    except SchemaError as e:
-        raise InputError(f"Prepaid tax data CSV is missing required columns: {e}") from e
 
 
 def calculate_prepaid_tax_per_lot(

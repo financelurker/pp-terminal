@@ -18,17 +18,13 @@
 """
 
 from datetime import datetime
-from pathlib import Path
 from typing import Any, cast
 import logging
 import pandas as pd
-from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_by_security
-from pp_terminal.data.tax import load_prepaid_tax_data_from_csv
 from pp_terminal.domain.cost_basis import calculate_total_cost_basis
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.schemas import TaxPaidSchema
 from pp_terminal.validation.base import ValidationRule
 from pp_terminal.validation.vap_liquidity_rule import VapLiquidityRule
 
@@ -141,17 +137,6 @@ class CostBasisLimitRule(ValidationRule):
             return self.is_error(), message
 
         return False, None
-
-    @staticmethod
-    def _load_tax_csv(context: dict[str, Any]) -> DataFrame[TaxPaidSchema] | None:
-        config = context.get('config', {})
-        tax_csv_path = config.get('tax', {}).get('file')
-        tax_rate = config.get('tax', {}).get('rate', 0)
-
-        if not tax_csv_path:
-            return None
-
-        return load_prepaid_tax_data_from_csv(Path(tax_csv_path), tax_rate)
 
 
 _RULE_TYPES = {

@@ -86,7 +86,11 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     if date is None:
         date = get_today()
 
-    _tax_csv_data = load_prepaid_tax_data_from_csv(tax_csv, tax_rate) if tax_csv else None
+    try:
+        _tax_csv_data = load_prepaid_tax_data_from_csv(tax_csv, tax_rate) if tax_csv else None
+    except InputError as e:
+        log.error("unable to load prepaid tax from csv, skipping: %s", e)
+        _tax_csv_data = None
 
     security = get_security_by_id(portfolio, security_id)
     account = get_securities_account_by_id(portfolio, account_id)
@@ -113,7 +117,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     fifo_lots = calculate_fifo_sell(transactions, snapshot.date, sale_price, tax_rate, shares, _tax_csv_data).reset_index()
 
     console.print(*output.result_table(
-        fifo_lots[['date', 'shares', 'currency', 'purchasePrice', 'costBasis', 'fees', 'salePrice', 'capitalGain', 'taxableGain', 'grossProceeds', 'totalTax', 'netProceeds']],
+        fifo_lots[['date', 'shares', 'currency', 'purchasePrice', 'costBasis', 'fees', 'salePrice', 'capitalGain', 'prepaidTax', 'taxableGain', 'grossProceeds', 'totalTax', 'netProceeds']],
         TableOptions(title=f"FIFO Lots on {date.strftime('%Y-%m-%d')}", caption=f"{security.name} ({security.wkn}) in {account.name}", show_index=False, show_total=True)
     ))
 

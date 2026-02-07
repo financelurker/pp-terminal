@@ -39,6 +39,7 @@ CONVERTER_DISPATCH: Dict[str, Callable[[Any], Any]] = {
     'LongConverter': float,
     'AmountConverter': float,
     'StringConverter': str,
+    'AmountPlainConverter': int,
 }
 
 
@@ -79,8 +80,8 @@ def _convert_single_value(value: Any, converter: Any, attr_name: str, attr_uuid:
 
     if convert_func is None:
         log.debug(
-            "Unknown converter type '%s' for attribute '%s' (%s). Keeping raw value.",
-            converter_str, attr_name, attr_uuid
+            "Unknown converter type '%s' for attribute '%s' (%s), keeping raw value \"%s\"",
+            converter_str, attr_name, attr_uuid, value
         )
         return value
 

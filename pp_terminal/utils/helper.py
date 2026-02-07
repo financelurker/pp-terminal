@@ -64,6 +64,13 @@ def format_shares(value: float) -> str:
     return f"{float(value):.{_PRECISION}f}"
 
 
+def format_percent(value: float) -> str:
+    if pd.isna(value) or not isinstance(value, float):
+        return ''
+
+    return f"{float(value) * 100:.2f}%"
+
+
 def enum_types_to_name(enum_list: List[Any]) -> List[Any]:
     # prepare for enum storage in dataframe
     for element in enum_list:

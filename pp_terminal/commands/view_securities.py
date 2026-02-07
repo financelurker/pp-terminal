@@ -19,9 +19,10 @@
 
 import logging
 from datetime import datetime
-from typing import cast
+from typing import cast, Callable, Any
 
 import typer
+import pandas as pd
 from pp_terminal.data.filters import filter_by_security
 from pp_terminal.domain.cost_basis import calculate_total_cost_basis
 from pp_terminal.domain.vap import calculate_vap_by_security
@@ -31,9 +32,10 @@ from pp_terminal.utils.helper import footer
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.output.table_decorator import TableOptions
+from pp_terminal.output.table_decorator import TableOptions, format_value
 from pp_terminal.validation.engine import validate_securities, ValidationResult
 from pp_terminal.utils.config import get_command_config
+from pp_terminal.domain.schemas import Attribute
 
 app = typer.Typer()
 console = Console()
@@ -102,19 +104,26 @@ def print_securities(  # pylint: disable=too-many-locals
     selected_columns = normalize_columns(requested_columns, list(df.columns), portfolio.security_attributes)
 
     df = df[selected_columns]
-    df = df.rename(columns=portfolio.security_attributes)
+    df = df.rename(columns={uuid: attr.name for uuid, attr in portfolio.security_attributes.items()})
 
     if 'isRetired' in df.columns and 'isRetired' not in columns:
         df = df.drop(columns=['isRetired'])
 
     df = df.sort_values(by='name') if 'name' in df.columns else df
 
+    def formatter_with_types(attributes: dict[str, Attribute]) -> Callable[[Any, str, pd.Series], str]:
+        renamed_types = {attr.name: attr.converter for attr in attributes.values()}
+        def formatter(value: Any, column_name: str, row: pd.Series) -> str:
+            return format_value(value, column_name, row, renamed_types)
+        return formatter
+
     console.print(*output.result_table(
         df, TableOptions(
             title=f"{'Active ' if active else ''}Securities",
             caption=f"{len(df)} entries per {by.strftime("%Y-%m-%d")}",
             show_index=False,
-            show_total=False
+            show_total=False,
+            value_formatter=formatter_with_types(portfolio.security_attributes)
         )
     ))
     console.print(output.text(footer()), style="dim")

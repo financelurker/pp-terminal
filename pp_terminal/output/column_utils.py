@@ -18,12 +18,13 @@
 """
 
 from pp_terminal.exceptions import InputError
+from pp_terminal.domain.schemas import Attribute
 
 
 def normalize_columns(
     requested_columns: list[str],
     available_columns: list[str],
-    attributes: dict[str, str] | None = None
+    attributes: dict[str, Attribute] | None = None
 ) -> list[str]:
     """
     Normalize and validate column names (case-insensitive matching).
@@ -31,7 +32,7 @@ def normalize_columns(
     Args:
         requested_columns: List of column names requested by user (UUIDs or regular column names)
         available_columns: List of actual column names in the dataframe
-        attributes: Optional mapping of UUID to friendly attribute names (for error messages only)
+        attributes: Optional mapping of UUID to Attribute (for error messages only)
 
     Returns:
         List of normalized column names matching the dataframe columns
@@ -56,8 +57,8 @@ def normalize_columns(
             ])
             # Add attribute columns with their friendly names
             if attributes:
-                for uuid, name in sorted(attributes.items(), key=lambda x: x[1]):
-                    available_names.append(f"{uuid} ({name})")
+                for uuid, attr in sorted(attributes.items(), key=lambda x: x[1].name):
+                    available_names.append(f"{uuid} ({attr.name})")
             raise InputError(f"Column '{col}' not found. Available columns: {', '.join(available_names)}")
 
     return list(dict.fromkeys(normalized))  # make unique

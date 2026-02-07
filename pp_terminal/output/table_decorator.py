@@ -25,7 +25,7 @@ from rich.table import Table
 from rich.text import Text
 
 from pp_terminal.data.filters import drop_empty_values
-from pp_terminal.utils.helper import format_money, format_shares
+from pp_terminal.utils.helper import format_money, format_shares, format_percent
 from pp_terminal.domain.schemas import Money
 
 
@@ -40,7 +40,7 @@ def camel_case_to_title(column_name: str) -> str:
         wkn -> WKN
         isin -> ISIN
     """
-    acronyms = {'Id': 'ID', 'Wkn': 'WKN', 'Isin': 'ISIN', 'Eur': 'EUR', 'Usd': 'USD', 'Vap': 'VAP'}
+    acronyms = {'Id': 'ID', 'Wkn': 'WKN', 'Isin': 'ISIN', 'Eur': 'EUR', 'Usd': 'USD', 'Vap': 'VAP', 'Ter': 'TER'}
 
     # Insert space before uppercase letters that follow lowercase letters
     # accountId -> account Id
@@ -58,13 +58,18 @@ def camel_case_to_title(column_name: str) -> str:
     return text
 
 
-def format_value(value: Any, column_name: str, row: pd.Series) -> str:
+def format_value(value: Any, column_name: str, row: pd.Series, attribute_types: dict[str, str] | None = None) -> str:
     if column_name.lower() == 'shares' and isinstance(value, float):
         return format_shares(value)
 
     # Skip Purchase Price total (summing prices is meaningless)
     if column_name.lower().endswith('price') and row.isin(['Total']).any():
         return ''
+
+    if attribute_types and column_name in attribute_types:
+        converter = attribute_types[column_name]
+        if 'Percent' in converter and isinstance(value, float):
+            return format_percent(value)
 
     if isinstance(value, Money):
         return format_money(float(value), row['currency'] if 'currency' in row else column_name)

@@ -69,7 +69,7 @@ def _prepare_df_for_display(
             selected_columns.append(col)
 
     df = df[selected_columns]
-    df = df.rename(columns=snapshot.portfolio.account_attributes)
+    df = df.rename(columns={uuid: attr.name for uuid, attr in snapshot.portfolio.account_attributes.items()})
 
     if 'accountId' in df.columns:
         df = df.set_index('accountId')

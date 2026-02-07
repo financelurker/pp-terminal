@@ -21,6 +21,7 @@ import pytest
 
 from pp_terminal.output.column_utils import normalize_columns
 from pp_terminal.exceptions import InputError
+from pp_terminal.domain.schemas import Attribute
 
 
 @pytest.mark.parametrize(
@@ -50,8 +51,8 @@ def test_normalize_columns_with_uuid_attributes() -> None:
     requested = ['AccountId', 'Name', 'Balance', uuid1, uuid2]
     available = ['accountId', 'Name', 'Type', 'Balance', uuid1, uuid2]
     attributes = {
-        uuid1: 'Custom Attribute 1',
-        uuid2: 'Custom Attribute 2'
+        uuid1: Attribute(uuid=uuid1, name='Custom Attribute 1', converter='StringConverter'),
+        uuid2: Attribute(uuid=uuid2, name='Custom Attribute 2', converter='StringConverter')
     }
 
     result = normalize_columns(requested, available, attributes)
@@ -91,7 +92,7 @@ def test_normalize_columns_invalid_column_with_attributes() -> None:
 
     requested = ['Name', 'InvalidColumn']
     available = ['accountId', 'Name', uuid1]
-    attributes = {uuid1: 'Custom Attribute'}
+    attributes = {uuid1: Attribute(uuid=uuid1, name='Custom Attribute', converter='StringConverter')}
 
     with pytest.raises(InputError) as exc_info:
         normalize_columns(requested, available, attributes)

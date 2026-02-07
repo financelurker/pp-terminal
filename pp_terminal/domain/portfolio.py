@@ -25,7 +25,7 @@ from pandera.errors import SchemaError
 from pandera.typing import DataFrame
 
 from .schemas import AccountType, TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema, Account, \
-    Security
+    Security, Attribute
 from ..exceptions import InputError
 
 log = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class Portfolio:
     _securities: DataFrame[SecuritySchema] = SecuritySchema.empty()
     _transactions: DataFrame[TransactionSchema] = TransactionSchema.empty()
     _prices: DataFrame[SecurityPriceSchema] = SecurityPriceSchema.empty()
-    _attributes: dict[str, dict[str, str]] = {}
+    _attributes: dict[str, dict[str, Attribute]] = {}
     base_currency: str = ''
 
     def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -45,7 +45,7 @@ class Portfolio:
             transactions: DataFrame[TransactionSchema] | None = None,
             securities: DataFrame[SecuritySchema] | None = None,
             prices: DataFrame[SecurityPriceSchema] | None = None,
-            attributes: dict[str, dict[str, str]] | None = None
+            attributes: dict[str, dict[str, Attribute]] | None = None
     ):
         if accounts is not None:
             try:
@@ -101,14 +101,14 @@ class Portfolio:
 
     @property
     def all_attributes(self) -> dict[str, str]:
-        return {uuid: name for attributes in self._attributes.values() for uuid,name in attributes.items()}
+        return {uuid: attr.name for attributes in self._attributes.values() for uuid, attr in attributes.items()}
 
     @property
-    def security_attributes(self) -> dict[str, str]:
+    def security_attributes(self) -> dict[str, Attribute]:
         return self._attributes.get('securities', {})
 
     @property
-    def account_attributes(self) -> dict[str, str]:
+    def account_attributes(self) -> dict[str, Attribute]:
         return self._attributes.get('accounts', {})
 
 

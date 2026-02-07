@@ -23,6 +23,8 @@ from typing import Any, Callable, Dict, Optional
 import numpy as np
 import pandas as pd
 
+from pp_terminal.domain.schemas import Attribute
+
 log = logging.getLogger(__name__)
 
 def _percent_plain_converter(value: Any) -> float:
@@ -92,7 +94,7 @@ def _convert_single_value(value: Any, converter: Any, attr_name: str, attr_uuid:
         return np.nan
 
 
-def convert_attribute_types(df: pd.DataFrame, attributes: Dict[str, str]) -> pd.DataFrame:
+def convert_attribute_types(df: pd.DataFrame, attributes: Dict[str, Attribute]) -> pd.DataFrame:
     """
     Convert attribute values based on their converterClass types.
 
@@ -103,12 +105,12 @@ def convert_attribute_types(df: pd.DataFrame, attributes: Dict[str, str]) -> pd.
     Args:
         df: DataFrame containing attribute columns (as UUIDs) and corresponding
             {uuid}_converter columns with converter class names
-        attributes: Dictionary mapping attribute UUIDs to their friendly names
+        attributes: Dictionary mapping attribute UUIDs to Attribute objects
 
     Returns:
         DataFrame with converted attribute values and converter columns removed
     """
-    for attr_uuid, attr_name in attributes.items():
+    for attr_uuid, attr in attributes.items():
         value_col = attr_uuid
         converter_col = get_converter_column_name(attr_uuid)
 
@@ -116,7 +118,7 @@ def convert_attribute_types(df: pd.DataFrame, attributes: Dict[str, str]) -> pd.
             continue
 
         df[value_col] = df.apply(
-            lambda row, value_column=value_col, converter_column=converter_col, attribute_name=attr_name, attribute_uuid=attr_uuid: _convert_single_value(
+            lambda row, value_column=value_col, converter_column=converter_col, attribute_name=attr.name, attribute_uuid=attr_uuid: _convert_single_value(
                 row.get(value_column),
                 row.get(converter_column),
                 attribute_name,

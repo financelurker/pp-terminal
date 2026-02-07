@@ -25,6 +25,7 @@ import pytest
 from _pytest.logging import LogCaptureFixture
 
 from pp_terminal.data.attribute_type_converter import convert_attribute_types, get_converter_column_name
+from pp_terminal.domain.schemas import Attribute
 
 
 def test_convert_percent_plain_converter() -> None:
@@ -41,7 +42,7 @@ def test_convert_percent_plain_converter() -> None:
         ]
     })
 
-    attributes = {attr_uuid: 'test-attr'}
+    attributes = {attr_uuid: Attribute(uuid=attr_uuid, name='test-attr', converter='TestConverter')}
     result = convert_attribute_types(df, attributes)
 
     assert result.loc[0, attr_uuid] == pytest.approx(0.30)
@@ -64,7 +65,7 @@ def test_convert_percent_converter() -> None:
         ]
     })
 
-    attributes = {attr_uuid: 'test-attr'}
+    attributes = {attr_uuid: Attribute(uuid=attr_uuid, name='test-attr', converter='TestConverter')}
     result = convert_attribute_types(df, attributes)
 
     assert result.loc[0, attr_uuid] == pytest.approx(0.30)
@@ -85,7 +86,7 @@ def test_convert_date_converter() -> None:
         ]
     })
 
-    attributes = {attr_uuid: 'test-date-attr'}
+    attributes = {attr_uuid: Attribute(uuid=attr_uuid, name='test-date-attr', converter='TestConverter')}
     result = convert_attribute_types(df, attributes)
 
     assert pd.Timestamp(result.loc[0, attr_uuid]) == pd.Timestamp('2025-12-31')
@@ -105,7 +106,7 @@ def test_convert_long_converter() -> None:
         ]
     })
 
-    attributes = {attr_uuid: 'test-long-attr'}
+    attributes = {attr_uuid: Attribute(uuid=attr_uuid, name='test-long-attr', converter='TestConverter')}
     result = convert_attribute_types(df, attributes)
 
     assert result.loc[0, attr_uuid] == pytest.approx(100000.0)
@@ -125,7 +126,7 @@ def test_convert_string_converter() -> None:
         ]
     })
 
-    attributes = {attr_uuid: 'test-string-attr'}
+    attributes = {attr_uuid: Attribute(uuid=attr_uuid, name='test-string-attr', converter='TestConverter')}
     result = convert_attribute_types(df, attributes)
 
     assert result.loc[0, attr_uuid] == 'Value 1'
@@ -142,7 +143,7 @@ def test_convert_unknown_converter(caplog: LogCaptureFixture) -> None:
         f'{get_converter_column_name(attr_uuid)}': ['some.unknown.Converter'],
     })
 
-    attributes = {attr_uuid: 'test-unknown-attr'}
+    attributes = {attr_uuid: Attribute(uuid=attr_uuid, name='test-unknown-attr', converter='TestConverter')}
 
     caplog.set_level(logging.DEBUG)
     result = convert_attribute_types(df, attributes)
@@ -162,7 +163,7 @@ def test_convert_invalid_format(caplog: LogCaptureFixture) -> None:
         f'{get_converter_column_name(attr_uuid)}': ['name.abuchen.portfolio.model.AttributeType$PercentPlainConverter'],
     })
 
-    attributes = {attr_uuid: 'test-invalid-attr'}
+    attributes = {attr_uuid: Attribute(uuid=attr_uuid, name='test-invalid-attr', converter='TestConverter')}
     result = convert_attribute_types(df, attributes)
 
     # Invalid format should be set to NaN
@@ -183,7 +184,7 @@ def test_convert_missing_values(caplog: LogCaptureFixture) -> None:
         ]
     })
 
-    attributes = {attr_uuid: 'test-missing-attr'}
+    attributes = {attr_uuid: Attribute(uuid=attr_uuid, name='test-missing-attr', converter='TestConverter')}
     result = convert_attribute_types(df, attributes)
 
     # All should remain NaN
@@ -217,8 +218,8 @@ def test_convert_multiple_attributes() -> None:
     })
 
     attributes = {
-        attr1_uuid: 'exemption-rate',
-        attr2_uuid: 'valid-until'
+        attr1_uuid: Attribute(uuid=attr1_uuid, name='exemption-rate', converter='TestConverter'),
+        attr2_uuid: Attribute(uuid=attr2_uuid, name='valid-until', converter='TestConverter')
     }
     result = convert_attribute_types(df, attributes)
 

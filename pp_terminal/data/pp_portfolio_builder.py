@@ -26,7 +26,7 @@ import pandas as pd
 from pandera.typing import DataFrame
 
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.schemas import TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema, TransactionType
+from pp_terminal.domain.schemas import TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema, TransactionType, Attribute
 from pp_terminal.utils.cache import cleanup_old_cache_files, get_cache_path
 from pp_terminal.utils.helper import enum_list_to_values
 from .attribute_type_converter import convert_attribute_types, get_converter_column_name
@@ -59,14 +59,17 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
     def construct(self, file: Path) -> Portfolio:
         self._db.open(file)
 
+        securities_attrs = self._get_attributes(_ATTRIBUTE_TYPE_SECURITY)
+        account_attrs = self._get_attributes(_ATTRIBUTE_TYPE_ACCOUNT)
+
         portfolio = Portfolio(
-            accounts = self._parse_accounts(),
+            accounts = self._parse_accounts(account_attrs),
             transactions = self._parse_transactions(),
-            securities = self._parse_securities(),
+            securities = self._parse_securities(securities_attrs),
             prices = self._parse_prices(),
             attributes = {
-                'accounts': self._get_attributes(_ATTRIBUTE_TYPE_ACCOUNT),
-                'securities': self._get_attributes(_ATTRIBUTE_TYPE_SECURITY)
+                'accounts': account_attrs,
+                'securities': securities_attrs
             }
         )
 
@@ -76,9 +79,7 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
 
         return portfolio
 
-    def _parse_securities(self) -> DataFrame[SecuritySchema]:
-        security_attrs = self._get_attributes(_ATTRIBUTE_TYPE_SECURITY)
-
+    def _parse_securities(self, security_attrs: dict[str, Attribute]) -> DataFrame[SecuritySchema]:
         # Build dynamic SQL with CASE statements for each attribute
         case_statements = []
         params = []
@@ -129,9 +130,7 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
 
         return TransactionSchema.validate(transactions)
 
-    def _parse_accounts(self) -> DataFrame[AccountSchema]:
-        account_attrs = self._get_attributes(_ATTRIBUTE_TYPE_ACCOUNT)
-
+    def _parse_accounts(self, account_attrs: dict[str, Attribute]) -> DataFrame[AccountSchema]:
         # Build dynamic SQL with CASE statements for each attribute
         case_statements = []
         params = []
@@ -168,11 +167,11 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
 
         return str(result[0])
 
-    def _get_attributes(self, entity: str) -> dict[str, str]:
+    def _get_attributes(self, entity: str) -> dict[str, Attribute]:
         cursor = self._db.connection.cursor()
-        cursor.execute("SELECT id, name FROM attribute_type WHERE target = ? AND id NOT IN ('logo')", (entity, ))
+        cursor.execute("SELECT id, name, converterClass FROM attribute_type WHERE target = ? AND id NOT IN ('logo')", (entity, ))
 
-        return {str(row[0]): str(row[1]) for row in cursor.fetchall()}
+        return {str(row[0]): Attribute(uuid=str(row[0]), name=str(row[1]), converter=str(row[2])) for row in cursor.fetchall()}
 
 
 class CachedPpPortfolioBuilder:  # pylint: disable=too-few-public-methods

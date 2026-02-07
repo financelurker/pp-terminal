@@ -17,6 +17,7 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
+from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, TypeAlias, Any
 
@@ -26,6 +27,13 @@ from pydantic import BaseModel
 
 Money: TypeAlias = float
 Percent: TypeAlias = float
+
+
+@dataclass(frozen=True)
+class Attribute:
+    uuid: str
+    name: str
+    converter: str
 
 
 class TransactionType(Enum):

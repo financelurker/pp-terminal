@@ -262,8 +262,10 @@ def test_exemption_rate_applied_to_total_capital_gain() -> None:
     securities = pd.DataFrame({
         'name': ['Test ETF'],
         'wkn': ['ETF123'],
+        'isin': ['TEST123456'],
         'currency': ['EUR'],
-        'isRetired': [False]
+        'isRetired': [False],
+        'note': [None]
     }, index=['sec-1'])
     securities.index.name = 'securityId'
 
@@ -286,9 +288,8 @@ def test_exemption_rate_applied_to_total_capital_gain() -> None:
     # Note: Exemption rate is now applied during sell calculation, not during CSV loading
     # This ensures consistent application of exemption to all gains
     csv_data = pd.DataFrame({
+        'isin': ['TEST123456', 'TEST123456'],
         'year': [2020, 2021],
-        'account_id': ['acc-1', 'acc-1'],
-        'security_id': ['sec-1', 'sec-1'],
         'deemed_income': [1.0, 1.0],  # 100€ total / 100 shares
     })
 
@@ -297,7 +298,7 @@ def test_exemption_rate_applied_to_total_capital_gain() -> None:
         csv_data.to_csv(f.name, sep=';', index=False)
         csv_path = Path(f.name)
 
-    csv_data = load_prepaid_tax_data_from_csv(csv_path)
+    csv_data = load_prepaid_tax_data_from_csv(csv_path, portfolio)
 
     # Sell 100 shares at 150€ on 2022-06-01
     # Capital gain = 150*100 - (100*100 + 10) = 15000 - 10010 = 4990€
@@ -362,8 +363,10 @@ def test_simplified_tax_formula_with_deemed_income_base() -> None:
     securities = pd.DataFrame({
         'name': ['Test ETF'],
         'wkn': ['ETF123'],
+        'isin': ['TEST123456'],
         'currency': ['EUR'],
-        'isRetired': [False]
+        'isRetired': [False],
+        'note': [None]
     }, index=['sec-1'])
     securities.index.name = 'securityId'
 
@@ -383,10 +386,10 @@ def test_simplified_tax_formula_with_deemed_income_base() -> None:
     portfolio = Portfolio(accounts, transactions, securities, pd.DataFrame())
 
     # CSV with VAP deemed income base: 1€ per share per year
+    # New format: isin;year;deemed_income
     csv_data = pd.DataFrame({
+        'isin': ['TEST123456', 'TEST123456'],
         'year': [2020, 2021],
-        'account_id': ['acc-1', 'acc-1'],
-        'security_id': ['sec-1', 'sec-1'],
         'deemed_income': [1.0, 1.0],
     })
 
@@ -396,7 +399,7 @@ def test_simplified_tax_formula_with_deemed_income_base() -> None:
         csv_path = Path(f.name)
 
     # This should load deemed income base as-is (no tax calculation)
-    csv_data_loaded = load_prepaid_tax_data_from_csv(csv_path)
+    csv_data_loaded = load_prepaid_tax_data_from_csv(csv_path, portfolio)
 
     # Sell 100 shares at 150€ on 2022-06-01
     snapshot = PortfolioSnapshot(portfolio, datetime(2022, 6, 1))

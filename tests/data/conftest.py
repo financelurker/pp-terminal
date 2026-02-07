@@ -100,12 +100,11 @@ def provide_tax_csv_data() -> DataFrame[TaxPaidSchema]:
     data = DataFrame[TaxPaidSchema]([
         [0.189573],
         [0.227488],
-        [0.227488],
         [0.265403],
     ], columns=['deemed_income'],
         index=pd.MultiIndex.from_arrays(
-            [[2020, 2021, 2021, 2022], ['acc-1', 'acc-1', 'acc-2', 'acc-1'], ['sec-1', 'sec-1', 'sec-1', 'sec-1']],
-            names=['year', 'account_id', 'security_id']
+            [[2020, 2021, 2022], ['sec-1', 'sec-1', 'sec-1']],
+            names=['year', 'security_id']
         ))
 
     return data

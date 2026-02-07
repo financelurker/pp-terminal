@@ -27,9 +27,9 @@ import typer
 from pp_terminal.data.filters import filter_by_account_and_security
 from pp_terminal.domain.cost_basis import calculate_fifo_sell
 
-from pp_terminal.data.tax import load_prepaid_tax_data_from_csv
+from pp_terminal.data.tax import load_prepaid_tax_data
 from pp_terminal.exceptions import InputError
-from pp_terminal.utils.config import Config, get_exemption_rate
+from pp_terminal.utils.config import Config, get_exemption_rate, get_tax_files
 from pp_terminal.utils.helper import footer
 from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
@@ -88,11 +88,8 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     if date is None:
         date = get_today()
 
-    try:
-        _tax_csv_data = load_prepaid_tax_data_from_csv(tax_csv) if tax_csv else None
-    except InputError as e:
-        log.error("unable to load prepaid tax from csv, skipping: %s", e)
-        _tax_csv_data = None
+    tax_files = [tax_csv] if tax_csv else get_tax_files(config)
+    _tax_csv_data = load_prepaid_tax_data(tax_files, portfolio)
 
     security = get_security_by_id(portfolio, security_id)
     account = get_securities_account_by_id(portfolio, account_id)

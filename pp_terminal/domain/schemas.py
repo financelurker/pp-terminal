@@ -114,7 +114,6 @@ class SecurityPriceSchema(pa.DataFrameModel):
 
 class TaxPaidSchema(pa.DataFrameModel):
     year: Index[int] = pa.Field(coerce=True)
-    account_id: Index[str]
     security_id: Index[str]
     deemed_income: Series[Money]
 

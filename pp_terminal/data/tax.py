@@ -66,11 +66,14 @@ def get_exemption_multiplier_per_security(
     )
 
 
-def load_prepaid_tax_data_from_csv(csv_path: Path) -> DataFrame[TaxPaidSchema]:
+def load_prepaid_tax_data_from_csv(
+    csv_path: Path,
+    portfolio: Portfolio
+) -> DataFrame[TaxPaidSchema]:
     """
     Load prepaid deemed income base from CSV (e.g. Vorabpauschale).
 
-    CSV format: year;account_id;security_id;[any_column_name]
+    CSV format: isin;year;[any_column_name]
     The last column is used as deemed income per share.
     """
     log.debug('Loading prepaid deemed income data from "%s"..', csv_path)
@@ -78,17 +81,73 @@ def load_prepaid_tax_data_from_csv(csv_path: Path) -> DataFrame[TaxPaidSchema]:
     try:
         df = pd.read_csv(csv_path, sep=';', comment='#')
 
+        if df.shape[1] < 3:
+            raise InputError(f"CSV must have at least 3 columns (isin;year;deemed_income), got {df.shape[1]}")
+
         # Use last column as deemed income, regardless of its name
         value_column = df.columns[-1]
-        df = df.rename(columns={value_column: 'deemed_income'})
+        df = df.rename(columns={
+            df.columns[0]: 'isin',
+            df.columns[1]: 'year',
+            value_column: 'deemed_income'
+        })
 
-        df = df.set_index(['year', 'account_id', 'security_id'])
+        if portfolio.securities.empty:
+            raise InputError("Portfolio has no securities, cannot map ISIN to security_id")
+
+        # Handle duplicate ISINs by keeping first occurrence
+        securities_df = portfolio.securities.reset_index()[['securityId', 'isin']]
+        securities_df = securities_df.drop_duplicates(subset=['isin'], keep='first')
+        isin_to_id = securities_df.set_index('isin')['securityId']
+        df['security_id'] = df['isin'].map(isin_to_id)
+
+        missing_isins = df[df['security_id'].isna()]['isin'].unique()
+        if len(missing_isins) > 0:
+            log.warning("ISINs not found in portfolio: %s", missing_isins)
+            df = df[df['security_id'].notna()]
+
+        if df.empty:
+            empty_df = pd.DataFrame(columns=['deemed_income']).set_index(['year', 'security_id'])
+            return TaxPaidSchema.validate(empty_df)
+
+        df = df.set_index(['year', 'security_id'])
 
         return TaxPaidSchema.validate(df[['deemed_income']])
     except FileNotFoundError as e:
         raise InputError(f"Prepaid tax data CSV file not found: {csv_path}") from e
     except Exception as e:
         raise InputError(f"Failed to read prepaid tax data CSV: {e}") from e
+
+
+def load_prepaid_tax_data(
+    csv_paths: list[Path],
+    portfolio: Portfolio
+) -> DataFrame[TaxPaidSchema] | None:
+    """
+    Load prepaid deemed income data from one or multiple CSV files.
+    Later files override earlier files for duplicate (year, security_id) entries.
+    """
+    if not csv_paths:
+        return None
+
+    all_data = []
+    for csv_path in csv_paths:
+        try:
+            df = load_prepaid_tax_data_from_csv(csv_path, portfolio)
+            if not df.empty:
+                all_data.append(df)
+        except InputError as e:
+            log.error("Skipping prepaid tax file %s: %s", csv_path, e)
+
+    if not all_data:
+        return None
+
+    combined = pd.concat(all_data)
+
+    # Last file wins: keep last occurrence of duplicate (year, security_id)
+    combined = combined[~combined.index.duplicated(keep='last')]
+
+    return TaxPaidSchema.validate(combined)
 
 
 def calculate_prepaid_tax_per_lot(
@@ -102,7 +161,7 @@ def calculate_prepaid_tax_per_lot(
     Args:
         lots: Current FIFO lots DataFrame (after matching sales)
         current_date: Evaluation date (for year range calculation)
-        tax_csv_data: CSV data with deemed income base per share, indexed by (year, account_id, security_id)
+        tax_csv_data: CSV data with deemed income base per share, indexed by (year, security_id)
 
     Returns:
         Series of prepaid deemed income base amounts, indexed to match the input lots dataframe.
@@ -137,10 +196,10 @@ def calculate_prepaid_tax_per_lot(
         (13 - lot_years.loc[is_first_year, 'date'].dt.month) / 12.0
     )
 
-    tax_csv_data = tax_csv_data.reset_index().rename(columns={'account_id': 'accountId', 'security_id': 'securityId'})  # @todo
+    tax_csv_data = tax_csv_data.reset_index().rename(columns={'security_id': 'securityId'})
     lot_years = lot_years.merge(
         tax_csv_data,
-        on=['year', 'accountId', 'securityId'],
+        on=['year', 'securityId'],
         how='inner'
     )
 

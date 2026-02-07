@@ -51,9 +51,20 @@
           "minimum": 0,
           "maximum": 100
         },
-        "file": {
-          "description": "Path to tax calculation file",
-          "type": "string"
+        "files": {
+          "description": "List of paths to tax calculation CSV files. Later files override earlier files for duplicate entries.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          ]
         },
         "exemption-rate": {
           "description": "Default tax exemption rate as percentage (e.g., 30 for 30%)",

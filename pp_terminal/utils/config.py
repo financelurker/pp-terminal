@@ -46,6 +46,18 @@ def get_exemption_rate_attribute(config: Config) -> str | None:
     return str(value) if value is not None else None
 
 
+def get_tax_files(config: Config) -> list[Path]:
+    tax_config = config.get('tax', {})
+
+    if 'files' in tax_config:
+        files = tax_config['files']
+        if isinstance(files, list):
+            return [Path(f) for f in files]
+        return [Path(files)]
+
+    return []
+
+
 
 def _load_schema() -> dict[str, Any]:
     schema_path = Path(__file__).parent.parent / 'config.schema.json'

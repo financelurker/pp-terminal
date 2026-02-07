@@ -32,7 +32,7 @@ from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import Percent, Money
-from pp_terminal.domain.vap import calculate_vap, get_base_rate_for_year, add_balance_info_to_vap
+from pp_terminal.domain.vap import calculate_vap, get_base_rate_for_year, add_account_balances
 from pp_terminal.output.table_decorator import TableOptions, format_value
 
 app = typer.Typer()
@@ -90,7 +90,7 @@ def print_tax_table(  # pylint: disable=too-many-locals
     if result is not None and not result.empty:
         account_columns = [col for col in result.columns if col not in ['wkn', 'name', 'currency']]
         vap_totals = result[account_columns].sum().to_dict()
-        result = add_balance_info_to_vap(result, portfolio, snapshot_end)
+        result = add_account_balances(result, portfolio, snapshot_end)
 
     def format_value_with_balance_check(value: Any, index: str, row: pd.Series) -> str:
         if 'name' in row.index and row['name'] == 'Related Account Balance' and isinstance(value, Money) and index in vap_totals:

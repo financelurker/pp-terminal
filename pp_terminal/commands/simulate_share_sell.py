@@ -29,7 +29,7 @@ from pp_terminal.domain.cost_basis import calculate_fifo_sell
 
 from pp_terminal.data.tax import load_prepaid_tax_data_from_csv
 from pp_terminal.exceptions import InputError
-from pp_terminal.utils.helper import format_money, footer
+from pp_terminal.utils.helper import footer
 from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
@@ -112,15 +112,9 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     transactions = snapshot.securities_account_transactions.pipe(filter_by_account_and_security, security_id=security_id, account_id=account_id)
     fifo_lots = calculate_fifo_sell(transactions, snapshot.date, sale_price, tax_rate, shares, _tax_csv_data).reset_index()
 
-    console.print(output.text(f"\n[bold]Security:[/bold] {security.name} ({security.wkn})"))
-    console.print(output.text(f"[bold]Account:[/bold] {account.name}"))
-    console.print(output.text(f"[bold]Shares:[/bold] {shares}"))
-    console.print(output.text(f"[bold]Sale Date:[/bold] {date.strftime('%Y-%m-%d')}"))
-    console.print(output.text(f"[bold]Sale Price (per share):[/bold] {format_money(sale_price, security.currency)}"))
-
     console.print(*output.result_table(
-        fifo_lots[['date', 'shares', 'currency', 'purchasePrice', 'cost', 'fees', 'salePrice', 'capitalGain', 'taxableGain', 'grossProceeds', 'totalTax', 'netProceeds']],
-        TableOptions(title="FIFO Lots Breakdown", show_index=False, show_total=True)
+        fifo_lots[['date', 'shares', 'currency', 'purchasePrice', 'costBasis', 'fees', 'salePrice', 'capitalGain', 'taxableGain', 'grossProceeds', 'totalTax', 'netProceeds']],
+        TableOptions(title=f"FIFO Lots on {date.strftime('%Y-%m-%d')}", caption=f"{security.name} ({security.wkn}) in {account.name}", show_index=False, show_total=True)
     ))
 
     console.print(output.warning(f'This simulation assumes all values are in security currency ({security.currency}) excl. Sparerpauschbetrag.'))

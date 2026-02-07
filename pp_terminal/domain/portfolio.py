@@ -116,7 +116,9 @@ def get_securities_account_by_id(portfolio: Portfolio, account_id: str) -> Accou
     if account_id not in portfolio.securities_accounts.index:
         raise InputError(f"Securities account '{account_id}' not found in portfolio")
 
-    return Account(**portfolio.securities_accounts.reset_index().set_index('accountId', drop=False).loc[account_id])
+    account_data = portfolio.securities_accounts.reset_index().set_index('accountId', drop=False).loc[account_id].to_dict()
+    account_data = {k: (None if pd.isna(v) else v) for k, v in account_data.items()}
+    return Account(**account_data)
 
 
 def get_security_by_id(portfolio: Portfolio, security_id: str) -> Security:

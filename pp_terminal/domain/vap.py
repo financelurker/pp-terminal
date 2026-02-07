@@ -329,7 +329,7 @@ def calculate_vap_by_account(  # pylint: disable=too-many-arguments,too-many-pos
     return vap_by_deposit_account if vap_by_deposit_account else None
 
 
-def add_balance_info_to_vap(
+def add_account_balances(
         vap_result: DataFrame[VapResultSchema],
         portfolio: Portfolio,
         snapshot_end: PortfolioSnapshot

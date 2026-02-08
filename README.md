@@ -201,6 +201,7 @@ The CLI options always overwrite the settings in the configuration file.
 ```toml
 file = "portfolio_performance.xml"
 precision = 4
+anonymize = true
 ```
 
 ### Customize Number Formats

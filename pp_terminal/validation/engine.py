@@ -18,19 +18,14 @@
 """
 
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any
 
 import pandas as pd
-from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_not_retired
-from pp_terminal.data.tax import load_prepaid_tax_data
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.domain.schemas import TaxPaidSchema
-from pp_terminal.domain.vap import calculate_base_yield_per_share, get_base_rate_for_year
-from pp_terminal.utils.config import get_command_config, get_tax_files
+from pp_terminal.utils.config import get_command_config
 from .base import ValidationRule
 from .rules import create_rule, get_applicable_rules
 
@@ -122,35 +117,11 @@ def validate_accounts(
     return results
 
 
-def _calculate_base_yield_since(
-        portfolio: Portfolio,
-        start_year: int = 2018
-) -> dict[int, pd.Series]:
-    base_yield_by_year: dict[int, pd.Series] = {}
-    current_year = datetime.now().year
-
-    for year in range(start_year, current_year + 1):
-        snapshot_begin = PortfolioSnapshot(portfolio, datetime(year, 1, 2))
-        snapshot_end = PortfolioSnapshot(portfolio, datetime(year, 12, 31))
-        base_rate = get_base_rate_for_year(year)
-
-        base_yield_by_security = calculate_base_yield_per_share(snapshot_begin, snapshot_end, base_rate)
-        if not base_yield_by_security.empty:
-            base_yield_by_year[year] = base_yield_by_security
-
-    return base_yield_by_year
-
-
 def validate_securities(
     portfolio: Portfolio,
     config: dict[str, Any]
 ) -> dict[str, ValidationResult]:
     rules = [create_rule(rule_config) for rule_config in get_command_config(config, 'validate.securities.rules', [])]
-
-    tax_files = get_tax_files(config)
-    tax_csv_data: DataFrame[TaxPaidSchema] | None = load_prepaid_tax_data(tax_files, portfolio) if tax_files else None
-
-    base_yield_by_year = _calculate_base_yield_since(portfolio)
 
     latest_prices = portfolio.prices.groupby(['securityId']).tail(1)
 
@@ -165,15 +136,20 @@ def validate_securities(
 
     securities_with_prices = securities_with_prices.pipe(filter_not_retired)
 
+    base_context = {
+        'portfolio': portfolio,
+        'config': config,
+    }
+
+    for rule in rules:
+        base_context.update(rule.__class__.provide_context(portfolio, config))
+
     results = {}
     for security_id, security in securities_with_prices.iterrows():
         context = {
+            **base_context,
             'latest_price_date': security.get('date') if pd.notna(security.get('date')) else None,
             'current_price': security.get('price') if pd.notna(security.get('price')) else None,
-            'portfolio': portfolio,
-            'config': config,
-            'tax_csv_data': tax_csv_data,
-            'base_yield_by_year': base_yield_by_year,
         }
         result = _validate_entity(str(security_id), security, rules, context)
         results[str(security_id)] = result

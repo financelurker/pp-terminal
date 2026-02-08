@@ -251,7 +251,7 @@ def calculate_base_yield_per_share(
         snapshot_period_end: PortfolioSnapshot,
         base_rate_percent: Percent
 ) -> pd.Series:
-    outcome = snapshot_period_end.latest_prices.subtract(snapshot_period_begin.latest_prices, fill_value=0)
+    outcome = snapshot_period_end.latest_prices.subtract(snapshot_period_begin.latest_prices, fill_value=0).clip(lower=0).fillna(0)
     base_yield = snapshot_period_begin.latest_prices * 0.7 * max(base_rate_percent, 0) / 100
 
     return outcome.combine(base_yield, np.minimum)

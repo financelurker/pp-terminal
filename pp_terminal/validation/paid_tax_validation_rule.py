@@ -23,13 +23,17 @@ import logging
 import pandas as pd
 from pandera.typing import DataFrame
 
+from pp_terminal.data.tax import load_prepaid_tax_data
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.schemas import TaxPaidSchema
+from pp_terminal.domain.vap import calculate_base_yield_per_share, get_base_rate_for_year
+from pp_terminal.utils.config import get_tax_files
 from pp_terminal.validation.base import ValidationRule
 
 log = logging.getLogger(__name__)
 
+_START_YEAR = 2018
 
 class PaidTaxValidationRule(ValidationRule):
     """Validates calculated VAP base yield against paid tax data from CSV files."""
@@ -46,6 +50,32 @@ class PaidTaxValidationRule(ValidationRule):
     ):
         super().__init__(rule_type, value, severity, applies_to, valid_months=valid_months)
         self.tolerance = tolerance
+
+    @classmethod
+    def provide_context(cls, portfolio: Portfolio, config: dict[str, Any]) -> dict[str, Any]:
+        tax_files = get_tax_files(config)
+        tax_csv_data: DataFrame[TaxPaidSchema] | None = load_prepaid_tax_data(tax_files, portfolio) if tax_files else None
+
+        return {
+            'base_yield_by_year': cls._calculate_base_yield_since(portfolio),
+            'tax_csv_data': tax_csv_data,
+        }
+
+    @staticmethod
+    def _calculate_base_yield_since(portfolio: Portfolio) -> dict[int, pd.Series]:
+        base_yield_by_year: dict[int, pd.Series] = {}
+        current_year = datetime.now().year
+
+        for year in range(_START_YEAR, current_year + 1):
+            snapshot_begin = PortfolioSnapshot(portfolio, datetime(year, 1, 2))
+            snapshot_end = PortfolioSnapshot(portfolio, datetime(year, 12, 31))
+            base_rate = get_base_rate_for_year(year)
+
+            base_yield_by_security = calculate_base_yield_per_share(snapshot_begin, snapshot_end, base_rate)
+            if not base_yield_by_security.empty:
+                base_yield_by_year[year] = base_yield_by_security
+
+        return base_yield_by_year
 
     def validate(self, entity: pd.Series, entity_id: str, context: dict[str, Any]) -> tuple[bool, str | None]:  # pylint: disable=too-many-locals,too-many-branches
         is_error, message = super().validate(entity, entity_id, context)
@@ -67,15 +97,14 @@ class PaidTaxValidationRule(ValidationRule):
         mismatches = []
         current_year = datetime.now().year
 
-        for year in range(2018, current_year):  # exclude current year
-            total_base_yield = base_yield_by_year.get(year, {}).get(entity_id, 0.0)
+        for year in range(_START_YEAR, current_year):  # exclude current year
+            calculated_value = base_yield_by_year.get(year, {}).get(entity_id, 0.0)
             snapshot_end = PortfolioSnapshot(portfolio, datetime(year, 12, 31))
             shares = snapshot_end.shares.groupby(level='securityId').sum().to_dict()
 
-            if entity_id in shares and shares[entity_id] > 0:
-                calculated_value = total_base_yield
-            else:
-                calculated_value = 0.0
+            # only respect if in portfolio
+            if entity_id not in shares or shares[entity_id] <= 0:
+                continue
 
             if (year, entity_id) in tax_csv_data.index:
                 csv_value = float(tax_csv_data.loc[(year, entity_id), 'deemed_income'])

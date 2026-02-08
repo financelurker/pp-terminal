@@ -19,9 +19,12 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any
+from typing import Any, TYPE_CHECKING
 import logging
 import pandas as pd
+
+if TYPE_CHECKING:
+    from pp_terminal.domain.portfolio import Portfolio
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +44,11 @@ class ValidationRule(ABC):
         self.severity = severity
         self.applies_to = applies_to
         self.valid_months = valid_months
+
+    @classmethod
+    def provide_context(cls, portfolio: 'Portfolio', config: dict[str, Any]) -> dict[str, Any]:  # pylint: disable=unused-argument
+        """Override to contribute data to shared validation context."""
+        return {}
 
     def _should_apply(self, current_date: datetime | None = None) -> bool:
         if current_date is None:

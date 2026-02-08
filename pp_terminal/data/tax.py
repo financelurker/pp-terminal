@@ -100,11 +100,7 @@ def load_prepaid_tax_data_from_csv(
         securities_df = securities_df.drop_duplicates(subset=['isin'], keep='first')
         isin_to_id = securities_df.set_index('isin')['securityId']
         df['security_id'] = df['isin'].map(isin_to_id)
-
-        missing_isins = df[df['security_id'].isna()]['isin'].unique()
-        if len(missing_isins) > 0:
-            log.warning("ISINs not found in portfolio: %s", missing_isins)
-            df = df[df['security_id'].notna()]
+        df = df[df['security_id'].notna()]
 
         if df.empty:
             empty_df = pd.DataFrame(columns=['deemed_income']).set_index(['year', 'security_id'])

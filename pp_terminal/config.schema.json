@@ -220,14 +220,14 @@
     },
     "securityRule": {
       "type": "object",
-      "required": ["type", "value"],
+      "required": ["type"],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["price-staleness", "price-limit", "price-limit-from-attribute", "cost-basis-limit", "cost-basis-limit-from-attribute"]
+          "enum": ["price-staleness", "price-limit", "price-limit-from-attribute", "cost-basis-limit", "cost-basis-limit-from-attribute", "paid-tax-validation"]
         },
         "value": {
-          "description": "For price-staleness: an integer (days). For price-limit/cost-basis-limit: a number. For *-from-attribute rules: Portfolio Performance attribute UUID.",
+          "description": "For price-staleness: an integer (days). For price-limit/cost-basis-limit: a number. For *-from-attribute rules: Portfolio Performance attribute UUID. For paid-tax-validation: not used (can be omitted).",
           "oneOf": [
             {
               "type": "number",
@@ -246,6 +246,13 @@
         },
         "valid-months": {
           "$ref": "#/$defs/validMonths"
+        },
+        "tolerance": {
+          "description": "Relative tolerance as decimal (e.g., 0.01 for 1%). Default: 0.01",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.01
         }
       },
       "additionalProperties": false

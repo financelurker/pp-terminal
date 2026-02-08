@@ -75,7 +75,7 @@ def test_full_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_secur
 
     result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375)
 
-    assert result is None
+    assert result.empty
 
 
 def test_partial_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_securities: pd.DataFrame, sell_test_prices: pd.DataFrame) -> None:

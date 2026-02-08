@@ -74,7 +74,7 @@ class PortfolioSnapshot:
         return TransactionSchema.validate(transactions.pipe(filter_earlier_than, target_date=self._per_date))
 
     @property
-    def shares(self) -> pd.Series | None:
+    def shares(self) -> pd.Series:
         transactions = self.securities_account_transactions
         transactions['shares'] = transactions.apply(
             lambda row: -1 if row['type'] in enum_list_to_values(_NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES) else 1,

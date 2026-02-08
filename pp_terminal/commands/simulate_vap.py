@@ -87,7 +87,7 @@ def print_tax_table(  # pylint: disable=too-many-locals
     result = calculate_vap(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate, exempt_rate_uuid)
 
     vap_totals = {}
-    if result is not None and not result.empty:
+    if not result.empty:
         account_columns = [col for col in result.columns if col not in ['wkn', 'name', 'currency']]
         vap_totals = result[account_columns].sum().to_dict()
         result = add_account_balances(result, portfolio, snapshot_end)

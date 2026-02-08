@@ -35,7 +35,6 @@ log = logging.getLogger(__name__)
 # Basiszinssatz (base interest rate) by year for German tax calculations
 # @link https://www.bundesbank.de/de/statistiken/geld-und-kapitalmaerkte/zinssaetze-und-renditen/basiszinssatz
 _BASE_RATE_BY_YEAR: dict[int, Percent] = {
-    2016: 1.1,
     2018: 0.87,
     2019: 0.52,
     2020: 0.07,
@@ -63,7 +62,7 @@ def _calculate_payouts(snapshot_end: PortfolioSnapshot) -> pd.Series:
     return payouts
 
 
-def _calculate_minimum_shares_during_year(snapshot_end: PortfolioSnapshot) -> pd.Series | None:  # pylint: disable=too-many-locals
+def _calculate_min_shares(snapshot_begin: PortfolioSnapshot, snapshot_end: PortfolioSnapshot) -> pd.Series | None:  # pylint: disable=too-many-locals
     """
     Calculate the minimum share position during the tax year for each security.
     This detects if a position went to zero (complete sell) and was then rebought.
@@ -71,13 +70,8 @@ def _calculate_minimum_shares_during_year(snapshot_end: PortfolioSnapshot) -> pd
     """
     transactions = snapshot_end.securities_account_transactions
 
-    # Get year-start position
-    year_start = datetime(snapshot_end.date.year, 1, 2)
-    snapshot_begin = PortfolioSnapshot(snapshot_end.portfolio, year_start)
     begin_shares = snapshot_begin.shares
-
-    if begin_shares is None or begin_shares.empty:
-        # No position at year start, minimum is 0 for all
+    if begin_shares.empty:
         return None
 
     # Get only in-year transactions
@@ -137,6 +131,22 @@ def _calculate_prorata_shares_for_inyear_buys(snapshot_end: PortfolioSnapshot) -
     return transactions_inyear.groupby(['accountId', 'securityId'])['shares'].sum().abs()
 
 
+def _calculate_effective_shares(
+        snapshot_period_begin: PortfolioSnapshot,
+        snapshot_period_end: PortfolioSnapshot
+) -> pd.Series:
+    # respect in-year buys
+    effective_begin_shares = _calculate_min_shares(snapshot_period_begin, snapshot_period_end)
+    if effective_begin_shares is None or effective_begin_shares.empty:
+        effective_begin_shares = snapshot_period_begin.shares.copy()
+
+    pro_rata_shares = _calculate_prorata_shares_for_inyear_buys(snapshot_period_end)
+    if pro_rata_shares is not None:
+        effective_begin_shares = effective_begin_shares.add(pro_rata_shares, fill_value=0)
+
+    return effective_begin_shares
+
+
 # @see https://www.gesetze-im-internet.de/invstg_2018/__18.html
 def calculate_vap(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
         snapshot_period_begin: PortfolioSnapshot,
@@ -145,58 +155,23 @@ def calculate_vap(  # pylint: disable=too-many-locals,too-many-arguments,too-man
         tax_rate_percent: Percent,
         default_exemption_rate_percent: Percent = 30.0,
         exempt_rate_attr_uuid: str | None = None
-) -> DataFrame[VapResultSchema] | None:
+) -> DataFrame[VapResultSchema]:
     """
     Calculate detailed Vorabpauschale (VAP) for German tax purposes.
 
     Returns:
-        DataFrame with VAP amounts per security and account, including deposit account balances.
-        Returns None if no VAP can be calculated.
+        DataFrame with VAP amounts per security and account.
+        Returns empty DataFrame if no VAP can be calculated.
 
     Reference:
         https://www.gesetze-im-internet.de/invstg_2018/__18.html
     """
-    base_rate = max(base_rate_percent, 0) / 100
+    base_yields_per_share = calculate_base_yield_per_share(snapshot_period_begin, snapshot_period_end, base_rate_percent)
+    effective_begin_shares = _calculate_effective_shares(snapshot_period_begin, snapshot_period_end)
+    base_yield = effective_begin_shares.mul(base_yields_per_share, level="securityId")
+    base_yield = base_yield.groupby(['accountId', 'securityId']).sum()
 
     payouts = _calculate_payouts(snapshot_period_end)
-
-    # @todo convert all values to EUR with rates from ECB, for the moment we simply remove currency
-    # Calculate begin values only for shares held continuously from year start to year end
-    shares_begin = snapshot_period_begin.shares
-    shares_end = snapshot_period_end.shares
-
-    if shares_begin is not None and shares_end is not None and not shares_begin.empty and not shares_end.empty:
-        # Calculate minimum position during the year to detect complete sells
-        min_shares_during_year = _calculate_minimum_shares_during_year(snapshot_period_end)
-
-        if min_shares_during_year is not None:
-            # Only count shares held continuously (never went to zero)
-            effective_begin_shares = shares_begin.combine(min_shares_during_year, min, fill_value=0).clip(lower=0)
-        else:
-            # Fallback: cap by end shares (assumes continuous holding)
-            effective_begin_shares = shares_begin.combine(shares_end, min, fill_value=0).clip(lower=0)
-
-        effective_begin_shares.name = 'shares'
-
-        # Calculate begin values using continuously held shares
-        begin_values_in_eur = (snapshot_period_begin.latest_prices * effective_begin_shares).groupby(['accountId', 'securityId']).sum()
-    else:
-        begin_values_in_eur = snapshot_period_begin.values.groupby(['accountId', 'securityId']).sum()
-
-    end_values_in_eur = snapshot_period_end.values.groupby(['accountId', 'securityId']).sum()
-
-    # use df.subtract to align both matrices
-    outcome = end_values_in_eur.subtract(begin_values_in_eur, fill_value=0)
-    outcome.name = 'Outcome'
-
-    # for securities that have been bought within the year we need to take the number of months held into account
-    pro_rata_shares = _calculate_prorata_shares_for_inyear_buys(snapshot_period_end)
-    modified_values_begin = begin_values_in_eur.add(pro_rata_shares.mul(snapshot_period_begin.latest_prices, fill_value=0), fill_value=0) if pro_rata_shares is not None else snapshot_period_begin.values
-
-    base_yield = modified_values_begin * base_rate * 0.7
-    base_yield = outcome.combine(base_yield, np.minimum)
-    base_yield.name = 'Base Yield'
-
     vap = base_yield.subtract(payouts, fill_value=0) if payouts is not None else base_yield
     vap = vap.clip(lower=0).fillna(0)  # replace negative values with zero
 
@@ -222,12 +197,13 @@ def calculate_vap(  # pylint: disable=too-many-locals,too-many-arguments,too-man
 
     vap = vap.pipe(drop_empty_values)
     if vap.empty:
-        return None
+        return VapResultSchema.empty()
 
     vap = pd.merge(snapshot_period_end.portfolio.securities[['wkn', 'name', 'currency']], vap, left_index=True, right_index=True, how='right', validate='one_to_one').sort_values(by='name')
 
     securities_accounts = snapshot_period_end.portfolio.securities_accounts
     result = vap.rename(columns=securities_accounts['name'])
+
     return VapResultSchema.validate(result)
 
 
@@ -249,7 +225,7 @@ def calculate_vap_by_security(
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(year, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(year, 12, 31))
 
-    vap_detailed = calculate_vap(
+    vap_result = calculate_vap(
         snapshot_begin,
         snapshot_end,
         base_rate_percent,
@@ -258,16 +234,27 @@ def calculate_vap_by_security(
         exempt_rate_attr_uuid
     )
 
-    if vap_detailed is None or vap_detailed.empty:
+    if vap_result.empty:
         return None
 
-    account_columns = [col for col in vap_detailed.columns if col not in ['wkn', 'name', 'currency']]
+    account_columns = [col for col in vap_result.columns if col not in ['wkn', 'name', 'currency']]
     if not account_columns:
         return None
 
-    vap_detailed['total_vap'] = vap_detailed[account_columns].sum(axis=1)
-    result: dict[str, Money] = {str(k): Money(v) for k, v in vap_detailed['total_vap'].to_dict().items()}
+    vap_result['total_vap'] = vap_result[account_columns].sum(axis=1)
+    result: dict[str, Money] = {str(k): Money(v) for k, v in vap_result['total_vap'].to_dict().items()}
     return result
+
+
+def calculate_base_yield_per_share(
+        snapshot_period_begin: PortfolioSnapshot,
+        snapshot_period_end: PortfolioSnapshot,
+        base_rate_percent: Percent
+) -> pd.Series:
+    outcome = snapshot_period_end.latest_prices.subtract(snapshot_period_begin.latest_prices, fill_value=0)
+    base_yield = snapshot_period_begin.latest_prices * 0.7 * max(base_rate_percent, 0) / 100
+
+    return outcome.combine(base_yield, np.minimum)
 
 
 def calculate_vap_by_account(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
@@ -288,7 +275,7 @@ def calculate_vap_by_account(  # pylint: disable=too-many-arguments,too-many-pos
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(year, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(year, 12, 31))
 
-    vap_detailed = calculate_vap(
+    vap_result = calculate_vap(
         snapshot_begin,
         snapshot_end,
         base_rate_percent,
@@ -297,16 +284,16 @@ def calculate_vap_by_account(  # pylint: disable=too-many-arguments,too-many-pos
         exempt_rate_attr_uuid
     )
 
-    if vap_detailed is None or vap_detailed.empty:
+    if vap_result.empty:
         return None
 
-    account_columns = [col for col in vap_detailed.columns if col not in ['wkn', 'name', 'currency']]
+    account_columns = [col for col in vap_result.columns if col not in ['wkn', 'name', 'currency']]
     if not account_columns:
         return None
 
     vap_totals_by_securities_account = {}
     for col in account_columns:
-        total = vap_detailed[col].sum()
+        total = vap_result[col].sum()
         if pd.notna(total) and total > 0:
             vap_totals_by_securities_account[col] = total
 

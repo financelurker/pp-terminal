@@ -27,6 +27,7 @@ from pp_terminal.domain.cost_basis import calculate_total_cost_basis
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.validation.base import ValidationRule
 from pp_terminal.validation.vap_liquidity_rule import VapLiquidityRule
+from pp_terminal.validation.paid_tax_validation_rule import PaidTaxValidationRule
 
 log = logging.getLogger(__name__)
 
@@ -149,6 +150,7 @@ _RULE_TYPES = {
     'cost-basis-limit': CostBasisLimitRule,
     'cost-basis-limit-from-attribute': CostBasisLimitRule,
     'vap-liquidity': VapLiquidityRule,
+    'paid-tax-validation': PaidTaxValidationRule,
 }
 
 
@@ -163,7 +165,18 @@ def create_rule(rule_config: dict[str, Any]) -> ValidationRule:
     valid_months = rule_config.get('valid-months', None)
 
     rule_class = _RULE_TYPES[rule_type]
-    return rule_class(  # type: ignore[abstract]
+
+    if rule_type == 'paid-tax-validation':
+        return PaidTaxValidationRule(
+            rule_type=rule_type,
+            value=value,
+            severity=severity,
+            applies_to=applies_to,
+            valid_months=valid_months,
+            tolerance=rule_config.get('tolerance', 0.05)
+        )
+
+    return rule_class(  # type: ignore[no-any-return]
         rule_type=rule_type,
         value=value,
         severity=severity,

@@ -115,6 +115,12 @@ value = 30
 type = "cost-basis-limit"
 value = 500000.0
 severity = "warning"
+
+# Validate tax csv file
+[[commands.validate.securities.rules]]
+type = "paid-tax-validation"
+severity = "warning"
+tolerance = 0.01
 ```
 
 #### Temporal Validation

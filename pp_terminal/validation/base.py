@@ -67,7 +67,13 @@ class ValidationRule(ABC):
         if not self._should_apply():
             return False, None
 
-        log.debug('Validating %s of "%s" (%s) using value %s %s', str(self), entity["name"], entity_id, str(self._get_value(entity)), '(' + str(self._value) + ')' if self._value != self._get_value(entity) else '')
+        log.debug(
+            'Validating %s of "%s" (%s) using value %s %s',
+            str(self),
+            entity["name"],
+            entity_id,
+            str(self._get_value(entity)),
+            '(' + str(self._value) + ')' if self._value != self._get_value(entity) else '')
 
         return False, None
 

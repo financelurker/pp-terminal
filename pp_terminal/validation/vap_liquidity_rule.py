@@ -46,7 +46,7 @@ class VapLiquidityRule(ValidationRule):
         balance = context.get('balance', 0.0)
 
         if not portfolio:
-            log.debug('VAP coverage check skipped: no portfolio in context')
+            log.debug('VAP liquidity check skipped: no portfolio in context')
             return False, None
 
         vap_totals = calculate_vap_by_account(
@@ -58,12 +58,12 @@ class VapLiquidityRule(ValidationRule):
         )
 
         if vap_totals is None:
-            log.debug('VAP coverage check skipped for account %s: no VAP calculated', entity_id)
+            log.debug('VAP liquidity check skipped for account %s: no VAP calculated', entity_id)
             return False, None
 
         vap_liability = vap_totals.get(entity_id, 0.0)
         if vap_liability == 0.0:
-            log.debug('VAP coverage check skipped for account %s: no VAP liability', entity_id)
+            log.debug('VAP liquidity check skipped for account %s: no VAP liability', entity_id)
             return False, None
 
         if balance < vap_liability:

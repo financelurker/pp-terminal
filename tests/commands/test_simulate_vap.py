@@ -68,7 +68,7 @@ def test_calculate_empty_if_no_securities_accounts(sample_accounts: pd.DataFrame
 
     result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375)
 
-    assert result is None
+    assert result.empty
 
 
 def test_calculate_empty_if_no_security_prices(sample_accounts: pd.DataFrame, sample_transactions: pd.DataFrame, sample_securities: pd.DataFrame, sample_prices: pd.DataFrame) -> None:
@@ -82,7 +82,7 @@ def test_calculate_empty_if_no_security_prices(sample_accounts: pd.DataFrame, sa
 
     result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375)
 
-    assert result is None
+    assert result.empty
 
 
 def test_inyear_buy(sample_accounts: pd.DataFrame, sample_transactions: pd.DataFrame, sample_securities: pd.DataFrame, sample_prices: pd.DataFrame) -> None:
@@ -96,7 +96,7 @@ def test_inyear_buy(sample_accounts: pd.DataFrame, sample_transactions: pd.DataF
 
     result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375)
 
-    assert result is not None
+    assert not result.empty
     assert_frame_equal(expected_df, result.round(2))
 
 # @see https://github.com/MStrecke/vorabpauschale/blob/master/test.ini
@@ -145,9 +145,9 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
     result = calculate_vap(snapshot_begin, snapshot_end, base_rate_percent, 26.375 * 0.7)
 
     if expected_tax_value == 0:
-        assert result is None
+        assert result.empty
     else:
-        assert result is not None
+        assert not result.empty
         assert_frame_equal(expected_df, result.round(2))
 
 
@@ -170,9 +170,15 @@ def test_kommer_2021(request: TopRequest) -> None:
         'daab10fd-c3fb-4430-a368-0ce0cdf551c8'
     ])
     expected_df.index.name = 'securityId'
+    expected_df['Depot'] *= 0.7  # respect exemption rate
     expected_df = VapResultSchema.validate(expected_df)
 
-    result = calculate_vap(snapshot_begin, snapshot_end, 2.0, 26.375)
+    result = calculate_vap(
+        snapshot_begin,
+        snapshot_end,
+        base_rate_percent=2.0,
+        tax_rate_percent=26.375,
+        exempt_rate_attr_uuid="2baac2d0-459b-4b41-a0ef-d7dad0866892")
 
     assert_frame_equal(expected_df, result)
 
@@ -207,7 +213,7 @@ def test_kommer_2023(request: TopRequest) -> None:
 
     result = calculate_vap(snapshot_begin, snapshot_end, 2.0, 26.375, 30.0, config['attributes']['securities']['exemption-rate'])
 
-    assert result is not None
+    assert not result.empty
     assert_frame_equal(expected_df, result.round(5))
 
 
@@ -219,7 +225,7 @@ def test_empty_file(request: TopRequest) -> None:
 
     result = calculate_vap(snapshot_begin, snapshot_end, 2.0, 26.375)
 
-    assert result is None
+    assert result.empty
 
 
 def test_custom_exemption_rate_produces_positive_vap(request: TopRequest) -> None:
@@ -237,7 +243,7 @@ def test_custom_exemption_rate_produces_positive_vap(request: TopRequest) -> Non
         exempt_rate_attr_uuid=EXEMPTION_RATE_CONFIG['attributes']['securities']['exemption-rate']
     )
 
-    assert result is not None
+    assert not result.empty
 
     vap_values = result[result['name'] != 'Related Account Balance']
     account_columns = [col for col in vap_values.columns if col not in ['wkn', 'name', 'currency']]

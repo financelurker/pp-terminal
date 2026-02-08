@@ -195,6 +195,7 @@ To view all available arguments you can always use the `--help` option.
 
 ### Configuration File
 To persist the CLI options you can pass a configuration file in [TOML format](https://toml.io/en/) with `pp-terminal --config=config.toml --help`.  
+The configuration file can also be provided as environment variable: `PP_TERMINAL_CONFIG=config.toml pp-terminal --help`
 The CLI options always overwrite the settings in the configuration file.
 
 ```toml

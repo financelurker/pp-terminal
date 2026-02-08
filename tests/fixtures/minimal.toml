@@ -1,0 +1,9 @@
+# pp-terminal configuration
+# See: https://github.com/ma4nn/pp-terminal
+
+file = "kommer.ids.xml"
+precision = 4
+
+[tax]
+rate = 27.375
+exemption-rate = 30

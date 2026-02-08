@@ -19,6 +19,7 @@
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, cast
 
@@ -72,6 +73,9 @@ def validated_toml_loader(config_path: str) -> Config:
     This loader wraps typer-config's toml_loader with JSON schema validation.
     """
     global _loaded_config  # pylint: disable=global-statement
+
+    if config_path == '':
+        config_path = os.environ.get('PP_TERMINAL_CONFIG', '')
 
     if config_path == '':
         return _loaded_config

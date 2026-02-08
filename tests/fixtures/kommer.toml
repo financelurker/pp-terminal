@@ -1,0 +1,30 @@
+# pp-terminal configuration
+# See: https://github.com/ma4nn/pp-terminal
+
+file = "kommer.ids.xml"
+precision = 4
+
+[tax]
+rate = 27.375
+exemption-rate = 30
+exemption-rate-attribute = "2baac2d0-459b-4b41-a0ef-d7dad0866892"
+
+[commands.view.securities]
+columns = ["SecurityId", "WKN", "Name", "Shares", "c1c24e1e-0901-4cf1-a9af-9d13d50ef63e", "fcb8490a-0121-4fa7-950c-a06cdd6ac4f9", "Messages"]
+
+[commands.validate.accounts]
+rules = [
+    {type = "balance-limit", value = 100, applies-to = ["c9c57e01-7ea0-4e70-bed9-4656941f7687"]},
+    {type = "date-passed-from-attribute", severity = "warning", value = "8f8a6cc0-b7e9-4c8b-b431-327cea89bb72"}
+]
+
+[commands.validate.securities]
+rules = [
+    {type = "price-staleness", value = 90},
+    {type = "price-staleness", severity = "warning", value = 30},
+    {type = "cost-basis-limit", value = 30000.0 },
+    {type = "paid-tax-validation", severity = "warning"}
+]
+
+[anonymization.attributes."fe77e0c2-ee87-46cd-a764-f635c94ac1da"]  # Vendor
+provider = "company"

@@ -84,7 +84,7 @@ class PriceStalenessRule(ValidationRule):
             return is_error, message
 
         max_days = self._get_value(entity)
-        latest_price_date = context.get('latest_price_date')
+        latest_price_date = entity.get('date')
 
         if pd.isna(latest_price_date) or latest_price_date is None:
             message = 'no price data'
@@ -106,7 +106,7 @@ class PriceLimitRule(ValidationRule):
             return is_error, message
 
         limit = self._get_value(entity)
-        current_price = context.get('current_price')
+        current_price = entity.get('price')
 
         if pd.isna(current_price):
             message = 'no price data'

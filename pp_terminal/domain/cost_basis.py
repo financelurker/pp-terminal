@@ -25,7 +25,7 @@ from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_by_type
 from pp_terminal.data.tax import calculate_prepaid_tax_per_lot
-from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema, TaxLotSchema, Percent
+from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema, TaxLotSchema, TaxLotSellSchema, Percent
 from pp_terminal.domain.sell_strategy import FixedSharesStrategy
 
 log = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ def _calculate_cost_basis(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema
     return TaxLotSchema.validate(df)
 
 
-def _compute_sell_metrics(df: DataFrame[TaxLotSchema], tax_rate: Percent) -> DataFrame[TaxLotSchema]:
+def _compute_sell_metrics(df: DataFrame[TaxLotSellSchema], tax_rate: Percent) -> DataFrame[TaxLotSellSchema]:
     df = _calculate_cost_basis(df)
     df['grossProceeds'] = df['shares'] * df['salePrice']
     df['capitalGain'] = df['grossProceeds'] - df['costBasis']
@@ -129,11 +129,11 @@ def enrich_fifo_lots(  # pylint: disable=too-many-arguments,too-many-positional-
         tax_rate: Percent,
         tax_csv_data: DataFrame[TaxPaidSchema] | None = None,
         exemption_rate: Percent = 0.0
-) -> DataFrame[TaxLotSchema]:
+) -> DataFrame[TaxLotSellSchema]:
     """Compute all sell metrics for remaining FIFO lots assuming full lot sale."""
     df = _get_remaining_lots_after_fifo_matching(transactions)
     if df.empty:
-        return TaxLotSchema.empty()
+        return TaxLotSellSchema.empty()
 
     df = TaxLotSchema.validate(df)
     df['salePrice'] = sell_price
@@ -147,7 +147,7 @@ def enrich_fifo_lots(  # pylint: disable=too-many-arguments,too-many-positional-
     return df
 
 
-def finalize_sell_lots(lots: DataFrame[TaxLotSchema], tax_rate: Percent) -> DataFrame[TaxLotSchema]:
+def finalize_sell_lots(lots: DataFrame[TaxLotSellSchema], tax_rate: Percent) -> DataFrame[TaxLotSellSchema]:
     """Recalculate sell metrics after a strategy has adjusted shares."""
     df = lots.copy()
     df['fees'] = df['feePerShare'] * df['shares']
@@ -164,17 +164,17 @@ def calculate_fifo_sell(  # pylint: disable=too-many-arguments,too-many-position
         shares_to_sell: float | None = None,
         tax_csv_data: DataFrame[TaxPaidSchema] | None = None,
         exemption_rate: Percent = 0.0
-) -> DataFrame[TaxLotSchema]:
+) -> DataFrame[TaxLotSellSchema]:
     """Calculate FIFO lots for shares being sold, including prepaid tax calculations."""
     df = enrich_fifo_lots(transactions, sell_date, sell_price, tax_rate, tax_csv_data, exemption_rate)
     if df.empty:
-        return TaxLotSchema.empty()
+        return TaxLotSellSchema.empty()
 
     if shares_to_sell is not None:
         df = FixedSharesStrategy(shares_to_sell).select_lots(df)
         df = finalize_sell_lots(df, tax_rate)
 
-    return TaxLotSchema.validate(df)
+    return TaxLotSellSchema.validate(df)
 
 
 def calculate_total_cost_basis(transactions: DataFrame[TransactionSchema]) -> Money:

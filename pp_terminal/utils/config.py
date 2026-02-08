@@ -70,15 +70,6 @@ def validated_toml_loader(config_path: str) -> Config:
     Load and validate TOML configuration file for use with typer-config.
 
     This loader wraps typer-config's toml_loader with JSON schema validation.
-
-    Args:
-        config_path: Path to the configuration file
-
-    Returns:
-        Validated configuration dictionary
-
-    Raises:
-        JsonSchemaValidationError: If config fails schema validation
     """
     global _loaded_config  # pylint: disable=global-statement
 

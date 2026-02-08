@@ -119,30 +119,28 @@ class TaxPaidSchema(pa.DataFrameModel):
 
 
 class TaxLotSchema(pa.DataFrameModel):
-    date: Index[pa.DateTime]  # Purchase date
+    date: Index[pa.DateTime]
     accountId: Index[str]
     securityId: Index[str]
     shares: Series[float]
     costBasis: Series[Money]
-    purchasePrice: Series[Money] = pa.Field(nullable=True)
+    purchasePrice: Series[Money] = pa.Field(nullable=True, coerce=True)
     currency: Series[str] = pa.Field(nullable=True)
-    fees: Series[Money] = pa.Field(nullable=True)
+    fees: Series[Money] = pa.Field(nullable=True, coerce=True)
 
-    # Sell simulation (nullable until _calculate_sell_metrics)
-    salePrice: Series[Money] = pa.Field(nullable=True)
-    exemptionRate: Series[Percent] = pa.Field(nullable=True)
-    capitalGain: Series[Money] = pa.Field(nullable=True)
-    grossProceeds: Series[Money] = pa.Field(nullable=True)
-    deemedIncome: Series[Money] = pa.Field(nullable=True)
-    feePerShare: Series[Money] = pa.Field(nullable=True)
-    deemedIncomePerShare: Series[Money] = pa.Field(nullable=True)
-    netProceedsPerShare: Series[Money] = pa.Field(nullable=True)
-    taxableGain: Series[Money] = pa.Field(nullable=True, ge=0)
-    totalTax: Series[Money] = pa.Field(nullable=True)
-    netProceeds: Series[Money] = pa.Field(nullable=True)
 
-    class Config:  # pylint: disable=too-few-public-methods
-        add_missing_columns = True
+class TaxLotSellSchema(TaxLotSchema):
+    salePrice: Series[Money]
+    exemptionRate: Series[Percent]
+    capitalGain: Series[Money]
+    grossProceeds: Series[Money]
+    deemedIncome: Series[Money]
+    feePerShare: Series[Money]
+    deemedIncomePerShare: Series[Money]
+    netProceedsPerShare: Series[Money]
+    taxableGain: Series[Money] = pa.Field(ge=0)
+    totalTax: Series[Money]
+    netProceeds: Series[Money]
 
 
 class InterestResultSchema(pa.DataFrameModel):

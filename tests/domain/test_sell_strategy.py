@@ -26,7 +26,7 @@ from pandera.typing import DataFrame
 
 from pp_terminal.domain.cost_basis import enrich_fifo_lots, finalize_sell_lots
 from pp_terminal.domain.sell_strategy import FixedSharesStrategy, MinTaxStrategy
-from pp_terminal.domain.schemas import AccountType, TransactionType, TaxLotSchema
+from pp_terminal.domain.schemas import AccountType, TransactionType, TaxLotSellSchema
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.data.filters import filter_by_account_and_security
@@ -65,7 +65,7 @@ def _make_portfolio(transactions_data: list[Any], accounts_data: list[Any] | Non
 
 
 def _enrich(portfolio: Portfolio, sell_price: float, acc_id: str = 'acc-1', sec_id: str = 'sec-1',
-            sell_date: datetime | None = None) -> DataFrame[TaxLotSchema]:
+            sell_date: datetime | None = None) -> DataFrame[TaxLotSellSchema]:
     if sell_date is None:
         sell_date = datetime(2025, 1, 1)
     snapshot = PortfolioSnapshot(portfolio, sell_date)
@@ -75,7 +75,7 @@ def _enrich(portfolio: Portfolio, sell_price: float, acc_id: str = 'acc-1', sec_
     return enrich_fifo_lots(transactions, sell_date, sell_price, TAX_RATE)
 
 
-def _enrich_multi(portfolio: Portfolio, sell_price: float, sell_date: datetime | None = None) -> DataFrame[TaxLotSchema]:
+def _enrich_multi(portfolio: Portfolio, sell_price: float, sell_date: datetime | None = None) -> DataFrame[TaxLotSellSchema]:
     if sell_date is None:
         sell_date = datetime(2025, 1, 1)
     snapshot = PortfolioSnapshot(portfolio, sell_date)
@@ -88,7 +88,7 @@ def _enrich_multi(portfolio: Portfolio, sell_price: float, sell_date: datetime |
         enriched = enrich_fifo_lots(transactions, sell_date, sell_price, TAX_RATE)
         if not enriched.empty:
             all_enriched.append(enriched)
-    return pd.concat(all_enriched) if all_enriched else TaxLotSchema.empty()
+    return pd.concat(all_enriched) if all_enriched else TaxLotSellSchema.empty()
 
 
 # --- FixedSharesStrategy ---
@@ -290,4 +290,4 @@ class TestMinTaxStrategy:
 
     def test_empty_lots_raises(self) -> None:
         with pytest.raises(InputError, match="No lots available"):
-            MinTaxStrategy(1000.0).select_lots(TaxLotSchema.empty())
+            MinTaxStrategy(1000.0).select_lots(TaxLotSellSchema.empty())

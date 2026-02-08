@@ -23,13 +23,13 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from pandera.typing import DataFrame
 
-from pp_terminal.domain.schemas import TaxLotSchema, Money
+from pp_terminal.domain.schemas import TaxLotSellSchema, Money
 from pp_terminal.exceptions import InputError
 
 
 class SellStrategy(ABC):  # pylint: disable=too-few-public-methods
     @abstractmethod
-    def select_lots(self, lots: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
+    def select_lots(self, lots: DataFrame[TaxLotSellSchema]) -> DataFrame[TaxLotSellSchema]:
         ...
 
 
@@ -37,7 +37,7 @@ class FixedSharesStrategy(SellStrategy):  # pylint: disable=too-few-public-metho
     def __init__(self, shares: float):
         self.shares = shares
 
-    def select_lots(self, lots: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
+    def select_lots(self, lots: DataFrame[TaxLotSellSchema]) -> DataFrame[TaxLotSellSchema]:
         cumsum = lots['shares'].cumsum()
         prev_cumsum = cumsum.shift(1, fill_value=0.0)
 
@@ -54,7 +54,7 @@ class FixedSharesStrategy(SellStrategy):  # pylint: disable=too-few-public-metho
         if total_allocated < self.shares - 0.0001:
             raise InputError(f"Insufficient shares available. Requested: {self.shares}, Available: {total_allocated}")
 
-        return TaxLotSchema.validate(df)
+        return TaxLotSellSchema.validate(df)
 
 
 def _tax_priority(row: pd.Series) -> float:
@@ -81,7 +81,7 @@ class MinTaxStrategy(SellStrategy):  # pylint: disable=too-few-public-methods
     def __init__(self, target_net: Money):
         self.target_net = target_net
 
-    def select_lots(self, lots: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:  # pylint: disable=too-many-locals
+    def select_lots(self, lots: DataFrame[TaxLotSellSchema]) -> DataFrame[TaxLotSellSchema]:  # pylint: disable=too-many-locals
         if lots.empty:
             raise InputError(f"No lots available. Target net: {self.target_net:.2f}")
 
@@ -99,7 +99,7 @@ class MinTaxStrategy(SellStrategy):  # pylint: disable=too-few-public-methods
 
         result = df.loc[list(selected.keys())].copy()
         result['shares'] = list(selected.values())
-        return TaxLotSchema.validate(
+        return TaxLotSellSchema.validate(
             result.set_index(['date', 'accountId', 'securityId'])
         )
 

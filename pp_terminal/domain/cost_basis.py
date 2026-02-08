@@ -26,9 +26,11 @@ from pandera.typing import DataFrame
 from pp_terminal.data.filters import filter_by_type
 from pp_terminal.data.tax import calculate_prepaid_tax_per_lot
 from pp_terminal.domain.schemas import TransactionType, Money, TransactionSchema, TaxPaidSchema, TaxLotSchema, Percent
-from pp_terminal.exceptions import InputError
+from pp_terminal.domain.sell_strategy import FixedSharesStrategy
 
 log = logging.getLogger(__name__)
+
+_HELPER_COLUMNS = ['_feePerShare', '_deemedIncomePerShare']
 
 
 def _filter_purchase_transactions(transactions: DataFrame[TransactionSchema]) -> DataFrame[TransactionSchema]:
@@ -38,9 +40,7 @@ def _filter_purchase_transactions(transactions: DataFrame[TransactionSchema]) ->
     return TransactionSchema.validate(valid_purchases)
 
 
-def _get_remaining_lots_after_fifo_matching(
-    transactions: DataFrame[TransactionSchema]
-) -> DataFrame[TaxLotSchema]:
+def _get_remaining_lots_after_fifo_matching(transactions: DataFrame[TransactionSchema]) -> DataFrame[TaxLotSchema]:
     """
     Match all sell transactions to purchase lots using FIFO and return remaining lots.
 
@@ -106,46 +106,68 @@ def _get_remaining_lots_after_fifo_matching(
     return TaxLotSchema.validate(pd.DataFrame(remaining_lots).set_index(['date', 'accountId', 'securityId']))
 
 
-def _reduce_shares(remaining_lots_df: DataFrame[TaxLotSchema], shares_to_sell: float) -> DataFrame[TaxLotSchema]:
-    # Calculate cumulative shares to determine lot consumption
-    cumsum = remaining_lots_df['shares'].cumsum()
-    prev_cumsum = cumsum.shift(1, fill_value=0.0)
-
-    # Shares to take from each lot: min(lot_shares, remaining_needed)
-    shares_taken = (shares_to_sell - prev_cumsum).clip(lower=0, upper=remaining_lots_df['shares'])
-
-    # Filter to contributing lots only
-    contributing_mask = shares_taken > 0
-    if not contributing_mask.any():
-        raise InputError(f"Insufficient shares available. Requested: {shares_to_sell}, Available: 0")
-
-    df = remaining_lots_df[contributing_mask].copy()
-    df['shares'] = shares_taken[contributing_mask].values
-
-    # Validate sufficient shares
-    total_allocated = df['shares'].sum()
-    if total_allocated < shares_to_sell - 0.0001:  # Allow small floating point errors
-        raise InputError(f"Insufficient shares available. Requested: {shares_to_sell}, Available: {total_allocated}")
-
-    return TaxLotSchema.validate(df)
-
-
 def _calculate_cost_basis(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
     df = df.copy()
     df['costBasis'] = df['purchasePrice'] * df['shares'] + df['fees'].fillna(0)
     return TaxLotSchema.validate(df)
 
 
-def _calculate_gains(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
+def _compute_sell_metrics(df: DataFrame[TaxLotSchema], tax_rate: Percent) -> DataFrame[TaxLotSchema]:
     df = _calculate_cost_basis(df)
     df['grossProceeds'] = df['shares'] * df['salePrice']
     df['capitalGain'] = df['grossProceeds'] - df['costBasis']
-    df['taxableGain'] = (df['capitalGain'] * (1 - df['exemptionRate'] / 100)).clip(lower=0)
 
-    return TaxLotSchema.validate(df)
+    adjusted_gain = (df['capitalGain'] - df['deemedIncome']).clip(lower=0)
+    df['taxableGain'] = (adjusted_gain * (1 - df['exemptionRate'] / 100)).clip(lower=0)
+    df['totalTax'] = (df['taxableGain'] * (tax_rate / 100.0)).clip(lower=0)
+    df['netProceeds'] = df['grossProceeds'] - df['totalTax']
+    return df
 
 
-def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
+def enrich_fifo_lots(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        transactions: DataFrame[TransactionSchema],
+        sell_date: datetime,
+        sell_price: Money,
+        tax_rate: Percent,
+        tax_csv_data: DataFrame[TaxPaidSchema] | None = None,
+        exemption_rate: Percent = 0.0
+) -> DataFrame[TaxLotSchema]:
+    """Compute all sell metrics for remaining FIFO lots assuming full lot sale.
+
+    Adds transient helper columns _feePerShare and _deemedIncomePerShare for
+    proportional recalculation after a strategy adjusts shares.
+    """
+    df = _get_remaining_lots_after_fifo_matching(transactions)
+    if df.empty:
+        return TaxLotSchema.empty()
+
+    df = TaxLotSchema.validate(df)
+    df['salePrice'] = sell_price
+    df['exemptionRate'] = exemption_rate
+    df['deemedIncome'] = calculate_prepaid_tax_per_lot(df, sell_date, tax_csv_data).values
+
+    df['_feePerShare'] = df['fees'].fillna(0) / df['shares']
+    df['_deemedIncomePerShare'] = df['deemedIncome'] / df['shares']
+
+    df = _compute_sell_metrics(df, tax_rate)
+    return df
+
+
+def finalize_sell_lots(lots: DataFrame[TaxLotSchema], tax_rate: Percent) -> DataFrame[TaxLotSchema]:
+    """Recalculate sell metrics after a strategy has adjusted shares."""
+    df = lots.copy()
+    df['fees'] = df['_feePerShare'] * df['shares']
+    df['deemedIncome'] = df['_deemedIncomePerShare'] * df['shares']
+    df = _compute_sell_metrics(df, tax_rate)
+    return df
+
+
+def drop_helper_columns(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
+    result: DataFrame[TaxLotSchema] = df.drop(columns=[c for c in _HELPER_COLUMNS if c in df.columns])
+    return result
+
+
+def calculate_fifo_sell(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         transactions: DataFrame[TransactionSchema],
         sell_date: datetime,
         sell_price: Money,
@@ -155,31 +177,15 @@ def calculate_fifo_sell(  # pylint: disable=too-many-locals,too-many-arguments,t
         exemption_rate: Percent = 0.0
 ) -> DataFrame[TaxLotSchema]:
     """Calculate FIFO lots for shares being sold, including prepaid tax calculations."""
-    df = transactions.copy()
-
-    df = _get_remaining_lots_after_fifo_matching(df)
+    df = enrich_fifo_lots(transactions, sell_date, sell_price, tax_rate, tax_csv_data, exemption_rate)
     if df.empty:
         return TaxLotSchema.empty()
 
     if shares_to_sell is not None:
-        df = _reduce_shares(df, shares_to_sell)
+        df = FixedSharesStrategy(shares_to_sell).select_lots(df)
+        df = finalize_sell_lots(df, tax_rate)
 
-    df = TaxLotSchema.validate(df)
-    df['salePrice'] = sell_price
-    df['exemptionRate'] = exemption_rate
-    df['deemedIncome'] = calculate_prepaid_tax_per_lot(df, sell_date, tax_csv_data).values
-
-    df = _calculate_cost_basis(df)
-    df['grossProceeds'] = df['shares'] * df['salePrice']
-    df['capitalGain'] = df['grossProceeds'] - df['costBasis']
-
-    adjusted_gain = (df['capitalGain'] - df['deemedIncome']).clip(lower=0)
-    df['taxableGain'] = (adjusted_gain * (1 - df['exemptionRate'] / 100)).clip(lower=0)
-    df['totalTax'] = (df['taxableGain'] * (tax_rate / 100.0)).clip(lower=0)
-
-    df['netProceeds'] = df['grossProceeds'] - df['totalTax']
-
-    return TaxLotSchema.validate(df)
+    return TaxLotSchema.validate(drop_helper_columns(df))
 
 
 def calculate_total_cost_basis(transactions: DataFrame[TransactionSchema]) -> Money:

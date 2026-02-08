@@ -26,9 +26,10 @@ from typing_extensions import Annotated
 import pandas as pd
 import typer
 from pp_terminal.data.filters import filter_by_account_and_security, filter_by_security, filter_by_account
-from pp_terminal.domain.cost_basis import calculate_fifo_sell
+from pp_terminal.domain.cost_basis import enrich_fifo_lots, finalize_sell_lots, drop_helper_columns
 
 from pp_terminal.data.tax import load_prepaid_tax_data
+from pp_terminal.domain.sell_strategy import SellStrategy, FixedSharesStrategy, MinTaxStrategy
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.config import Config, get_exemption_rate, get_tax_files
 from pp_terminal.utils.helper import footer
@@ -57,6 +58,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, callback=tax_rate_callback)] = None,  # type: ignore
         shares: Annotated[float | None, typer.Option(help="Number of shares to sell (only with --security-id)", min=0.0001)] = None,
         price: Annotated[Money | None, typer.Option(help="Sale price per share (only with --security-id)", min=0.0001)] = None,
+        target_net: Annotated[Money | None, typer.Option("--target-net", help="Target net proceeds to realize (minimizes taxes)", min=0.01)] = None,
         tax_csv: Annotated[Path | None, typer.Option(help="CSV file with paid tax per share data", callback=tax_csv_callback)] = None
 ) -> None:
     """
@@ -67,10 +69,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     output = cast(OutputStrategy, ctx.obj.output)
     config = cast(Config, ctx.obj.config)
 
-    if shares is not None and security_id is None:
-        raise InputError("--shares requires --security-id")
-    if price is not None and security_id is None:
-        raise InputError("--price requires --security-id")
+    _validate_options(security_id, shares, price, target_net)
 
     if date is None:
         date = get_today()
@@ -98,28 +97,39 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     tax_csv_data = load_prepaid_tax_data(tax_files, portfolio)
     exemption_rate = get_exemption_rate(config)
 
-    all_lots = []
+    all_enriched = []
     for (acc_id, sec_id, _currency), _shares_held in holdings.items():
         transactions = snapshot.securities_account_transactions.pipe(
             filter_by_account_and_security, security_id=sec_id, account_id=acc_id
         )
         sale_price = price if price else latest_prices.loc[sec_id]
-        shares_to_sell = shares if security_id else None
-
-        lots = calculate_fifo_sell(
+        enriched = enrich_fifo_lots(
             transactions, snapshot.date, sale_price, tax_rate,
-            shares_to_sell, tax_csv_data, exemption_rate=exemption_rate
+            tax_csv_data, exemption_rate=exemption_rate
         )
-        if not lots.empty:
-            lots = lots.reset_index()
-            lots['securityName'] = get_security_by_id(portfolio, sec_id).name
-            all_lots.append(lots)
+        if not enriched.empty:
+            all_enriched.append(enriched)
 
-    if not all_lots:
+    if not all_enriched:
         console.print(output.empty_result())
         return
 
-    result = pd.concat(all_lots, ignore_index=True).sort_values(['securityName', 'date'])
+    combined = pd.concat(all_enriched)
+
+    strategy = _build_strategy(security_id, shares, target_net)
+    if strategy:
+        combined = strategy.select_lots(combined)
+        result = finalize_sell_lots(combined, tax_rate)
+        result = drop_helper_columns(result)
+    else:
+        result = drop_helper_columns(combined)
+
+    result = result.reset_index()
+    result['securityName'] = result['securityId'].map(
+        lambda sid: get_security_by_id(portfolio, sid).name
+    )
+    result = result.sort_values(['securityName', 'date'])
+
     columns = ['securityName', 'date', 'shares', 'currency', 'purchasePrice', 'costBasis',
                'fees', 'salePrice', 'grossProceeds', 'capitalGain', 'deemedIncome',
                'taxableGain', 'totalTax', 'netProceeds']
@@ -131,3 +141,31 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
 
     console.print(output.warning('This simulation excludes Sparerpauschbetrag. Multi-currency totals not meaningful.'))
     console.print(output.text(footer()), style="dim")
+
+
+def _validate_options(
+        security_id: str | None,
+        shares: float | None,
+        price: Money | None,
+        target_net: Money | None
+) -> None:
+    if shares is not None and target_net is not None:
+        raise InputError("--shares and --target-net are mutually exclusive")
+    if shares is not None and security_id is None:
+        raise InputError("--shares requires --security-id")
+    if price is not None and security_id is None:
+        raise InputError("--price requires --security-id")
+
+
+def _build_strategy(
+        security_id: str | None,
+        shares: float | None,
+        target_net: Money | None
+) -> SellStrategy | None:
+    if shares is not None:
+        return FixedSharesStrategy(shares)
+    if target_net is not None:
+        return MinTaxStrategy(target_net)
+    if security_id is None:
+        return None
+    return None

@@ -1,0 +1,293 @@
+"""
+    Copyright (C) 2025-26 Dipl.-Ing. Christoph Massmann <chris@dev-investor.de>
+
+    This file is part of pp-terminal.
+
+    pp-terminal is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    pp-terminal is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
+"""
+
+from datetime import datetime
+from typing import Any
+
+import pandas as pd
+import pytest
+from pandera.typing import DataFrame
+
+from pp_terminal.domain.cost_basis import enrich_fifo_lots, finalize_sell_lots, drop_helper_columns
+from pp_terminal.domain.sell_strategy import FixedSharesStrategy, MinTaxStrategy
+from pp_terminal.domain.schemas import AccountType, TransactionType, TaxLotSchema
+from pp_terminal.domain.portfolio import Portfolio
+from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
+from pp_terminal.data.filters import filter_by_account_and_security
+from pp_terminal.exceptions import InputError
+
+TAX_RATE = 26.375
+
+
+def _make_portfolio(transactions_data: list[Any], accounts_data: list[Any] | None = None, securities_data: list[Any] | None = None) -> Portfolio:
+    if accounts_data is None:
+        accounts_data = [['Depot1', AccountType.SECURITIES.value, None, False, 'EUR']]
+    accounts = pd.DataFrame(
+        accounts_data,
+        columns=['name', 'type', 'referenceAccount', 'isRetired', 'currency'],
+        index=[f'acc-{i+1}' for i in range(len(accounts_data))]
+    )
+    accounts.index.name = 'accountId'
+
+    if securities_data is None:
+        securities_data = [['ETF A', 'WKN1', 'EUR']]
+    securities = pd.DataFrame(
+        securities_data,
+        columns=['name', 'wkn', 'currency'],
+        index=[f'sec-{i+1}' for i in range(len(securities_data))]
+    )
+    securities.index.name = 'securityId'
+
+    transactions = pd.DataFrame(
+        transactions_data,
+        columns=['date', 'accountId', 'securityId', 'type', 'amount', 'shares', 'accountType', 'currency', 'taxes', 'fees']
+    ).set_index(['date', 'accountId', 'securityId'])
+
+    prices = pd.DataFrame(columns=['date', 'securityId', 'price']).set_index(['date', 'securityId'])
+
+    return Portfolio(accounts, transactions, securities, prices)
+
+
+def _enrich(portfolio: Portfolio, sell_price: float, acc_id: str = 'acc-1', sec_id: str = 'sec-1',
+            sell_date: datetime | None = None) -> DataFrame[TaxLotSchema]:
+    if sell_date is None:
+        sell_date = datetime(2025, 1, 1)
+    snapshot = PortfolioSnapshot(portfolio, sell_date)
+    transactions = snapshot.securities_account_transactions.pipe(
+        filter_by_account_and_security, account_id=acc_id, security_id=sec_id
+    )
+    return enrich_fifo_lots(transactions, sell_date, sell_price, TAX_RATE)
+
+
+def _enrich_multi(portfolio: Portfolio, sell_price: float, sell_date: datetime | None = None) -> DataFrame[TaxLotSchema]:
+    if sell_date is None:
+        sell_date = datetime(2025, 1, 1)
+    snapshot = PortfolioSnapshot(portfolio, sell_date)
+    holdings = snapshot.shares
+    all_enriched = []
+    for (acc_id, sec_id, _currency), _ in holdings.items():
+        transactions = snapshot.securities_account_transactions.pipe(
+            filter_by_account_and_security, account_id=acc_id, security_id=sec_id
+        )
+        enriched = enrich_fifo_lots(transactions, sell_date, sell_price, TAX_RATE)
+        if not enriched.empty:
+            all_enriched.append(enriched)
+    return pd.concat(all_enriched) if all_enriched else TaxLotSchema.empty()
+
+
+# --- FixedSharesStrategy ---
+
+class TestFixedSharesStrategy:
+    def test_single_lot_partial(self) -> None:
+        portfolio = _make_portfolio([
+            [datetime(2020, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 10000.0, 100.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        ])
+        enriched = _enrich(portfolio, sell_price=150.0)
+        result = FixedSharesStrategy(30.0).select_lots(enriched)
+        result = drop_helper_columns(finalize_sell_lots(result, TAX_RATE))
+
+        assert len(result) == 1
+        assert result.iloc[0]['shares'] == pytest.approx(30.0)
+        assert result.iloc[0]['grossProceeds'] == pytest.approx(4500.0)
+
+    def test_spanning_multiple_lots(self) -> None:
+        portfolio = _make_portfolio([
+            [datetime(2020, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 5000.0, 50.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+            [datetime(2021, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 7000.0, 50.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        ])
+        enriched = _enrich(portfolio, sell_price=160.0)
+        result = FixedSharesStrategy(70.0).select_lots(enriched)
+        result = drop_helper_columns(finalize_sell_lots(result, TAX_RATE))
+
+        assert len(result) == 2
+        assert result.iloc[0]['shares'] == pytest.approx(50.0)
+        assert result.iloc[1]['shares'] == pytest.approx(20.0)
+
+    def test_exact_match(self) -> None:
+        portfolio = _make_portfolio([
+            [datetime(2020, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 5000.0, 50.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        ])
+        enriched = _enrich(portfolio, sell_price=160.0)
+        result = FixedSharesStrategy(50.0).select_lots(enriched)
+
+        assert len(result) == 1
+        assert result.iloc[0]['shares'] == pytest.approx(50.0)
+
+    def test_insufficient_shares_raises(self) -> None:
+        portfolio = _make_portfolio([
+            [datetime(2020, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 5000.0, 50.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        ])
+        enriched = _enrich(portfolio, sell_price=160.0)
+
+        with pytest.raises(InputError, match="Insufficient shares"):
+            FixedSharesStrategy(100.0).select_lots(enriched)
+
+
+# --- MinTaxStrategy ---
+
+class TestMinTaxStrategy:
+    def test_picks_lowest_tax_rate_lot(self) -> None:
+        """Given two securities with different gains, picks the one with lower effective tax."""
+        portfolio = _make_portfolio(
+            transactions_data=[
+                # sec-1: bought at 50, sell at 100 -> high gain -> high tax
+                [datetime(2020, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 5000.0, 100.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+                # sec-2: bought at 90, sell at 100 -> low gain -> low tax
+                [datetime(2020, 1, 1), 'acc-1', 'sec-2', TransactionType.BUY.value, 9000.0, 100.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+            ],
+            securities_data=[['ETF A', 'WKN1', 'EUR'], ['ETF B', 'WKN2', 'EUR']],
+        )
+        enriched = _enrich_multi(portfolio, sell_price=100.0)
+
+        # Target net small enough to be satisfied by sec-2 alone
+        result = MinTaxStrategy(500.0).select_lots(enriched)
+        result = drop_helper_columns(finalize_sell_lots(result, TAX_RATE))
+
+        # Should pick sec-2 (lower tax rate) first
+        sec_ids = result.reset_index()['securityId'].unique()
+        assert 'sec-2' in sec_ids
+
+    def test_picks_underwater_lot_first(self) -> None:
+        """Lots at a loss (0 tax) should be preferred over profitable lots."""
+        portfolio = _make_portfolio(
+            transactions_data=[
+                # sec-1: bought at 50, sell at 100 -> profitable
+                [datetime(2020, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 5000.0, 100.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+                # sec-2: bought at 120, sell at 100 -> loss (0 tax, but positive net proceeds)
+                [datetime(2020, 1, 1), 'acc-1', 'sec-2', TransactionType.BUY.value, 12000.0, 100.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+            ],
+            securities_data=[['ETF A', 'WKN1', 'EUR'], ['ETF B', 'WKN2', 'EUR']],
+        )
+        enriched = _enrich_multi(portfolio, sell_price=100.0)
+
+        # sec-2 has 0 tax -> effective rate 0 -> should be picked first
+        result = MinTaxStrategy(500.0).select_lots(enriched)
+        result = drop_helper_columns(finalize_sell_lots(result, TAX_RATE))
+
+        sec_ids = result.reset_index()['securityId'].unique().tolist()
+        assert sec_ids == ['sec-2']
+
+    def test_respects_fifo_within_group(self) -> None:
+        """Within a single (account, security), must consume lots in FIFO order."""
+        portfolio = _make_portfolio(
+            transactions_data=[
+                # Lot 1: bought at 90 -> small gain
+                [datetime(2020, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 900.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+                # Lot 2: bought at 50 -> large gain (but can't be accessed before lot 1)
+                [datetime(2021, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 500.0, 10.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+            ],
+        )
+        enriched = _enrich(portfolio, sell_price=100.0)
+
+        # Need more net than lot 1 provides -> must consume lot 1 first, then lot 2
+        lot1_net = enriched.iloc[0]['netProceeds']
+        target = lot1_net + 100.0  # force spill into lot 2
+        result = MinTaxStrategy(target).select_lots(enriched)
+
+        assert len(result) == 2
+        # First lot (FIFO) must be fully consumed
+        assert result.iloc[0]['shares'] == pytest.approx(10.0)
+
+    def test_cross_security_selection(self) -> None:
+        """MinTaxStrategy selects the best lots across multiple securities."""
+        portfolio = _make_portfolio(
+            transactions_data=[
+                # sec-1: bought at 80 -> moderate gain
+                [datetime(2020, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 8000.0, 100.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+                # sec-2: bought at 95 -> small gain
+                [datetime(2020, 1, 1), 'acc-1', 'sec-2', TransactionType.BUY.value, 9500.0, 100.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+            ],
+            securities_data=[['ETF A', 'WKN1', 'EUR'], ['ETF B', 'WKN2', 'EUR']],
+        )
+        enriched = _enrich_multi(portfolio, sell_price=100.0)
+
+        # Target large enough to require both securities
+        max_net = enriched['netProceeds'].sum()
+        result = MinTaxStrategy(max_net - 1.0).select_lots(enriched)
+        result = drop_helper_columns(finalize_sell_lots(result, TAX_RATE))
+
+        sec_ids = result.reset_index()['securityId'].unique()
+        assert len(sec_ids) == 2
+
+    def test_partial_lot_for_exact_target(self) -> None:
+        """Strategy should partially consume the final lot to hit the target."""
+        portfolio = _make_portfolio([
+            [datetime(2020, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 10000.0, 100.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        ])
+        enriched = _enrich(portfolio, sell_price=150.0)
+
+        # Target net that requires partial consumption
+        full_net = enriched.iloc[0]['netProceeds']
+        target = full_net / 2
+        result = MinTaxStrategy(target).select_lots(enriched)
+
+        assert len(result) == 1
+        assert result.iloc[0]['shares'] < 100.0
+        assert result.iloc[0]['shares'] > 0.0
+
+    def test_target_exceeds_max_raises(self) -> None:
+        """Should raise InputError with max achievable amount in message."""
+        portfolio = _make_portfolio([
+            [datetime(2020, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 10000.0, 100.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+        ])
+        enriched = _enrich(portfolio, sell_price=150.0)
+
+        with pytest.raises(InputError, match="exceeds maximum achievable"):
+            MinTaxStrategy(999999.0).select_lots(enriched)
+
+    def test_skips_lots_with_zero_net_proceeds_per_share(self) -> None:
+        """Lots where netProceedsPerShare <= 0 should be skipped."""
+        portfolio = _make_portfolio(
+            transactions_data=[
+                # sec-1: bought at 100, sell at 100 with very high tax scenario doesn't exist naturally.
+                # Instead: sec-1 bought at 200, sell at 100 -> loss, but netProceeds = grossProceeds - 0 tax = positive
+                # Actually netProceedsPerShare = netProceeds/shares which is always gross - tax / shares.
+                # For nps <= 0 we need grossProceeds <= totalTax which can't happen with standard tax rates.
+                # So test with a security where sale price is 0 -> grossProceeds = 0 -> nps = 0
+                [datetime(2020, 1, 1), 'acc-1', 'sec-1', TransactionType.BUY.value, 10000.0, 100.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+                [datetime(2020, 1, 1), 'acc-1', 'sec-2', TransactionType.BUY.value, 5000.0, 100.0, AccountType.SECURITIES.value, 'EUR', 0.0, 0.0],
+            ],
+            securities_data=[['ETF A', 'WKN1', 'EUR'], ['ETF B', 'WKN2', 'EUR']],
+        )
+        # sec-1 at price 100, sec-2 at price 100
+        sell_date = datetime(2025, 1, 1)
+        snapshot = PortfolioSnapshot(portfolio, sell_date)
+        holdings = snapshot.shares
+
+        all_enriched = []
+        for (acc_id, sec_id, _currency), _ in holdings.items():
+            transactions = snapshot.securities_account_transactions.pipe(
+                filter_by_account_and_security, account_id=acc_id, security_id=sec_id
+            )
+            # sec-1 sell at 0 (nps=0), sec-2 sell at 100 (nps>0)
+            sp = 0.0 if sec_id == 'sec-1' else 100.0
+            enriched = enrich_fifo_lots(transactions, sell_date, sp, TAX_RATE)
+            if not enriched.empty:
+                all_enriched.append(enriched)
+
+        combined = pd.concat(all_enriched)
+
+        # Only sec-2 has nps > 0
+        result = MinTaxStrategy(500.0).select_lots(combined)
+        sec_ids = result.reset_index()['securityId'].unique().tolist()
+        assert sec_ids == ['sec-2']
+
+    def test_empty_lots_raises(self) -> None:
+        with pytest.raises(InputError, match="No lots available"):
+            MinTaxStrategy(1000.0).select_lots(TaxLotSchema.empty())

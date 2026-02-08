@@ -26,7 +26,7 @@ from pandera.typing import DataFrame
 from pp_terminal.data.tax import load_prepaid_tax_data
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.domain.schemas import TaxPaidSchema
+from pp_terminal.domain.schemas import TaxPaidSchema, Percent
 from pp_terminal.domain.vap import calculate_base_yield_per_share, get_base_rate_for_year
 from pp_terminal.utils.config import get_tax_files
 from pp_terminal.validation.base import ValidationRule
@@ -34,6 +34,14 @@ from pp_terminal.validation.base import ValidationRule
 log = logging.getLogger(__name__)
 
 _START_YEAR = 2018
+
+
+def _get_diff_percent(val1: float, val2: float) -> Percent:
+    if val2 != 0:
+        return abs(val1 - val2) / abs(val2)
+
+    return float('inf') if val1 != 0 else 0
+
 
 class PaidTaxValidationRule(ValidationRule):
     """Validates calculated VAP base yield against paid tax data from CSV files."""
@@ -98,16 +106,11 @@ class PaidTaxValidationRule(ValidationRule):
             else:
                 csv_value = 0.0
 
-            if not self._within_tolerance(calculated_value, csv_value):
-                if csv_value != 0:
-                    diff_percent = abs(calculated_value - csv_value) / abs(csv_value) * 100
-                else:
-                    diff_percent = float('inf') if calculated_value != 0 else 0
-
-                sign = '+' if calculated_value > csv_value else ''
-                mismatches.append(f"{year} (calc: {calculated_value:.2f}, csv: {csv_value:.2f}, {sign}{diff_percent:.1f}%)")
+            diff_percent = _get_diff_percent(calculated_value, csv_value)
+            if diff_percent > self.tolerance:
+                mismatches.append(f"{year} (calc: {calculated_value:.2f}, csv: {csv_value:.2f}, {'+' if diff_percent > 0 else ''}{diff_percent*100:.1f}%)")
             else:
-                log.debug('yield values matching for %d: %s vs. %s', year, calculated_value, csv_value)
+                log.debug('yield values within tolerance for %d: %s vs. %s', year, calculated_value, csv_value)
 
         if mismatches:
             message = f"has unexpected or missing paid tax values: {', '.join(mismatches)}"

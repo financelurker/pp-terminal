@@ -112,12 +112,5 @@ class ValidationRule(ABC):
     def is_error(self) -> bool:
         return bool(self.severity == 'error')
 
-    def _within_tolerance(self, calculated: float, csv_value: float) -> bool:
-        if csv_value == 0 and calculated == 0:
-            return True
-        if csv_value == 0:
-            return calculated <= self.tolerance
-        return abs(calculated - csv_value) / abs(csv_value) <= self.tolerance
-
     def __str__(self) -> str:
         return self.rule_type

@@ -37,13 +37,15 @@ class ValidationRule(ABC):
         severity: str = 'error',
         applies_to: list[str] | None = None,
         *,
-        valid_months: list[int] | None = None
+        valid_months: list[int] | None = None,
+        tolerance: float = 0.0
     ):
         self.rule_type = rule_type
         self._value = value
         self.severity = severity
         self.applies_to = applies_to
         self.valid_months = valid_months
+        self.tolerance = tolerance
 
     @classmethod
     def provide_context(cls, portfolio: 'Portfolio', config: dict[str, Any]) -> dict[str, Any]:  # pylint: disable=unused-argument
@@ -109,6 +111,13 @@ class ValidationRule(ABC):
 
     def is_error(self) -> bool:
         return bool(self.severity == 'error')
+
+    def _within_tolerance(self, calculated: float, csv_value: float) -> bool:
+        if csv_value == 0 and calculated == 0:
+            return True
+        if csv_value == 0:
+            return calculated <= self.tolerance
+        return abs(calculated - csv_value) / abs(csv_value) <= self.tolerance
 
     def __str__(self) -> str:
         return self.rule_type

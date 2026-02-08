@@ -38,19 +38,6 @@ _START_YEAR = 2018
 class PaidTaxValidationRule(ValidationRule):
     """Validates calculated VAP base yield against paid tax data from CSV files."""
 
-    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-        self,
-        rule_type: str,
-        value: Any,
-        severity: str = 'error',
-        applies_to: list[str] | None = None,
-        *,
-        valid_months: list[int] | None = None,
-        tolerance: float = 0.1  # tolerance required because of differing asset prices
-    ):
-        super().__init__(rule_type, value, severity, applies_to, valid_months=valid_months)
-        self.tolerance = tolerance
-
     @classmethod
     def provide_context(cls, portfolio: Portfolio, config: dict[str, Any]) -> dict[str, Any]:
         tax_files = get_tax_files(config)
@@ -127,10 +114,3 @@ class PaidTaxValidationRule(ValidationRule):
             return self.is_error(), message
 
         return False, None
-
-    def _within_tolerance(self, calculated: float, csv_value: float) -> bool:
-        if csv_value == 0 and calculated == 0:
-            return True
-        if csv_value == 0:
-            return calculated <= self.tolerance
-        return abs(calculated - csv_value) / abs(csv_value) <= self.tolerance

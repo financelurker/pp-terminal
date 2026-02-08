@@ -159,29 +159,15 @@ def create_rule(rule_config: dict[str, Any]) -> ValidationRule:
     if rule_type not in _RULE_TYPES:
         raise ValueError(f'Unknown rule type: {rule_type}')
 
-    value = rule_config.get('value', None)
-    severity = rule_config.get('severity', 'error')
-    applies_to = rule_config.get('applies-to', None)
-    valid_months = rule_config.get('valid-months', None)
-
     rule_class = _RULE_TYPES[rule_type]
 
-    if rule_type == 'paid-tax-validation':
-        return PaidTaxValidationRule(
-            rule_type=rule_type,
-            value=value,
-            severity=severity,
-            applies_to=applies_to,
-            valid_months=valid_months,
-            tolerance=rule_config.get('tolerance', 0.05)
-        )
-
-    return rule_class(  # type: ignore[no-any-return]
+    return rule_class(  # type: ignore[abstract]
         rule_type=rule_type,
-        value=value,
-        severity=severity,
-        applies_to=applies_to,
-        valid_months=valid_months
+        value=rule_config.get('value', None),
+        severity=rule_config.get('severity', 'error'),
+        applies_to=rule_config.get('applies-to', None),
+        valid_months=rule_config.get('valid-months', None),
+        tolerance=rule_config.get('tolerance', 0.0)
     )
 
 

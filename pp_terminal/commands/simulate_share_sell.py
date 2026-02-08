@@ -23,8 +23,9 @@ from pathlib import Path
 from typing import cast
 from typing_extensions import Annotated
 
+import pandas as pd
 import typer
-from pp_terminal.data.filters import filter_by_account_and_security
+from pp_terminal.data.filters import filter_by_account_and_security, filter_by_security, filter_by_account
 from pp_terminal.domain.cost_basis import calculate_fifo_sell
 
 from pp_terminal.data.tax import load_prepaid_tax_data
@@ -34,8 +35,8 @@ from pp_terminal.utils.helper import footer
 from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.domain.portfolio import Portfolio, get_securities_account_by_id, get_security_by_id
-from pp_terminal.domain.schemas import Percent, Money, Account, Security
+from pp_terminal.domain.portfolio import Portfolio, get_security_by_id
+from pp_terminal.domain.schemas import Percent, Money
 from pp_terminal.output.table_decorator import TableOptions
 
 app = typer.Typer()
@@ -44,37 +45,18 @@ log = logging.getLogger(__name__)
 
 
 def get_today() -> datetime:
-    """Return today's date at midnight."""
     return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-
-
-def _get_available_shares(security: Security, account: Account, snapshot: PortfolioSnapshot) -> float:
-    shares_available = snapshot.shares
-    if shares_available is None:
-        raise InputError("No share holdings found in portfolio")
-
-    # Check for this specific account/security combination
-    holding_key = None
-    for key in shares_available.index:
-        if key[0] == account.accountId and key[1] == security.securityId:
-            holding_key = key
-            break
-
-    if holding_key is None:
-        raise InputError(f"No shares of '{security.name}' found in account '{account.name}' on {snapshot.date.strftime('%Y-%m-%d')}")
-
-    return float(shares_available[holding_key])
 
 
 @app.command(name="share-sell")
 def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-statements,too-many-branches
         ctx: typer.Context,
-        security_id: Annotated[str, typer.Option(prompt="Security ID", prompt_required=True)],
-        account_id: Annotated[str, typer.Option(help="Securities account ID", prompt="Account ID", prompt_required=True)],
-        date: Annotated[datetime | None, typer.Option(formats=["%Y-%m-%d"], help="Sale date (defaults to today)", prompt="Sale date (YYYY-MM-DD)", prompt_required=False)] = None,
+        security_id: Annotated[str | None, typer.Argument(help="Security ID (defaults to all securities)")] = None,
+        account_id: Annotated[str | None, typer.Option("--account-id", "-a", help="Securities account ID (defaults to all accounts)")] = None,
+        date: Annotated[datetime | None, typer.Option(formats=["%Y-%m-%d"], help="Sale date (defaults to today)")] = None,
         tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, callback=tax_rate_callback)] = None,  # type: ignore
-        shares: Annotated[float | None, typer.Option(help="Number of shares to sell (defaults to all available shares)", min=0.0001)] = None,
-        price: Annotated[Money | None, typer.Option(help="Sale price per share (defaults to latest market price)")] = None,
+        shares: Annotated[float | None, typer.Option(help="Number of shares to sell (only with --security-id)", min=0.0001)] = None,
+        price: Annotated[Money | None, typer.Option(help="Sale price per share (only with --security-id)", min=0.0001)] = None,
         tax_csv: Annotated[Path | None, typer.Option(help="CSV file with paid tax per share data", callback=tax_csv_callback)] = None
 ) -> None:
     """
@@ -85,48 +67,67 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     output = cast(OutputStrategy, ctx.obj.output)
     config = cast(Config, ctx.obj.config)
 
+    if shares is not None and security_id is None:
+        raise InputError("--shares requires --security-id")
+    if price is not None and security_id is None:
+        raise InputError("--price requires --security-id")
+
     if date is None:
         date = get_today()
 
-    tax_files = [tax_csv] if tax_csv else get_tax_files(config)
-    _tax_csv_data = load_prepaid_tax_data(tax_files, portfolio)
-
-    security = get_security_by_id(portfolio, security_id)
-    account = get_securities_account_by_id(portfolio, account_id)
     snapshot = PortfolioSnapshot(portfolio, date)
+    holdings = snapshot.shares
 
-    # Determine sale price
-    if price is None:
-        latest_prices = snapshot.latest_prices
-        if security_id not in latest_prices.index:
-            raise InputError(f"No price data available for security '{security_id}'. Please provide --price")
-        sale_price = latest_prices.loc[security_id]
-    elif price <= 0:
-        raise InputError("Sale price must be greater than 0")
-    else:
-        sale_price = price
+    if security_id:
+        holdings = holdings.pipe(filter_by_security, security_id=security_id)
+    if account_id:
+        holdings = holdings.pipe(filter_by_account, account_id=account_id)
 
-    available_shares = _get_available_shares(security, account, snapshot)
-    if shares is None:
-        shares = available_shares
-    elif available_shares < shares - 0.0001:  # Allow small floating point errors
-        raise InputError(f"Insufficient shares. Available: {available_shares:.8f}, Requested: {shares:.8f}")
+    if holdings.empty:
+        console.print(output.empty_result())
+        return
 
-    transactions = snapshot.securities_account_transactions.pipe(filter_by_account_and_security, security_id=security_id, account_id=account_id)
-    fifo_lots = calculate_fifo_sell(
-        transactions,
-        snapshot.date,
-        sale_price,
-        tax_rate,
-        shares,
-        _tax_csv_data,
-        exemption_rate=get_exemption_rate(config)
-    ).reset_index()
+    security_ids = holdings.index.get_level_values('securityId').unique()
+    latest_prices = snapshot.latest_prices
+
+    missing_prices = [sid for sid in security_ids if sid not in latest_prices.index]
+    if missing_prices:
+        raise InputError(f"No price data for: {', '.join(missing_prices)}")
+
+    tax_files = [tax_csv] if tax_csv else get_tax_files(config)
+    tax_csv_data = load_prepaid_tax_data(tax_files, portfolio)
+    exemption_rate = get_exemption_rate(config)
+
+    all_lots = []
+    for (acc_id, sec_id, _currency), _shares_held in holdings.items():
+        transactions = snapshot.securities_account_transactions.pipe(
+            filter_by_account_and_security, security_id=sec_id, account_id=acc_id
+        )
+        sale_price = price if price else latest_prices.loc[sec_id]
+        shares_to_sell = shares if security_id else None
+
+        lots = calculate_fifo_sell(
+            transactions, snapshot.date, sale_price, tax_rate,
+            shares_to_sell, tax_csv_data, exemption_rate=exemption_rate
+        )
+        if not lots.empty:
+            lots = lots.reset_index()
+            lots['securityName'] = get_security_by_id(portfolio, sec_id).name
+            all_lots.append(lots)
+
+    if not all_lots:
+        console.print(output.empty_result())
+        return
+
+    result = pd.concat(all_lots, ignore_index=True).sort_values(['securityName', 'date'])
+    columns = ['securityName', 'date', 'shares', 'currency', 'purchasePrice', 'costBasis',
+               'fees', 'salePrice', 'grossProceeds', 'capitalGain', 'deemedIncome',
+               'taxableGain', 'totalTax', 'netProceeds']
 
     console.print(*output.result_table(
-        fifo_lots[['date', 'shares', 'currency', 'purchasePrice', 'costBasis', 'fees', 'salePrice', 'grossProceeds', 'capitalGain', 'deemedIncome', 'taxableGain', 'totalTax', 'netProceeds']],
-        TableOptions(title=f"FIFO Lots on {date.strftime('%Y-%m-%d')}", caption=f"{security.name} ({security.wkn}) in {account.name}", show_index=False, show_total=True)
+        result[columns],
+        TableOptions(title=f"Share Sale Simulation on {date.strftime('%Y-%m-%d')}", show_index=False, show_total=True)
     ))
 
-    console.print(output.warning(f'This simulation assumes all values are in security currency ({security.currency}) excl. Sparerpauschbetrag.'))
+    console.print(output.warning('This simulation excludes Sparerpauschbetrag. Multi-currency totals not meaningful.'))
     console.print(output.text(footer()), style="dim")

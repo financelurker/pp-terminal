@@ -36,6 +36,10 @@ def filter_by_security(df: pd.DataFrame, security_id: str) -> pd.DataFrame:
     return df[df.index.get_level_values('securityId') == security_id]
 
 
+def filter_by_account(df: pd.DataFrame, account_id: str) -> pd.DataFrame:
+    return df[df.index.get_level_values('accountId') == account_id]
+
+
 def filter_by_account_and_security(df: pd.DataFrame, account_id: str, security_id: str) -> pd.DataFrame:
     return df[(df.index.get_level_values('accountId') == account_id) & (df.index.get_level_values('securityId') == security_id)]
 

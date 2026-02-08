@@ -61,7 +61,7 @@ def test_share_sell_csv_output(request: TopRequest) -> None:
         '--format', 'csv',
         '--no-cache',
         'simulate', 'share-sell',
-        '--security-id', '99b9419f-8c70-422e-8e8e-05eadb4507ec',
+        '99b9419f-8c70-422e-8e8e-05eadb4507ec',
         '--account-id', 'dc6fac85-6c6e-47f1-a968-2b5b84d90997',
         '--tax-rate', '26.375'
     ], env={'COLUMNS': '200'})

@@ -72,7 +72,7 @@ def _seed_heap(df: pd.DataFrame, groups: dict[tuple[str, str], list[int]]) -> li
     heap: list[tuple[float, int, int]] = []
     for tie, queue in enumerate(groups.values()):
         row = df.loc[queue[0]]
-        if row['_netProceedsPerShare'] > 0:
+        if row['netProceedsPerShare'] > 0:
             heapq.heappush(heap, (_tax_priority(row), tie, queue[0]))
     return heap
 
@@ -86,9 +86,8 @@ class MinTaxStrategy(SellStrategy):  # pylint: disable=too-few-public-methods
             raise InputError(f"No lots available. Target net: {self.target_net:.2f}")
 
         df = lots.reset_index()
-        df['_netProceedsPerShare'] = df['netProceeds'] / df['shares']
 
-        max_achievable = df.loc[df['_netProceedsPerShare'] > 0, 'netProceeds'].sum()
+        max_achievable = df.loc[df['netProceedsPerShare'] > 0, 'netProceeds'].sum()
         if self.target_net > max_achievable + 0.005:
             raise InputError(
                 f"Target net {self.target_net:.2f} exceeds maximum achievable {max_achievable:.2f}"
@@ -101,7 +100,7 @@ class MinTaxStrategy(SellStrategy):  # pylint: disable=too-few-public-methods
         result = df.loc[list(selected.keys())].copy()
         result['shares'] = list(selected.values())
         return TaxLotSchema.validate(
-            result.drop(columns=['_netProceedsPerShare']).set_index(['date', 'accountId', 'securityId'])
+            result.set_index(['date', 'accountId', 'securityId'])
         )
 
     def _consume_lots(
@@ -118,21 +117,21 @@ class MinTaxStrategy(SellStrategy):  # pylint: disable=too-few-public-methods
             _priority, _tie, row_idx = heapq.heappop(heap)
             row = df.loc[row_idx]
 
-            if row['_netProceedsPerShare'] <= 0:
+            if row['netProceedsPerShare'] <= 0:
                 continue
 
             if row['netProceeds'] <= remaining + 0.005:
                 selected[row_idx] = row['shares']
                 remaining -= row['netProceeds']
             else:
-                selected[row_idx] = min(remaining / row['_netProceedsPerShare'], row['shares'])
+                selected[row_idx] = min(remaining / row['netProceedsPerShare'], row['shares'])
                 remaining = 0.0
 
             queue = groups[(row['accountId'], row['securityId'])]
             pos = queue.index(row_idx)
             if pos + 1 < len(queue):
                 next_row = df.loc[queue[pos + 1]]
-                if next_row['_netProceedsPerShare'] > 0:
+                if next_row['netProceedsPerShare'] > 0:
                     heapq.heappush(heap, (_tax_priority(next_row), tie, queue[pos + 1]))
                     tie += 1
 

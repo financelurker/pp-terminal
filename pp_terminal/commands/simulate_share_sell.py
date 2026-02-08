@@ -26,7 +26,7 @@ from typing_extensions import Annotated
 import pandas as pd
 import typer
 from pp_terminal.data.filters import filter_by_account_and_security, filter_by_security, filter_by_account
-from pp_terminal.domain.cost_basis import enrich_fifo_lots, finalize_sell_lots, drop_helper_columns
+from pp_terminal.domain.cost_basis import enrich_fifo_lots, finalize_sell_lots
 
 from pp_terminal.data.tax import load_prepaid_tax_data
 from pp_terminal.domain.sell_strategy import SellStrategy, FixedSharesStrategy, MinTaxStrategy
@@ -114,15 +114,12 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         console.print(output.empty_result())
         return
 
-    combined = pd.concat(all_enriched)
+    result = pd.concat(all_enriched)
 
     strategy = _build_strategy(security_id, shares, target_net)
     if strategy:
-        combined = strategy.select_lots(combined)
+        combined = strategy.select_lots(result)
         result = finalize_sell_lots(combined, tax_rate)
-        result = drop_helper_columns(result)
-    else:
-        result = drop_helper_columns(combined)
 
     result = result.reset_index()
     result['securityName'] = result['securityId'].map(

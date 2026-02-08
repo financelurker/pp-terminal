@@ -30,9 +30,6 @@ from pp_terminal.domain.sell_strategy import FixedSharesStrategy
 
 log = logging.getLogger(__name__)
 
-_HELPER_COLUMNS = ['_feePerShare', '_deemedIncomePerShare']
-
-
 def _filter_purchase_transactions(transactions: DataFrame[TransactionSchema]) -> DataFrame[TransactionSchema]:
     valid_purchases = transactions.pipe(filter_by_type, transaction_types=[TransactionType.BUY, TransactionType.DELIVERY_INBOUND]).sort_index(level='date')
     valid_purchases = valid_purchases[valid_purchases['shares'] > 0].copy()
@@ -121,6 +118,7 @@ def _compute_sell_metrics(df: DataFrame[TaxLotSchema], tax_rate: Percent) -> Dat
     df['taxableGain'] = (adjusted_gain * (1 - df['exemptionRate'] / 100)).clip(lower=0)
     df['totalTax'] = (df['taxableGain'] * (tax_rate / 100.0)).clip(lower=0)
     df['netProceeds'] = df['grossProceeds'] - df['totalTax']
+    df['netProceedsPerShare'] = df['netProceeds'] / df['shares']
     return df
 
 
@@ -132,11 +130,7 @@ def enrich_fifo_lots(  # pylint: disable=too-many-arguments,too-many-positional-
         tax_csv_data: DataFrame[TaxPaidSchema] | None = None,
         exemption_rate: Percent = 0.0
 ) -> DataFrame[TaxLotSchema]:
-    """Compute all sell metrics for remaining FIFO lots assuming full lot sale.
-
-    Adds transient helper columns _feePerShare and _deemedIncomePerShare for
-    proportional recalculation after a strategy adjusts shares.
-    """
+    """Compute all sell metrics for remaining FIFO lots assuming full lot sale."""
     df = _get_remaining_lots_after_fifo_matching(transactions)
     if df.empty:
         return TaxLotSchema.empty()
@@ -146,8 +140,8 @@ def enrich_fifo_lots(  # pylint: disable=too-many-arguments,too-many-positional-
     df['exemptionRate'] = exemption_rate
     df['deemedIncome'] = calculate_prepaid_tax_per_lot(df, sell_date, tax_csv_data).values
 
-    df['_feePerShare'] = df['fees'].fillna(0) / df['shares']
-    df['_deemedIncomePerShare'] = df['deemedIncome'] / df['shares']
+    df['feePerShare'] = df['fees'].fillna(0) / df['shares']
+    df['deemedIncomePerShare'] = df['deemedIncome'] / df['shares']
 
     df = _compute_sell_metrics(df, tax_rate)
     return df
@@ -156,15 +150,10 @@ def enrich_fifo_lots(  # pylint: disable=too-many-arguments,too-many-positional-
 def finalize_sell_lots(lots: DataFrame[TaxLotSchema], tax_rate: Percent) -> DataFrame[TaxLotSchema]:
     """Recalculate sell metrics after a strategy has adjusted shares."""
     df = lots.copy()
-    df['fees'] = df['_feePerShare'] * df['shares']
-    df['deemedIncome'] = df['_deemedIncomePerShare'] * df['shares']
+    df['fees'] = df['feePerShare'] * df['shares']
+    df['deemedIncome'] = df['deemedIncomePerShare'] * df['shares']
     df = _compute_sell_metrics(df, tax_rate)
     return df
-
-
-def drop_helper_columns(df: DataFrame[TaxLotSchema]) -> DataFrame[TaxLotSchema]:
-    result: DataFrame[TaxLotSchema] = df.drop(columns=[c for c in _HELPER_COLUMNS if c in df.columns])
-    return result
 
 
 def calculate_fifo_sell(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -185,7 +174,7 @@ def calculate_fifo_sell(  # pylint: disable=too-many-arguments,too-many-position
         df = FixedSharesStrategy(shares_to_sell).select_lots(df)
         df = finalize_sell_lots(df, tax_rate)
 
-    return TaxLotSchema.validate(drop_helper_columns(df))
+    return TaxLotSchema.validate(df)
 
 
 def calculate_total_cost_basis(transactions: DataFrame[TransactionSchema]) -> Money:

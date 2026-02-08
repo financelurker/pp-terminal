@@ -24,7 +24,7 @@ import pandas as pd
 import pytest
 from pandera.typing import DataFrame
 
-from pp_terminal.domain.cost_basis import enrich_fifo_lots, finalize_sell_lots, drop_helper_columns
+from pp_terminal.domain.cost_basis import enrich_fifo_lots, finalize_sell_lots
 from pp_terminal.domain.sell_strategy import FixedSharesStrategy, MinTaxStrategy
 from pp_terminal.domain.schemas import AccountType, TransactionType, TaxLotSchema
 from pp_terminal.domain.portfolio import Portfolio
@@ -100,7 +100,7 @@ class TestFixedSharesStrategy:
         ])
         enriched = _enrich(portfolio, sell_price=150.0)
         result = FixedSharesStrategy(30.0).select_lots(enriched)
-        result = drop_helper_columns(finalize_sell_lots(result, TAX_RATE))
+        result = finalize_sell_lots(result, TAX_RATE)
 
         assert len(result) == 1
         assert result.iloc[0]['shares'] == pytest.approx(30.0)
@@ -113,7 +113,7 @@ class TestFixedSharesStrategy:
         ])
         enriched = _enrich(portfolio, sell_price=160.0)
         result = FixedSharesStrategy(70.0).select_lots(enriched)
-        result = drop_helper_columns(finalize_sell_lots(result, TAX_RATE))
+        result = finalize_sell_lots(result, TAX_RATE)
 
         assert len(result) == 2
         assert result.iloc[0]['shares'] == pytest.approx(50.0)
@@ -157,7 +157,7 @@ class TestMinTaxStrategy:
 
         # Target net small enough to be satisfied by sec-2 alone
         result = MinTaxStrategy(500.0).select_lots(enriched)
-        result = drop_helper_columns(finalize_sell_lots(result, TAX_RATE))
+        result = finalize_sell_lots(result, TAX_RATE)
 
         # Should pick sec-2 (lower tax rate) first
         sec_ids = result.reset_index()['securityId'].unique()
@@ -178,7 +178,7 @@ class TestMinTaxStrategy:
 
         # sec-2 has 0 tax -> effective rate 0 -> should be picked first
         result = MinTaxStrategy(500.0).select_lots(enriched)
-        result = drop_helper_columns(finalize_sell_lots(result, TAX_RATE))
+        result = finalize_sell_lots(result, TAX_RATE)
 
         sec_ids = result.reset_index()['securityId'].unique().tolist()
         assert sec_ids == ['sec-2']
@@ -220,7 +220,7 @@ class TestMinTaxStrategy:
         # Target large enough to require both securities
         max_net = enriched['netProceeds'].sum()
         result = MinTaxStrategy(max_net - 1.0).select_lots(enriched)
-        result = drop_helper_columns(finalize_sell_lots(result, TAX_RATE))
+        result = finalize_sell_lots(result, TAX_RATE)
 
         sec_ids = result.reset_index()['securityId'].unique()
         assert len(sec_ids) == 2

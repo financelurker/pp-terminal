@@ -27,18 +27,18 @@ import pytest
 
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
-from pp_terminal.domain.schemas import TransactionType, AccountType, Percent, Money, VapResultSchema
+from pp_terminal.domain.schemas import TransactionType, AccountType, Percent, Money, VapResultSchema, SecuritySchema
 from pp_terminal.domain.vap import calculate_vap
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
-from tests.data.conftest import EXEMPTION_RATE_CONFIG
+from tests.conftest import TAX_RATE, EXEMPT_RATE_CONFIG
 
 
 @pytest.fixture(name='sample_securities')
-def provide_sample_securities() -> pd.DataFrame:
+def provide_sample_securities() -> DataFrame[SecuritySchema]:
     securities = pd.DataFrame([['Some Share', 'A23432', 'EUR']], columns=['name', 'wkn', 'currency'], index=['1234567890'])
     securities.index.name = 'securityId'
 
-    return securities
+    return SecuritySchema.validate(securities)
 
 
 @pytest.fixture(name='sample_prices')
@@ -66,7 +66,7 @@ def test_calculate_empty_if_no_securities_accounts(sample_accounts: pd.DataFrame
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2022, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2022, 12, 31))
 
-    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375)
+    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, TAX_RATE)
 
     assert result.empty
 
@@ -80,7 +80,7 @@ def test_calculate_empty_if_no_security_prices(sample_accounts: pd.DataFrame, sa
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2022, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2022, 12, 31))
 
-    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375)
+    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, TAX_RATE)
 
     assert result.empty
 
@@ -94,7 +94,7 @@ def test_inyear_buy(sample_accounts: pd.DataFrame, sample_transactions: pd.DataF
     expected_df.index.name = 'securityId'
     expected_df = VapResultSchema.validate(expected_df)
 
-    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375)
+    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, TAX_RATE, exempt_rate_percent=0.0)
 
     assert not result.empty
     assert_frame_equal(expected_df, result.round(2))
@@ -102,20 +102,31 @@ def test_inyear_buy(sample_accounts: pd.DataFrame, sample_transactions: pd.DataF
 # @see https://github.com/MStrecke/vorabpauschale/blob/master/test.ini
 # @see https://www.justetf.com/de/news/etf/etf-und-steuern-das-neue-investmentsteuergesetz-ab-2018.html
 samples = [
-    (0.0, 0, 10000, 10300, 0),  # zero base rate
-    (0.0, 0, 10000, 10300, -1.29),  # negative base rate
-    (295.95, 0, 100000, 125000, 2.29),
-    (0.0, 300, 10000, 9750, 2.29),  # justetf Steuer-Beispiel 1.1: Ausschüttender ETF mit kleinem Gewinn
-    (0.0, 0, 10000, 9750, 2.29),  # justetf Steuer-Beispiel 1.1 mit Verlust ohne Ausschüttung
-    (9.23, 0, 10000, 10050, 2.29),  # justetf Steuer-Beispiel 1.2: Thesaurierender ETF mit kleinem Gewinn
-    (0.0, 300, 10000, 10700, 2.29),  # justetf Steuer-Beispiel 2.1: Ausschüttender ETF mit hohem Gewinn
-    (29.60, 0, 10000, 11000, 2.29),  # justetf Steuer-Beispiel 2.2: Thesaurierender ETF mit hohem Gewinn
-    (14.22, 0, 10000, 10700, 1.1)
+    (0.0, 0, 10_000, 10_300, 0, TAX_RATE),  # zero base rate
+    (0.0, 0, 10_000, 10_300, -1.29, TAX_RATE),  # negative base rate
+    (295.95, 0, 100_000, 125_000, 2.29, TAX_RATE),
+    (0.0, 300, 10_000, 9750, 2.53, TAX_RATE),  # justetf Steuer-Beispiel 1.1: Ausschüttender ETF mit kleinem Gewinn
+    (0.0, 0, 10_000, 9750, 2.53, TAX_RATE),  # justetf Steuer-Beispiel 1.1 mit Verlust ohne Ausschüttung
+    (9.23, 0, 10_000, 10_050, 2.53, TAX_RATE),  # justetf Steuer-Beispiel 1.2: Thesaurierender ETF mit kleinem Gewinn
+    (0.0, 300, 10_000, 10_700, 2.53, TAX_RATE),  # justetf Steuer-Beispiel 2.1: Ausschüttender ETF mit hohem Gewinn
+    (32.70, 0, 10_000, 11_000, 2.53, TAX_RATE),  # justetf Steuer-Beispiel 2.2: Thesaurierender ETF mit hohem Gewinn
+    (14.22, 0, 10_000, 10_700, 1.1, TAX_RATE),
+    (1.18, 0.1, 100, 102, 2.55, 100),  # https://www.consorsbank.de/web/Wissen/FAQ/steuer/Berechnung-Vorabpauschale
+    (234.66, 500, 100_000, 110_000, 2.53, TAX_RATE),  # https://www.smart-rechner.de/vorabpauschale/beispiel.php
 ]
 
 
-@pytest.mark.parametrize("expected_tax_value, payout, value_begin, value_end, base_rate_percent", samples)
-def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securities: pd.DataFrame, expected_tax_value: Money, payout: Money, value_begin: Money, value_end: Money, base_rate_percent: Percent) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+@pytest.mark.parametrize("expected_tax_value, payout, value_begin, value_end, base_rate_percent, tax_rate_percent", samples)
+def test_single_security_buy_only(   # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+        sample_accounts: pd.DataFrame,
+        sample_securities: pd.DataFrame,
+        expected_tax_value: Money,
+        payout: Money,
+        value_begin: Money,
+        value_end: Money,
+        base_rate_percent: Percent,
+        tax_rate_percent: Percent
+) -> None:
     share_price_begin = 50
     shares = value_begin/share_price_begin
 
@@ -142,13 +153,18 @@ def test_single_security_buy_only(sample_accounts: pd.DataFrame, sample_securiti
     expected_df.index.name = 'securityId'
     expected_df = VapResultSchema.validate(expected_df)
 
-    result = calculate_vap(snapshot_begin, snapshot_end, base_rate_percent, 26.375 * 0.7)
+    result = calculate_vap(
+        snapshot_begin,
+        snapshot_end,
+        base_rate_percent=base_rate_percent,
+        tax_rate_percent=tax_rate_percent,
+        exempt_rate_percent=30)
 
     if expected_tax_value == 0:
         assert result.empty
     else:
         assert not result.empty
-        assert_frame_equal(expected_df, result.round(2))
+        assert_frame_equal(expected_df, round(result, 2))
 
 
 def test_kommer_2021(request: TopRequest) -> None:
@@ -177,7 +193,8 @@ def test_kommer_2021(request: TopRequest) -> None:
         snapshot_begin,
         snapshot_end,
         base_rate_percent=2.0,
-        tax_rate_percent=26.375,
+        tax_rate_percent=TAX_RATE,
+        exempt_rate_percent=30,
         exempt_rate_attr_uuid="2baac2d0-459b-4b41-a0ef-d7dad0866892")
 
     assert_frame_equal(expected_df, result)
@@ -211,7 +228,7 @@ def test_kommer_2023(request: TopRequest) -> None:
     expected_df.index.name = 'securityId'
     expected_df = VapResultSchema.validate(expected_df)
 
-    result = calculate_vap(snapshot_begin, snapshot_end, 2.0, 26.375, 30.0, config['attributes']['securities']['exemption-rate'])
+    result = calculate_vap(snapshot_begin, snapshot_end, 2.0, TAX_RATE, 30.0, config['attributes']['securities']['exemption-rate'])
 
     assert not result.empty
     assert_frame_equal(expected_df, result.round(5))
@@ -223,13 +240,46 @@ def test_empty_file(request: TopRequest) -> None:
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
 
-    result = calculate_vap(snapshot_begin, snapshot_end, 2.0, 26.375)
+    result = calculate_vap(snapshot_begin, snapshot_end, 2.0, TAX_RATE)
 
     assert result.empty
 
 
-def test_custom_exemption_rate_produces_positive_vap(request: TopRequest) -> None:
-    portfolio = PpPortfolioBuilder(config=EXEMPTION_RATE_CONFIG).construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+def test_zero_base_rate(request: TopRequest) -> None:
+    portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
+
+    result = calculate_vap(snapshot_begin, snapshot_end, base_rate_percent=0, tax_rate_percent=TAX_RATE)
+
+    assert result.empty
+
+
+def test_zero_tax_rate(request: TopRequest) -> None:
+    portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
+
+    result = calculate_vap(snapshot_begin, snapshot_end, base_rate_percent=2.0, tax_rate_percent=0)
+
+    assert result.empty
+
+
+def test_full_exempt_rate(request: TopRequest) -> None:
+    portfolio = PpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
+
+    snapshot_begin = PortfolioSnapshot(portfolio, datetime(2021, 1, 2))
+    snapshot_end = PortfolioSnapshot(portfolio, datetime(2021, 12, 31))
+
+    result = calculate_vap(snapshot_begin, snapshot_end, base_rate_percent=2.0, tax_rate_percent=TAX_RATE, exempt_rate_percent=100.0)
+
+    assert result.empty
+
+
+def test_custom_exempt_rate_produces_positive_vap(request: TopRequest) -> None:
+    portfolio = PpPortfolioBuilder(config=EXEMPT_RATE_CONFIG).construct(request.path.parent.parent / 'fixtures' / 'kommer.ids.xml')
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2023, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2023, 12, 31))
@@ -238,9 +288,9 @@ def test_custom_exemption_rate_produces_positive_vap(request: TopRequest) -> Non
         snapshot_begin,
         snapshot_end,
         base_rate_percent=2.0,
-        tax_rate_percent=26.375,
-        default_exemption_rate_percent=30.0,
-        exempt_rate_attr_uuid=EXEMPTION_RATE_CONFIG['attributes']['securities']['exemption-rate']
+        tax_rate_percent=TAX_RATE,
+        exempt_rate_percent=30.0,
+        exempt_rate_attr_uuid=EXEMPT_RATE_CONFIG['attributes']['securities']['exempt-rate']
     )
 
     assert not result.empty

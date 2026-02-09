@@ -115,7 +115,7 @@ def _compute_sell_metrics(df: DataFrame[TaxLotSellSchema], tax_rate: Percent) ->
     df['capitalGain'] = df['grossProceeds'] - df['costBasis']
 
     adjusted_gain = (df['capitalGain'] - df['deemedIncome']).clip(lower=0)
-    df['taxableGain'] = (adjusted_gain * (1 - df['exemptionRate'] / 100)).clip(lower=0)
+    df['taxableGain'] = (adjusted_gain * (1 - df['exemptRate'] / 100)).clip(lower=0)
     df['totalTax'] = (df['taxableGain'] * (tax_rate / 100.0)).clip(lower=0)
     df['netProceeds'] = df['grossProceeds'] - df['totalTax']
     df['netProceedsPerShare'] = df['netProceeds'] / df['shares']
@@ -128,7 +128,7 @@ def enrich_fifo_lots(  # pylint: disable=too-many-arguments,too-many-positional-
         sell_price: Money,
         tax_rate: Percent,
         tax_csv_data: DataFrame[TaxPaidSchema] | None = None,
-        exemption_rate: Percent = 0.0
+        exempt_rate: Percent = 0.0
 ) -> DataFrame[TaxLotSellSchema]:
     """Compute all sell metrics for remaining FIFO lots assuming full lot sale."""
     df = _get_remaining_lots_after_fifo_matching(transactions)
@@ -137,7 +137,7 @@ def enrich_fifo_lots(  # pylint: disable=too-many-arguments,too-many-positional-
 
     df = TaxLotSchema.validate(df)
     df['salePrice'] = sell_price
-    df['exemptionRate'] = exemption_rate
+    df['exemptRate'] = exempt_rate
     df['deemedIncome'] = calculate_prepaid_tax_per_lot(df, sell_date, tax_csv_data).values
 
     df['feePerShare'] = df['fees'].fillna(0) / df['shares']
@@ -163,10 +163,10 @@ def calculate_fifo_sell(  # pylint: disable=too-many-arguments,too-many-position
         tax_rate: Percent,
         shares_to_sell: float | None = None,
         tax_csv_data: DataFrame[TaxPaidSchema] | None = None,
-        exemption_rate: Percent = 0.0
+        exempt_rate: Percent = 0.0
 ) -> DataFrame[TaxLotSellSchema]:
     """Calculate FIFO lots for shares being sold, including prepaid tax calculations."""
-    df = enrich_fifo_lots(transactions, sell_date, sell_price, tax_rate, tax_csv_data, exemption_rate)
+    df = enrich_fifo_lots(transactions, sell_date, sell_price, tax_rate, tax_csv_data, exempt_rate)
     if df.empty:
         return TaxLotSellSchema.empty()
 

@@ -25,9 +25,9 @@ import pandas as pd
 import typer
 from typing_extensions import Annotated
 
-from pp_terminal.utils.config import Config, get_exemption_rate_attribute
+from pp_terminal.utils.config import Config, get_exempt_rate_attribute
 from pp_terminal.utils.helper import get_last_year, footer
-from pp_terminal.utils.options import tax_rate_callback, exemption_rate_callback
+from pp_terminal.utils.options import tax_rate_callback, exempt_rate_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio
@@ -68,7 +68,7 @@ def print_tax_table(  # pylint: disable=too-many-locals
         year: Annotated[datetime, typer.Option(formats=["%Y"], help="The year to calculate the preliminary tax for", prompt=True, callback=set_begin, default_factory=get_last_year)],
         base_rate: Annotated[Percent, typer.Option(help="The base rate (Basiszinssatz)", min=-100, max=100, prompt="Base Rate (%)", prompt_required=True, default_factory=_get_base_rate_percent_by_year)],
         tax_rate: Annotated[Percent, typer.Option(help="Your personal tax rate", min=0, max=100, callback=tax_rate_callback)] = None,  # type: ignore
-        exemption_rate: Annotated[Percent, typer.Option(help="Default exemption rate (Teilfreistellung), can be overwritten for each security.", min=0, max=100, callback=exemption_rate_callback)] = None  # type: ignore
+        exempt_rate: Annotated[Percent, typer.Option(help="Default exemption rate (Teilfreistellung), can be overwritten for each security.", min=0, max=100, callback=exempt_rate_callback)] = None  # type: ignore
 ) -> None:
     """
     Show a detailed table with calculated German preliminary tax values ("Vorabpauschale"/VAP) for a specified year, per each security and account.
@@ -77,14 +77,13 @@ def print_tax_table(  # pylint: disable=too-many-locals
     output = cast(OutputStrategy, ctx.obj.output)
     config = cast(Config, ctx.obj.config)
 
-    exempt_rate_uuid = get_exemption_rate_attribute(config)
-
-    console.print(output.hint('You can define the exemption rate per each security individually by creating a custom security attribute of type "Percent Number" in Portfolio Performance and add it to pp-terminal configuration file.'))
+    exempt_rate_uuid = get_exempt_rate_attribute(config)
+    console.print(output.hint('You can define the exempt rate per each security individually by creating a custom security attribute of type "Percent Number" in Portfolio Performance and add it to pp-terminal configuration file.'))
 
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(year.year, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(year.year, 12, 31))
 
-    result = calculate_vap(snapshot_begin, snapshot_end, base_rate, tax_rate, exemption_rate, exempt_rate_uuid)
+    result = calculate_vap(snapshot_begin, snapshot_end, base_rate, tax_rate, exempt_rate, exempt_rate_uuid)
 
     vap_totals = {}
     if not result.empty:

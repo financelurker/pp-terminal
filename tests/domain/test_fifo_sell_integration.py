@@ -234,19 +234,19 @@ def test_vorabpauschale_csv_missing_data(partial_sell_portfolio: Portfolio) -> N
     assert abs(credit - 37.9147) < 0.01
 
 
-def test_exemption_rate_applied_to_total_capital_gain() -> None:
+def test_exempt_rate_applied_to_total_capital_gain() -> None:
     """
     Test simplified tax formula where exemption rate is applied once to adjusted capital gain.
 
     German tax law (§18 InvStG): The exemption rate applies to all taxable gains from a security.
     The simplified tax calculation:
       adjustedGain = capitalGain - deemedIncome
-      taxableGain = adjustedGain * (1 - exemption_rate)
+      taxableGain = adjustedGain * (1 - exempt_rate)
       totalTax = taxableGain * tax_rate
 
     This avoids duplicate application of exemption rate (once in CSV loading, once in sell calculation).
     """
-    exemption_rate = 30.0  # 30% exemption for equity ETFs
+    exempt_rate = 30.0
     tax_rate = 26.375
 
     # Create portfolio with single security
@@ -316,7 +316,7 @@ def test_exemption_rate_applied_to_total_capital_gain() -> None:
         shares_to_sell=100.0,
         tax_rate=tax_rate,
         tax_csv_data=csv_data,
-        exemption_rate=exemption_rate
+        exempt_rate=exempt_rate
     )
 
     # Expected calculation with simplified formula:
@@ -347,7 +347,7 @@ def test_simplified_tax_formula_with_deemed_income_base() -> None:
     - Applies exemption rate only once in final calculation
     - Removes duplicate exemption logic
     """
-    exemption_rate = 30.0
+    exempt_rate = 30.0
     tax_rate = 26.375
 
     # Create portfolio with single security
@@ -416,7 +416,7 @@ def test_simplified_tax_formula_with_deemed_income_base() -> None:
         shares_to_sell=100.0,
         tax_rate=tax_rate,
         tax_csv_data=csv_data_loaded,
-        exemption_rate=exemption_rate
+        exempt_rate=exempt_rate
     )
 
     # Expected calculation with simplified formula:
@@ -433,5 +433,5 @@ def test_simplified_tax_formula_with_deemed_income_base() -> None:
     assert abs(lot['totalTax'] - 884.35375) < 0.01, f"Total tax should be ~884.35 (simplified formula), got {lot['totalTax']}"
 
     # Verify the simplified formula is applied correctly
-    expected_total_tax = (lot['capitalGain'] - lot['deemedIncome']) * (1 - exemption_rate / 100) * (tax_rate / 100)
+    expected_total_tax = (lot['capitalGain'] - lot['deemedIncome']) * (1 - exempt_rate / 100) * (tax_rate / 100)
     assert abs(lot['totalTax'] - expected_total_tax) < 0.01, f"Total tax calculation mismatch: got {lot['totalTax']}, expected {expected_total_tax}"

@@ -39,7 +39,7 @@ def tax_rate_callback(ctx: typer.Context, param: typer.CallbackParam, value: Per
     ))
 
 
-def exemption_rate_callback(ctx: typer.Context, param: typer.CallbackParam, value: Percent | None) -> Percent:  # pylint: disable=unused-argument
+def exempt_rate_callback(ctx: typer.Context, param: typer.CallbackParam, value: Percent | None) -> Percent:  # pylint: disable=unused-argument
     # 1. If provided via CLI, use it
     if value is not None:
         return value

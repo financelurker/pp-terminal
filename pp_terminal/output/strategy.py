@@ -38,6 +38,7 @@ class OutputFormat(str, Enum):
 class Console(rich.console.Console):
     def print(self, *objects: Any, **kwargs: Any) -> None:
         kwargs['end'] = ''  # no newline at the end by default
+        kwargs.setdefault('soft_wrap', True)
         super().print(*objects, **kwargs)
 
 
@@ -95,4 +96,6 @@ class JsonOutputStrategy(OutputStrategy):
         if df is None:
             return self.empty_result()
 
-        return (df.to_json(index=options.show_index, orient='records'), )
+        if options.show_index:
+            df = df.reset_index()
+        return (df.to_json(orient='records'), )

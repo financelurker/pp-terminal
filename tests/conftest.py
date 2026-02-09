@@ -27,6 +27,16 @@ from _pytest.monkeypatch import MonkeyPatch
 from pp_terminal.domain.schemas import AccountType, TransactionType
 
 
+TAX_RATE = (0.25 + 0.055*0.25) * 100
+EXEMPT_RATE_CONFIG = {
+    "attributes": {
+        "securities": {
+            "exempt-rate": "2baac2d0-459b-4b41-a0ef-d7dad0866892"
+        }
+    }
+}
+
+
 @pytest.fixture(autouse=True)
 def patch_db(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr('ppxml2db.dbhelper.db', sqlite3.connect(':memory:'))

@@ -28,7 +28,7 @@ from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.schemas import TaxPaidSchema, Percent
 from pp_terminal.domain.vap import calculate_base_yield_per_share, get_base_rate_for_year
-from pp_terminal.utils.config import get_tax_files, get_exemption_rate_attribute
+from pp_terminal.utils.config import get_tax_files, get_exempt_rate_attribute
 from pp_terminal.validation.base import ValidationRule
 
 log = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ class PaidTaxValidationRule(ValidationRule):
         return {
             'base_yield_by_year': cls._calculate_base_yield_since(portfolio),
             'tax_csv_data': tax_csv_data,
-            'exempt_rate_attr_uuid': get_exemption_rate_attribute(config),
+            'exempt_rate_attr_uuid': get_exempt_rate_attribute(config),
         }
 
     @staticmethod
@@ -84,9 +84,9 @@ class PaidTaxValidationRule(ValidationRule):
         exempt_rate_attr_uuid: str | None = context.get('exempt_rate_attr_uuid')
 
         if exempt_rate_attr_uuid and exempt_rate_attr_uuid in portfolio.securities.columns:
-            exemption_rate = portfolio.securities.loc[entity_id, exempt_rate_attr_uuid]
-            if pd.notna(exemption_rate) and exemption_rate >= 1.0:
-                log.debug('Paid tax validation skipped for security %s: 100%% exemption rate', entity_id)
+            exempt_rate = portfolio.securities.loc[entity_id, exempt_rate_attr_uuid]
+            if pd.notna(exempt_rate) and exempt_rate >= 1.0:
+                log.debug('Paid tax validation skipped for security %s: 100%% exempt rate', entity_id)
                 return False, None
 
         if tax_csv_data is None or tax_csv_data.empty:

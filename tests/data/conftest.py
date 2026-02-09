@@ -27,14 +27,6 @@ from pandera.typing import DataFrame
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import AccountType, TransactionType, TaxPaidSchema
 
-EXEMPTION_RATE_CONFIG = {
-    "attributes": {
-        "securities": {
-            "exemption-rate": "2baac2d0-459b-4b41-a0ef-d7dad0866892"
-        }
-    }
-}
-
 
 @pytest.fixture(name='portfolio_with_purchases')
 def provide_portfolio_with_purchases() -> Portfolio:

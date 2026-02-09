@@ -1,7 +1,0 @@
-accountId,name,type,EUR,GBP,USD,Messages
-57ede399-7ef8-4696-a874-1f425e25d1f5,Kryptowährung,portfolio,178.30,,,
-ea9414e0-1787-46c0-92b3-8e2370eb892e,Tagesgeld,account,500.00,,,
-e068fb14-2554-427e-b2d0-30dcc6e15717,Wertpapierkonto,account,593.87,,,
-dc6fac85-6c6e-47f1-a968-2b5b84d90997,Depot,portfolio,15199.82,,4566.90,
-789294db-0aa4-4673-9d91-ad083c9d6916,Fremdwährungskonto USD,account,,,324.00,
-db94317b-26ed-4a8b-bf6c-2f535a217138,Fremdwährungskonto GBP,account,,2000.00,,

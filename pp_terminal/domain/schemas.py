@@ -131,7 +131,7 @@ class TaxLotSchema(pa.DataFrameModel):
 
 class TaxLotSellSchema(TaxLotSchema):
     salePrice: Series[Money]
-    exemptionRate: Series[Percent]
+    exemptRate: Series[Percent]
     capitalGain: Series[Money]
     grossProceeds: Series[Money]
     deemedIncome: Series[Money]

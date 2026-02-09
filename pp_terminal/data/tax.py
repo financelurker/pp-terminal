@@ -35,13 +35,13 @@ console = Console()
 log = logging.getLogger(__name__)
 
 
-def get_exemption_multiplier_per_security(
+def get_exempt_multiplier_per_security(
     portfolio: Portfolio,
-    default_exemption_rate_percent: Percent,
+    default_exempt_rate_percent: Percent,
     exempt_rate_attr_uuid: str | None = None
 ) -> pd.Series:
     """
-    Calculate exemption multiplier (1 - exemption_rate) for each security.
+    Calculate exemption multiplier (1 - exempt_rate) for each security.
 
     Returns:
         Series indexed by securityId with multiplier values (e.g., 0.70 for 30% exemption)
@@ -50,15 +50,15 @@ def get_exemption_multiplier_per_security(
         return pd.Series(dtype=float)
 
     if exempt_rate_attr_uuid and exempt_rate_attr_uuid in portfolio.securities.columns:
-        exemption_multiplier = (
+        exempt_multiplier = (
             1 - portfolio.securities[[exempt_rate_attr_uuid]]
             .astype(float)
-            .fillna(default_exemption_rate_percent / 100)
+            .fillna(default_exempt_rate_percent / 100)
         )
-        exemption_multiplier.columns = ['multiplier']
-        return exemption_multiplier['multiplier']
+        exempt_multiplier.columns = ['multiplier']
+        return exempt_multiplier['multiplier']
 
-    default_multiplier = 1 - default_exemption_rate_percent / 100
+    default_multiplier = 1 - default_exempt_rate_percent / 100
     return pd.Series(
         default_multiplier,
         index=portfolio.securities.index,

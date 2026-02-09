@@ -27,7 +27,7 @@ from pp_terminal.data.filters import filter_by_security
 from pp_terminal.domain.cost_basis import calculate_total_cost_basis
 from pp_terminal.domain.vap import calculate_vap_by_security
 from pp_terminal.output.column_utils import normalize_columns
-from pp_terminal.utils.config import Config, get_tax_rate, get_exemption_rate, get_exemption_rate_attribute
+from pp_terminal.utils.config import Config, get_tax_rate, get_exempt_rate, get_exempt_rate_attribute
 from pp_terminal.utils.helper import footer
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio import Portfolio
@@ -95,8 +95,8 @@ def print_securities(  # pylint: disable=too-many-locals
         portfolio,
         by.year,
         get_tax_rate(config),
-        get_exemption_rate(config),
-        get_exemption_rate_attribute(config)
+        get_exempt_rate(config),
+        get_exempt_rate_attribute(config)
     )
     df['vap'] = df['securityId'].map(vap_by_security) if vap_by_security else None
 

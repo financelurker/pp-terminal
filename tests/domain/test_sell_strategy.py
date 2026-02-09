@@ -31,8 +31,7 @@ from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.data.filters import filter_by_account_and_security
 from pp_terminal.exceptions import InputError
-
-TAX_RATE = 26.375
+from tests.conftest import TAX_RATE
 
 
 def _make_portfolio(transactions_data: list[Any], accounts_data: list[Any] | None = None, securities_data: list[Any] | None = None) -> Portfolio:

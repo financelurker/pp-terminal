@@ -30,6 +30,7 @@ from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder
 from pp_terminal.domain.schemas import TransactionType, AccountType, VapResultSchema
 from pp_terminal.domain.vap import calculate_vap
+from tests.conftest import TAX_RATE
 
 
 @pytest.fixture(name='sell_test_accounts')
@@ -73,7 +74,7 @@ def test_full_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_secur
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))
 
-    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375)
+    result = calculate_vap(snapshot_begin, snapshot_end, base_rate_percent=2.29, tax_rate_percent=TAX_RATE)
 
     assert result.empty
 
@@ -105,7 +106,7 @@ def test_partial_sell_during_year(sell_test_accounts: pd.DataFrame, sell_test_se
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))
 
-    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375, 30)
+    result = calculate_vap(snapshot_begin, snapshot_end, base_rate_percent=2.29, tax_rate_percent=TAX_RATE)
 
     assert result is not None
     result_security = result[result['name'] == 'Test ETF']
@@ -135,7 +136,7 @@ def test_multiple_sells_during_year(sell_test_accounts: pd.DataFrame, sell_test_
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))
 
-    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375, 30)
+    result = calculate_vap(snapshot_begin, snapshot_end, base_rate_percent=2.29, tax_rate_percent=TAX_RATE)
 
     assert result is not None
     result_security = result[result['name'] == 'Test ETF']
@@ -181,7 +182,7 @@ def test_sell_and_rebuy_during_year(sell_test_accounts: pd.DataFrame, sell_test_
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))
 
-    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375, 30)
+    result = calculate_vap(snapshot_begin, snapshot_end, base_rate_percent=2.29, tax_rate_percent=TAX_RATE)
 
     assert result is not None
     result_security = result[result['name'] == 'Test ETF']
@@ -209,7 +210,7 @@ def test_no_sells_baseline(sell_test_accounts: pd.DataFrame, sell_test_securitie
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))
 
-    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375, 30)
+    result = calculate_vap(snapshot_begin, snapshot_end, base_rate_percent=2.29, tax_rate_percent=TAX_RATE)
 
     # Calculation:
     # Begin: 100 * 50 = 5000
@@ -275,7 +276,7 @@ def test_partial_sell_from_xml_fixture(request: TopRequest) -> None:
     snapshot_begin = PortfolioSnapshot(portfolio, datetime(2024, 1, 2))
     snapshot_end = PortfolioSnapshot(portfolio, datetime(2024, 12, 31))
 
-    result = calculate_vap(snapshot_begin, snapshot_end, 2.29, 26.375, 30)
+    result = calculate_vap(snapshot_begin, snapshot_end, base_rate_percent=2.29, tax_rate_percent=TAX_RATE)
 
     assert result is not None
 

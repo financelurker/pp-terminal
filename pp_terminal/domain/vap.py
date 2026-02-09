@@ -25,7 +25,7 @@ import numpy as np
 from pandera.typing import DataFrame
 
 from pp_terminal.data.filters import filter_by_type, drop_empty_values
-from pp_terminal.data.tax import get_exemption_multiplier_per_security
+from pp_terminal.data.tax import get_exempt_multiplier_per_security
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot, _NEGATIVE_SECURITIES_ACCOUNT_TRANSACTION_TYPES
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import TransactionType, Percent, Money, VapResultSchema
@@ -153,7 +153,7 @@ def calculate_vap(  # pylint: disable=too-many-locals,too-many-arguments,too-man
         snapshot_period_end: PortfolioSnapshot,
         base_rate_percent: Percent,
         tax_rate_percent: Percent,
-        default_exemption_rate_percent: Percent = 30.0,
+        exempt_rate_percent: Percent = 0.0,
         exempt_rate_attr_uuid: str | None = None
 ) -> DataFrame[VapResultSchema]:
     """
@@ -177,16 +177,15 @@ def calculate_vap(  # pylint: disable=too-many-locals,too-many-arguments,too-man
 
     vap = vap * tax_rate_percent / 100
 
-    # Apply exemption rate if configured
-    if not vap.empty and exempt_rate_attr_uuid:
-        exemption_multiplier = get_exemption_multiplier_per_security(
+    if not vap.empty:
+        exempt_multiplier = get_exempt_multiplier_per_security(
             snapshot_period_end.portfolio,
-            default_exemption_rate_percent,
+            exempt_rate_percent,
             exempt_rate_attr_uuid
         )
 
-        if not exemption_multiplier.empty:
-            exempt_rate_df = exemption_multiplier.to_frame(0)
+        if not exempt_multiplier.empty:
+            exempt_rate_df = exempt_multiplier.to_frame(0)
             vap = exempt_rate_df.mul(vap.to_frame(), level='securityId').iloc[:, 0]
 
     if not vap.empty:
@@ -211,7 +210,7 @@ def calculate_vap_by_security(
         portfolio: Portfolio,
         year: int,
         tax_rate_percent: Percent,
-        default_exemption_rate_percent: Percent = 30.0,
+        default_exempt_rate_percent: Percent = 0.0,
         exempt_rate_attr_uuid: str | None = None
 ) -> dict[str, Money] | None:
     """
@@ -230,7 +229,7 @@ def calculate_vap_by_security(
         snapshot_end,
         base_rate_percent,
         tax_rate_percent,
-        default_exemption_rate_percent,
+        default_exempt_rate_percent,
         exempt_rate_attr_uuid
     )
 
@@ -261,7 +260,7 @@ def calculate_vap_by_account(  # pylint: disable=too-many-arguments,too-many-pos
         portfolio: Portfolio,
         year: int,
         tax_rate_percent: Percent,
-        default_exemption_rate_percent: Percent = 30.0,
+        default_exempt_rate_percent: Percent = 0.0,
         exempt_rate_attr_uuid: str | None = None
 ) -> dict[str, Money] | None:
     """
@@ -280,7 +279,7 @@ def calculate_vap_by_account(  # pylint: disable=too-many-arguments,too-many-pos
         snapshot_end,
         base_rate_percent,
         tax_rate_percent,
-        default_exemption_rate_percent,
+        default_exempt_rate_percent,
         exempt_rate_attr_uuid
     )
 

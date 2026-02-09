@@ -31,7 +31,7 @@ from pp_terminal.domain.cost_basis import enrich_fifo_lots, finalize_sell_lots
 from pp_terminal.data.tax import load_prepaid_tax_data
 from pp_terminal.domain.sell_strategy import SellStrategy, FixedSharesStrategy, MinTaxStrategy
 from pp_terminal.exceptions import InputError
-from pp_terminal.utils.config import Config, get_exemption_rate, get_tax_files
+from pp_terminal.utils.config import Config, get_exempt_rate, get_tax_files
 from pp_terminal.utils.helper import footer
 from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
@@ -95,7 +95,6 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
 
     tax_files = [tax_csv] if tax_csv else get_tax_files(config)
     tax_csv_data = load_prepaid_tax_data(tax_files, portfolio)
-    exemption_rate = get_exemption_rate(config)
 
     all_enriched = []
     for (acc_id, sec_id, _currency), _shares_held in holdings.items():
@@ -105,7 +104,7 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
         sale_price = price if price else latest_prices.loc[sec_id]
         enriched = enrich_fifo_lots(
             transactions, snapshot.date, sale_price, tax_rate,
-            tax_csv_data, exemption_rate=exemption_rate
+            tax_csv_data, exempt_rate=get_exempt_rate(config)
         )
         if not enriched.empty:
             all_enriched.append(enriched)

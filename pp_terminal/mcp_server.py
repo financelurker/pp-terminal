@@ -18,15 +18,17 @@
 """
 
 import logging
+import math
 from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
+import pandas as pd
 import typer
 from mcp.server.fastmcp import FastMCP
 
-from pp_terminal.commands.view_accounts import prepare_accounts_dataframe
-from pp_terminal.commands.view_securities import prepare_securities_dataframe
+from pp_terminal.commands.view_accounts import prepare_accounts_df
+from pp_terminal.commands.view_securities import prepare_securities_df
 from pp_terminal.domain.schemas import AccountType
 from pp_terminal.data.pp_portfolio_builder import CachedPpPortfolioBuilder
 from pp_terminal.domain.portfolio import Portfolio
@@ -35,6 +37,22 @@ from pp_terminal.utils.config import Config
 
 log = logging.getLogger(__name__)
 _SERVER_NAME = "pp-mcp"
+
+
+def _is_empty(value: Any) -> bool:
+    if value is None or value is pd.NaT or value == '':
+        return True
+    if isinstance(value, float) and math.isnan(value):
+        return True
+    return False
+
+
+def _clean_records(df: pd.DataFrame) -> list[dict[str, Any]]:
+    records = df.to_dict(orient='records')
+    return [
+        {k: v for k, v in record.items() if not _is_empty(v)}
+        for record in records
+    ]
 
 def create_mcp_server(file_path: Path, config: Config) -> FastMCP:
     builder = CachedPpPortfolioBuilder(config=config)
@@ -62,8 +80,8 @@ def create_mcp_server(file_path: Path, config: Config) -> FastMCP:
         """List all securities with shares, cost basis, validation messages, and Vorabpauschale."""
         portfolio = _ensure_fresh_portfolio()
         by_date = datetime.fromisoformat(by) if by else datetime.now()
-        df = prepare_securities_dataframe(portfolio, config, by_date, active, in_stock)
-        return cast(list[dict[str, Any]], df.to_dict(orient='records'))
+        df = prepare_securities_df(portfolio, config, by_date, active, in_stock)
+        return _clean_records(df)
 
     @mcp.tool()
     def view_accounts(
@@ -74,8 +92,8 @@ def create_mcp_server(file_path: Path, config: Config) -> FastMCP:
         portfolio = _ensure_fresh_portfolio()
         by_date = datetime.fromisoformat(by) if by else datetime.now()
         parsed_type = AccountType(account_type) if account_type else None
-        df = prepare_accounts_dataframe(portfolio, config, by_date, parsed_type)
-        return cast(list[dict[str, Any]], df.reset_index().to_dict(orient='records'))
+        df = prepare_accounts_df(portfolio, config, by_date, parsed_type)
+        return _clean_records(df.reset_index())
 
     return mcp
 

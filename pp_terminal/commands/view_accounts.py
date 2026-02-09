@@ -97,7 +97,7 @@ def calculate_securities_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFra
     return values
 
 
-def prepare_accounts_dataframe(
+def prepare_accounts_df(
     portfolio: Portfolio,
     config: Config,
     by: datetime,
@@ -128,6 +128,7 @@ def prepare_accounts_dataframe(
     if 'currency' in df.columns:
         df = df.drop(columns=['currency'])
 
+    df = df.drop(columns=[col for col in df.columns if col.startswith('_')])
     df = df.rename(columns={uuid: attr.name for uuid, attr in portfolio.account_attributes.items()})
 
     return df
@@ -152,7 +153,7 @@ def print_accounts(  # pylint: disable=too-many-locals
         config_fields = get_command_config(config, 'view.accounts.fields')
         fields = ','.join(config_fields) if config_fields else 'AccountId,Name,Type,Balance,Messages'
 
-    df = prepare_accounts_dataframe(portfolio, config, by, type)
+    df = prepare_accounts_df(portfolio, config, by, type)
     snapshot = PortfolioSnapshot(portfolio, by)
 
     requested_columns = [col.strip() for col in fields.split(',')]

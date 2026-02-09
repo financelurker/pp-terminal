@@ -42,7 +42,7 @@ console = Console()
 log = logging.getLogger(__name__)
 
 
-def prepare_securities_dataframe(
+def prepare_securities_df(
     portfolio: Portfolio,
     config: Config,
     by: datetime,
@@ -86,6 +86,7 @@ def prepare_securities_dataframe(
     )
     df['vap'] = df['securityId'].map(vap_by_security) if vap_by_security else None
 
+    df = df.drop(columns=[col for col in df.columns if col.startswith('_')])
     df = df.rename(columns={uuid: attr.name for uuid, attr in portfolio.security_attributes.items()})
 
     return df
@@ -109,7 +110,7 @@ def print_securities(  # pylint: disable=too-many-locals
         config_fields = get_command_config(config, 'view.securities.fields')
         fields = ','.join(config_fields) if config_fields else 'SecurityId,Name,Wkn,Currency,Shares,Messages'
 
-    df = prepare_securities_dataframe(portfolio, config, by, active, in_stock)
+    df = prepare_securities_df(portfolio, config, by, active, in_stock)
 
     uuid_to_name = {uuid: attr.name for uuid, attr in portfolio.security_attributes.items()}
     requested_columns = [uuid_to_name.get(col.strip(), col.strip()) for col in fields.split(',')]

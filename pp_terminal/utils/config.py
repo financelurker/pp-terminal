@@ -101,6 +101,11 @@ def validated_toml_loader(config_path: str) -> Config:
     # Store config globally for access by commands
     _loaded_config = config
 
+    # Presence-based anonymization: if 'anonymize' is a dict (config section exists),
+    # convert to boolean True for typer-config CLI mapping while keeping the full config in _loaded_config
+    if isinstance(config.get('anonymize'), dict):
+        config = {**config, 'anonymize': True}
+
     return config
 
 

@@ -69,7 +69,7 @@ def _create_anonymized_temp_file(original_file: Path) -> Path:
     seed = hash(str(original_file.resolve())) % (2**31)
     log.debug("Anonymizing data with seed %d", seed)
 
-    anonymizer = XmlAnonymizer(seed=seed, config=get_config().get('anonymization', {}).get('attributes', {}))
+    anonymizer = XmlAnonymizer(seed=seed, config=get_config().get('anonymize', {}).get('attributes', {}))
     anonymizer.anonymize_file(original_file, temp_path)
     log.debug("Created anonymized file at %s", temp_path)
 
@@ -110,7 +110,8 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments,to
         logging.basicConfig(force=True, level=logging.DEBUG, format="%(message)s", datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=True, show_time=False)])
 
     set_precision(precision)
-    source_file = _create_anonymized_temp_file(file) if anonymize else file
+    should_anonymize = anonymize or 'anonymize' in get_config()
+    source_file = _create_anonymized_temp_file(file) if should_anonymize else file
 
     try:
         builder = CachedPpPortfolioBuilder(config=get_config()) if cache else PpPortfolioBuilder(config=get_config())

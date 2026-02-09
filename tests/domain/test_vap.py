@@ -113,6 +113,7 @@ samples = [
     (14.22, 0, 10_000, 10_700, 1.1, TAX_RATE),
     (1.18, 0.1, 100, 102, 2.55, 100),  # https://www.consorsbank.de/web/Wissen/FAQ/steuer/Berechnung-Vorabpauschale
     (234.66, 500, 100_000, 110_000, 2.53, TAX_RATE),  # https://www.smart-rechner.de/vorabpauschale/beispiel.php
+    (18.46, 0, 10_000, 10_100, 2.53, TAX_RATE),  # https://www.umweltbank.de/magazin/finanzwissen/investieren/vorabpauschale/
 ]
 
 

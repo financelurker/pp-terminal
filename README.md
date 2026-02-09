@@ -153,9 +153,9 @@ pp-terminal --file depot.xml --anonymize export --output-file anonymized.xml
 
 Anonymization can be customized in the [configuration file](#configuration-file):
 ```toml
-[anonymization.attributes."a1b2c3d4-e5f6-7890-abcd-ef1234567890"]
+[anonymize.attributes."a1b2c3d4-e5f6-7890-abcd-ef1234567890"]
 provider = "iban"  # for all available providers see https://faker.readthedocs.io/en/master/providers.html
-[anonymization.attributes."fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"]
+[anonymize.attributes."fgdeb0dd-8bd7-47b1-ac3f-30fedd6a47e9"]
 provider = "pyfloat"
 args = { min_value = 0.0, max_value = 1.0, right_digits = 2 }
 ```
@@ -201,7 +201,6 @@ The CLI options always overwrite the settings in the configuration file.
 ```toml
 file = "portfolio_performance.xml"
 precision = 4
-anonymize = true
 ```
 
 ### Customize Number Formats

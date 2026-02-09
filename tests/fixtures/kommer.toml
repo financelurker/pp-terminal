@@ -26,5 +26,5 @@ rules = [
     {type = "paid-tax-validation", severity = "warning"}
 ]
 
-[anonymization.attributes."fe77e0c2-ee87-46cd-a764-f635c94ac1da"]  # Vendor
+[anonymize.attributes."fe77e0c2-ee87-46cd-a764-f635c94ac1da"]  # Vendor
 provider = "company"

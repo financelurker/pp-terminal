@@ -15,11 +15,7 @@
       "minimum": 0
     },
     "anonymize": {
-      "description": "Anonymize data before processing",
-      "type": "boolean"
-    },
-    "anonymization": {
-      "description": "Anonymization configuration",
+      "description": "Anonymization configuration, this section enables anonymization.",
       "type": "object",
       "properties": {
         "attributes": {

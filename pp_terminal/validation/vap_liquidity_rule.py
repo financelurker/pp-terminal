@@ -17,6 +17,7 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
+import math
 from datetime import datetime
 from typing import Any, cast
 import logging
@@ -62,7 +63,7 @@ class VapLiquidityRule(ValidationRule):
             return False, None
 
         vap_liability = vap_totals.get(entity_id, 0.0)
-        if vap_liability == 0.0:
+        if math.isclose(vap_liability, 0.0):
             log.debug('VAP liquidity check skipped for account %s: no VAP liability', entity_id)
             return False, None
 

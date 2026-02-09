@@ -23,7 +23,7 @@ from typing import cast, Callable, Any
 
 import typer
 import pandas as pd
-from pp_terminal.data.filters import filter_by_security
+from pp_terminal.data.filters import clean_for_display, filter_by_security
 from pp_terminal.domain.cost_basis import calculate_total_cost_basis
 from pp_terminal.domain.vap import calculate_vap_by_security
 from pp_terminal.output.column_utils import normalize_columns
@@ -86,10 +86,7 @@ def prepare_securities_df(
     )
     df['vap'] = df['securityId'].map(vap_by_security) if vap_by_security else None
 
-    df = df.drop(columns=[col for col in df.columns if col.startswith('_')])
-    df = df.rename(columns={uuid: attr.name for uuid, attr in portfolio.security_attributes.items()})
-
-    return df
+    return df.pipe(clean_for_display, portfolio.security_attributes)
 
 
 @app.command(name="securities")

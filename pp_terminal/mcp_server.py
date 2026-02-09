@@ -17,6 +17,7 @@
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
 
+import json
 import logging
 import math
 from datetime import datetime
@@ -29,6 +30,7 @@ from mcp.server.fastmcp import FastMCP
 
 from pp_terminal.commands.view_accounts import prepare_accounts_df
 from pp_terminal.commands.view_securities import prepare_securities_df
+from pp_terminal.data.filters import clean_for_display
 from pp_terminal.domain.schemas import AccountType
 from pp_terminal.data.pp_portfolio_builder import CachedPpPortfolioBuilder
 from pp_terminal.domain.portfolio import Portfolio
@@ -73,8 +75,25 @@ def create_mcp_server(file_path: Path, config: Config) -> FastMCP:
             state['checksum'] = current_checksum
         return cast(Portfolio, state['portfolio'])
 
+    @mcp.resource("portfolio://accounts", mime_type="application/json")
+    def accounts_resource() -> str:
+        """All portfolio accounts (deposit and securities) with their metadata."""
+        portfolio = _ensure_fresh_portfolio()
+        df = (pd.concat([portfolio.deposit_accounts, portfolio.securities_accounts])
+              .reset_index()
+              .pipe(clean_for_display, portfolio.account_attributes))
+        return json.dumps(_clean_records(df))
+
+    @mcp.resource("portfolio://securities", mime_type="application/json")
+    def securities_resource() -> str:
+        """All portfolio securities with their metadata."""
+        portfolio = _ensure_fresh_portfolio()
+        df = (portfolio.securities.reset_index()
+              .pipe(clean_for_display, portfolio.security_attributes))
+        return json.dumps(_clean_records(df))
+
     @mcp.tool()
-    def view_securities(
+    def query_securities(
         by: str | None = None,
         active: bool = False,
         in_stock: bool = False,
@@ -86,7 +105,7 @@ def create_mcp_server(file_path: Path, config: Config) -> FastMCP:
         return _clean_records(df)
 
     @mcp.tool()
-    def view_accounts(
+    def query_accounts(
         by: str | None = None,
         account_type: str | None = None,
     ) -> list[dict[str, Any]]:

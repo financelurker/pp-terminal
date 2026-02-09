@@ -27,7 +27,7 @@ import typer
 
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.output.column_utils import normalize_columns
-from pp_terminal.data.filters import unstack_column_by_currency
+from pp_terminal.data.filters import clean_for_display, unstack_column_by_currency
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import footer
 from pp_terminal.output.strategy import OutputStrategy, Console
@@ -128,10 +128,7 @@ def prepare_accounts_df(
     if 'currency' in df.columns:
         df = df.drop(columns=['currency'])
 
-    df = df.drop(columns=[col for col in df.columns if col.startswith('_')])
-    df = df.rename(columns={uuid: attr.name for uuid, attr in portfolio.account_attributes.items()})
-
-    return df
+    return df.pipe(clean_for_display, portfolio.account_attributes)
 
 
 @app.command(name="accounts")

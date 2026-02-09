@@ -21,7 +21,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from pp_terminal.domain.schemas import TransactionType
+from pp_terminal.domain.schemas import Attribute, TransactionType
 
 
 def filter_earlier_than(df: pd.DataFrame, target_date: datetime) -> pd.DataFrame:
@@ -87,6 +87,11 @@ def drop_empty_values(df: pd.DataFrame | pd.Series) -> pd.DataFrame:
         df.dropna(how='all', axis=1, inplace=True)
 
     return df
+
+
+def clean_for_display(df: pd.DataFrame, attributes: dict[str, Attribute]) -> pd.DataFrame:
+    df = df.drop(columns=[col for col in df.columns if col.startswith('_')])
+    return df.rename(columns={uuid: attr.name for uuid, attr in attributes.items()})
 
 
 def unstack_column_by_currency(df: pd.DataFrame, column: str, base_currency: str) -> pd.DataFrame:

@@ -34,7 +34,7 @@ def test_vap_2025_csv_output(request: TopRequest) -> None:
 
     result = runner.invoke(app, [
         '--file', str(xml_file),
-        '--format', 'csv',
+        '--output', 'csv',
         '--no-cache',
         'simulate', 'vap',
         '--year', '2025',
@@ -57,7 +57,7 @@ def test_share_sell_csv_output(request: TopRequest) -> None:
 
     result = runner.invoke(app, [
         '--file', str(xml_file),
-        '--format', 'csv',
+        '--output', 'csv',
         '--no-cache',
         'simulate', 'share-sell',
         '99b9419f-8c70-422e-8e8e-05eadb4507ec',
@@ -79,7 +79,7 @@ def test_view_securities_csv_output(request: TopRequest) -> None:
 
     result = runner.invoke(app, [
         '--file', str(xml_file),
-        '--format', 'csv',
+        '--output', 'csv',
         '--no-cache',
         'view', 'securities'
     ])
@@ -98,7 +98,7 @@ def test_view_accounts_json_output(request: TopRequest) -> None:
 
     result = runner.invoke(app, [
         '--file', str(xml_file),
-        '--format', 'json',
+        '--output', 'json',
         '--no-cache',
         'view', 'accounts'
     ])

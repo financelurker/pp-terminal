@@ -95,7 +95,7 @@ def _create_anonymized_temp_file(original_file: Path) -> Path:
 def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
         ctx: typer.Context,
         file: Annotated[Path, typer.Option(help="Portfolio Performance XML file.", show_default=False, exists=True, file_okay=True, dir_okay=False, readable=True)],
-        format: OutputFormat = OutputFormat.TABLE,  # pylint: disable=redefined-builtin
+        output: OutputFormat = OutputFormat.TABLE,
         precision: int = 4,
         cache: Annotated[bool, typer.Option('--cache/--no-cache', help='Create cache file for XML.')] = True,
         anonymize: Annotated[bool, typer.Option(help='Anonymize data before processing.')] = False,
@@ -119,7 +119,7 @@ def main(  # pylint: disable=too-many-arguments,too-many-positional-arguments,to
         ctx.obj = SimpleNamespace(
             source_file=source_file,
             portfolio=builder.construct(source_file),
-            output=create_strategy(format),
+            output=create_strategy(output),
             config=get_config(),
             verbose=verbose or False)
 

@@ -43,20 +43,20 @@ def test_vap_2025_csv_output(request: TopRequest) -> None:
         '--exempt-rate', '0'
     ])
 
-    assert result.exit_code == 0, f"Command failed with: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed with: {result.output}"
 
     expected_output = Path(golden_file).read_text(encoding='utf-8')
-    assert result.stdout == expected_output
+    assert result.output == expected_output
 
 
 def test_share_sell_csv_output(request: TopRequest) -> None:
     runner = CliRunner()
     fixtures_dir = request.path.parent.parent / 'fixtures'
-    xml_file = fixtures_dir / 'kommer.ids.xml'
     golden_file = fixtures_dir / 'expected_share_sell_kommer.csv'
 
     result = runner.invoke(app, [
-        '--file', str(xml_file),
+        '--file', str(fixtures_dir / 'kommer.ids.xml'),
+        '--config', str(fixtures_dir / 'kommer.toml'),
         '--output', 'csv',
         '--no-cache',
         'simulate', 'share-sell',
@@ -65,10 +65,10 @@ def test_share_sell_csv_output(request: TopRequest) -> None:
         '--tax-rate', '26.375'
     ])
 
-    assert result.exit_code == 0, f"Command failed with: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed with: {result.output}"
 
     expected_output = Path(golden_file).read_text(encoding='utf-8')
-    assert result.stdout == expected_output
+    assert result.output == expected_output
 
 
 def test_view_securities_csv_output(request: TopRequest) -> None:
@@ -84,10 +84,10 @@ def test_view_securities_csv_output(request: TopRequest) -> None:
         'view', 'securities'
     ])
 
-    assert result.exit_code == 0, f"Command failed with: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed with: {result.output}"
 
     expected_output = Path(golden_file).read_text(encoding='utf-8')
-    assert result.stdout == expected_output
+    assert result.output == expected_output
 
 
 def test_view_accounts_json_output(request: TopRequest) -> None:
@@ -103,7 +103,7 @@ def test_view_accounts_json_output(request: TopRequest) -> None:
         'view', 'accounts'
     ])
 
-    assert result.exit_code == 0, f"Command failed with: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed with: {result.output}"
 
     actual_rows = json.loads(result.stdout)
     expected_rows = json.loads(Path(golden_file).read_text(encoding='utf-8'))

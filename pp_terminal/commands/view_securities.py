@@ -122,7 +122,6 @@ def print_securities(  # pylint: disable=too-many-locals
             title=f"{'Active ' if active else ''}Securities",
             caption=f"{len(df)} entries per {by.strftime("%Y-%m-%d")}",
             show_index=False,
-            show_total=False,
             value_formatter=formatter_with_types(portfolio.security_attributes)
         )
     ))

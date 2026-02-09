@@ -20,13 +20,7 @@
 import pytest
 from _pytest.fixtures import TopRequest
 
-from pp_terminal.utils import config as config_module
 from pp_terminal.utils.config import validated_toml_loader
-
-
-@pytest.fixture(autouse=True)
-def _reset_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(config_module, '_loaded_config', {})
 
 
 def test_should_load_config_from_env_var_when_no_cli_config(monkeypatch: pytest.MonkeyPatch, request: TopRequest) -> None:

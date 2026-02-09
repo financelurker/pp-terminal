@@ -25,6 +25,7 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
 from pp_terminal.domain.schemas import AccountType, TransactionType
+from pp_terminal.utils import config as config_module
 
 
 TAX_RATE = (0.25 + 0.055*0.25) * 100
@@ -35,6 +36,11 @@ EXEMPT_RATE_CONFIG = {
         }
     }
 }
+
+
+@pytest.fixture(autouse=True)
+def _reset_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config_module, '_loaded_config', {})
 
 
 @pytest.fixture(autouse=True)

@@ -10,7 +10,7 @@ exemption-rate = 30
 exemption-rate-attribute = "2baac2d0-459b-4b41-a0ef-d7dad0866892"
 
 [commands.view.securities]
-columns = ["SecurityId", "WKN", "Name", "Shares", "c1c24e1e-0901-4cf1-a9af-9d13d50ef63e", "fcb8490a-0121-4fa7-950c-a06cdd6ac4f9", "Messages"]
+fields = ["SecurityId", "WKN", "Name", "Shares", "c1c24e1e-0901-4cf1-a9af-9d13d50ef63e", "fcb8490a-0121-4fa7-950c-a06cdd6ac4f9", "Messages"]
 
 [commands.validate.accounts]
 rules = [
@@ -25,6 +25,3 @@ rules = [
     {type = "cost-basis-limit", value = 30000.0 },
     {type = "paid-tax-validation", severity = "warning"}
 ]
-
-[anonymize.attributes."fe77e0c2-ee87-46cd-a764-f635c94ac1da"]  # Vendor
-provider = "company"

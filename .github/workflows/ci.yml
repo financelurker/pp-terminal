@@ -40,7 +40,7 @@ jobs:
         cache: 'poetry'
 
     - name: Install Dependencies
-      run: make install ARGS="--no-root"
+      run: make install
 
     - name: Run Code Checks
       run: make check

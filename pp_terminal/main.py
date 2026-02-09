@@ -39,6 +39,7 @@ from pp_terminal.output.strategy import OutputFormat
 from pp_terminal.utils.plugins import load_command_plugins
 from pp_terminal.data.pp_portfolio_builder import PpPortfolioBuilder, CachedPpPortfolioBuilder
 from pp_terminal.data.xml_anonymizer import XmlAnonymizer
+from pp_terminal.mcp_server import start_mcp
 from . import __version__
 
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich")
@@ -53,6 +54,8 @@ locale.setlocale(category=locale.LC_ALL, locale='')
 
 # Load external plugins dynamically
 load_command_plugins(app)
+
+app.command(name="mcp")(start_mcp)
 
 
 def version_callback(value: bool) -> None:

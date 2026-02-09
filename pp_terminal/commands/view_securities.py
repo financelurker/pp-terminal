@@ -42,34 +42,20 @@ console = Console()
 log = logging.getLogger(__name__)
 
 
-@app.command(name="securities")
-def print_securities(  # pylint: disable=too-many-locals
-    ctx: typer.Context,
-    by: datetime = datetime.now(),
+def prepare_securities_dataframe(
+    portfolio: Portfolio,
+    config: Config,
+    by: datetime,
     active: bool = False,
-    in_stock: bool = False,
-    fields: str | None = None
-) -> None:
-    """
-    Show a detailed table with all securities and their IDs.
-    """
-
-    portfolio = cast(Portfolio, ctx.obj.portfolio)
-    output = cast(OutputStrategy, ctx.obj.output)
-    config = cast(Config, ctx.obj.config)
-
-    if fields is None:
-        config_fields = get_command_config(config, 'view.securities.fields')
-        fields = ','.join(config_fields) if config_fields else 'SecurityId,Name,Wkn,Currency,Shares,Messages'
-
+    in_stock: bool = False
+) -> pd.DataFrame:
     securities = portfolio.securities
     snapshot = PortfolioSnapshot(portfolio, by)
     shares = snapshot.shares
 
-    # Reset index to make SecurityId a column and rename columns
     df = securities.reset_index()
 
-    if shares is not None and not shares.empty:
+    if not shares.empty:
         shares_by_security = shares.groupby('securityId').sum()
         df = df.merge(shares_by_security, left_on='securityId', right_index=True, how='left', validate='one_to_one')
         df['shares'] = df['shares'].fillna(0.0)
@@ -100,11 +86,36 @@ def print_securities(  # pylint: disable=too-many-locals
     )
     df['vap'] = df['securityId'].map(vap_by_security) if vap_by_security else None
 
-    requested_columns = [col.strip() for col in fields.split(',')]
-    selected_columns = normalize_columns(requested_columns, list(df.columns), portfolio.security_attributes)
+    df = df.rename(columns={uuid: attr.name for uuid, attr in portfolio.security_attributes.items()})
+
+    return df
+
+
+@app.command(name="securities")
+def print_securities(  # pylint: disable=too-many-locals
+    ctx: typer.Context,
+    by: datetime = datetime.now(),
+    active: bool = False,
+    in_stock: bool = False,
+    fields: str | None = None
+) -> None:
+    """Show a detailed table with all securities and their IDs."""
+
+    portfolio = cast(Portfolio, ctx.obj.portfolio)
+    output = cast(OutputStrategy, ctx.obj.output)
+    config = cast(Config, ctx.obj.config)
+
+    if fields is None:
+        config_fields = get_command_config(config, 'view.securities.fields')
+        fields = ','.join(config_fields) if config_fields else 'SecurityId,Name,Wkn,Currency,Shares,Messages'
+
+    df = prepare_securities_dataframe(portfolio, config, by, active, in_stock)
+
+    uuid_to_name = {uuid: attr.name for uuid, attr in portfolio.security_attributes.items()}
+    requested_columns = [uuid_to_name.get(col.strip(), col.strip()) for col in fields.split(',')]
+    selected_columns = normalize_columns(requested_columns, list(df.columns))
 
     df = df[selected_columns]
-    df = df.rename(columns={uuid: attr.name for uuid, attr in portfolio.security_attributes.items()})
 
     if 'isRetired' in df.columns and 'isRetired' not in fields:
         df = df.drop(columns=['isRetired'])

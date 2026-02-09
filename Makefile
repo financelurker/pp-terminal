@@ -23,3 +23,6 @@ test-mutations:
 
 build: install check test
 	poetry build
+
+inspect-mcp:
+	cd tests/fixtures/ && npx @modelcontextprotocol/inspector -- poetry run pp-terminal --no-cache --config kommer.toml mcp $(ARGS)

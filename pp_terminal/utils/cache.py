@@ -27,23 +27,9 @@ log = logging.getLogger(__name__)
 _FILE_SUFFIX = ".pp-terminal.db"
 
 
-def _calculate_xml_checksum(xml_path: Path) -> str:
-    """
-    Calculate SHA-256 checksum of XML file.
-
-    Reads file in binary chunks to handle large files efficiently.
-
-    Args:
-        xml_path: Path to XML file
-
-    Returns:
-        SHA-256 hex digest string (64 characters)
-
-    Raises:
-        OSError: If file cannot be read
-    """
+def checksum(file_path: Path) -> str:
     sha256 = hashlib.sha256()
-    with open(xml_path, 'rb') as f:
+    with open(file_path, 'rb') as f:
         while chunk := f.read(8192):
             sha256.update(chunk)
     return sha256.hexdigest()
@@ -55,8 +41,7 @@ def _get_cache_filename_template(xml_file: Path) -> Template:
 
 
 def get_cache_path(xml_file: Path) -> Path:
-    checksum = _calculate_xml_checksum(xml_file)
-    return xml_file.parent / _get_cache_filename_template(xml_file).substitute(checksum=checksum)
+    return xml_file.parent / _get_cache_filename_template(xml_file).substitute(checksum=checksum(xml_file))
 
 
 def cleanup_old_cache_files(xml_file: Path) -> None:

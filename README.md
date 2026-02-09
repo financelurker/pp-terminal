@@ -5,11 +5,11 @@
 A powerful command-line interface (CLI) that allows programmatic access to [Portfolio Performance](https://www.portfolio-performance.info/) data 
 to offer a whole new level of insights into your assets.  
 
-The tool can also act as an [MCP server](https://modelcontextprotocol.io/docs/getting-started/intro) to give AI models like Claude or Gemini (anonymized) access to your portfolio to 
+The tool can also act as an [MCP server](#mcp-server) to give AI models like Claude or Gemini (anonymized) access to your portfolio to 
 intelligently answer questions like
 - "Am I overweight in any security?"
 - "Are there any issues with my portfolio?"
-- "Do I have enough cash in my deposit accounts to cover the upcoming Vorabpauschale tax?"
+- "Do I have enough cash to cover the upcoming Vorabpauschale taxes?"
 - "I need X EUR after tax. Which securities should I sell to minimize taxes?"
 
 For example, _pp-terminal_ includes a CLI command to calculate the preliminary tax values ("Vorabpauschale") for Germany:
@@ -45,6 +45,17 @@ and share them with the community.
 
 By default, `pp-terminal --help` provides the following commands:
 
+### MCP Server
+
+The application can be used to access Portfolio Performance data using an [MCP server](https://modelcontextprotocol.io/docs/getting-started/intro).  
+This has several advantages over directly working on the XML file, e.g.
+- Safely access sensitive financial data by e.g. anonymization and only exposing relevant portfolio information
+- Significantly reduce context length and token usage
+
+The MCP server can be started with the following command:
+```
+pp-terminal mcp
+```
 
 ### Inspect Portfolio
 

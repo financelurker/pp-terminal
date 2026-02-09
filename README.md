@@ -48,10 +48,10 @@ By default, `pp-terminal --help` provides the following commands:
 The commands can be customized in the [configuration file](#configuration-file):
 ```toml
 [commands.view.accounts]
-columns = ["AccountId", "Name", "Balance"]  # call with --columns=xx to see a list of all available columns
+fields = ["AccountId", "Name", "Balance"]  # call with --fields=xx to see a list of all available fields
 
 [commands.view.securities]
-columns = ["SecurityId", "Name", "Shares"]
+fields = ["SecurityId", "Name", "Shares"]
 ```
 
 ### Simulate Scenarios

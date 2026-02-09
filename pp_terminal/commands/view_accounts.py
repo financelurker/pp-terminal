@@ -61,14 +61,14 @@ def _prepare_df_for_display(
 
     df = df.reset_index()
 
-    selected_columns = []
+    selected_fields = []
     for col in selected_columns_preunstack:
         if col == 'balance' and currency_cols:
-            selected_columns.extend(currency_cols)
+            selected_fields.extend(currency_cols)
         elif col in df.columns:
-            selected_columns.append(col)
+            selected_fields.append(col)
 
-    df = df[selected_columns]
+    df = df[selected_fields]
     df = df.rename(columns={uuid: attr.name for uuid, attr in snapshot.portfolio.account_attributes.items()})
 
     if 'accountId' in df.columns:
@@ -106,7 +106,7 @@ def print_accounts(  # pylint: disable=too-many-locals
     ctx: typer.Context,
     type: AccountType | None = None,  # pylint: disable=redefined-builtin
     by: datetime = datetime.now(),
-    columns: str | None = None
+    fields: str | None = None
 ) -> None:
     """
     Show a detailed table with the current balance per deposit account.
@@ -116,9 +116,9 @@ def print_accounts(  # pylint: disable=too-many-locals
     output = cast(OutputStrategy, ctx.obj.output)
     config = cast(Config, ctx.obj.config)
 
-    if columns is None:
-        config_columns = get_command_config(config, 'view.accounts.columns')
-        columns = ','.join(config_columns) if config_columns else 'AccountId,Name,Type,Balance,Messages'
+    if fields is None:
+        config_fields = get_command_config(config, 'view.accounts.fields')
+        fields = ','.join(config_fields) if config_fields else 'AccountId,Name,Type,Balance,Messages'
 
     snapshot = PortfolioSnapshot(portfolio, by)
 
@@ -142,7 +142,7 @@ def print_accounts(  # pylint: disable=too-many-locals
         lambda aid: validation_results.get(str(aid), ValidationResult.empty()).messages or ''
     )
 
-    requested_columns = [col.strip() for col in columns.split(',')]
+    requested_columns = [col.strip() for col in fields.split(',')]
 
     # Available columns before unstacking - need to account for accountId which will be from the index
     available_before_unstack = list(set(df.columns) - {'balance'}) + ['accountId']

@@ -48,7 +48,7 @@ def print_securities(  # pylint: disable=too-many-locals
     by: datetime = datetime.now(),
     active: bool = False,
     in_stock: bool = False,
-    columns: str | None = None
+    fields: str | None = None
 ) -> None:
     """
     Show a detailed table with all securities and their IDs.
@@ -58,9 +58,9 @@ def print_securities(  # pylint: disable=too-many-locals
     output = cast(OutputStrategy, ctx.obj.output)
     config = cast(Config, ctx.obj.config)
 
-    if columns is None:
-        config_columns = get_command_config(config, 'view.securities.columns')
-        columns = ','.join(config_columns) if config_columns else 'SecurityId,Name,Wkn,Currency,Shares,Messages'
+    if fields is None:
+        config_fields = get_command_config(config, 'view.securities.fields')
+        fields = ','.join(config_fields) if config_fields else 'SecurityId,Name,Wkn,Currency,Shares,Messages'
 
     securities = portfolio.securities
     snapshot = PortfolioSnapshot(portfolio, by)
@@ -100,13 +100,13 @@ def print_securities(  # pylint: disable=too-many-locals
     )
     df['vap'] = df['securityId'].map(vap_by_security) if vap_by_security else None
 
-    requested_columns = [col.strip() for col in columns.split(',')]
+    requested_columns = [col.strip() for col in fields.split(',')]
     selected_columns = normalize_columns(requested_columns, list(df.columns), portfolio.security_attributes)
 
     df = df[selected_columns]
     df = df.rename(columns={uuid: attr.name for uuid, attr in portfolio.security_attributes.items()})
 
-    if 'isRetired' in df.columns and 'isRetired' not in columns:
+    if 'isRetired' in df.columns and 'isRetired' not in fields:
         df = df.drop(columns=['isRetired'])
 
     df = df.sort_values(by='name') if 'name' in df.columns else df

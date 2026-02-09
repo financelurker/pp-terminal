@@ -124,8 +124,8 @@
               "description": "Configuration for view accounts command",
               "type": "object",
               "properties": {
-                "columns": {
-                  "description": "Default columns to display (e.g., [\"AccountId\", \"Name\", \"Balance\"])",
+                "fields": {
+                  "description": "Default fields to display (e.g., [\"AccountId\", \"Name\", \"Balance\"])",
                   "type": "array",
                   "items": {
                     "type": "string"
@@ -139,8 +139,8 @@
               "description": "Configuration for view securities command",
               "type": "object",
               "properties": {
-                "columns": {
-                  "description": "Default columns to display (e.g., [\"SecurityId\", \"Name\", \"Shares\"])",
+                "fields": {
+                  "description": "Default fields to display (e.g., [\"SecurityId\", \"Name\", \"Shares\"])",
                   "type": "array",
                   "items": {
                     "type": "string"

@@ -125,7 +125,7 @@ def get_command_config(config: Config, path: str, default: Any = None) -> Any:
 
     Args:
         config: Configuration dictionary
-        path: Dot-separated path (e.g., 'view.accounts.columns')
+        path: Dot-separated path (e.g., 'view.accounts.fields')
         default: Default value if path doesn't exist
 
     Returns:

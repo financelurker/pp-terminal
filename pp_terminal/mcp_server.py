@@ -25,7 +25,9 @@ from typing import Any, cast
 import typer
 from mcp.server.fastmcp import FastMCP
 
+from pp_terminal.commands.view_accounts import prepare_accounts_dataframe
 from pp_terminal.commands.view_securities import prepare_securities_dataframe
+from pp_terminal.domain.schemas import AccountType
 from pp_terminal.data.pp_portfolio_builder import CachedPpPortfolioBuilder
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.utils.cache import checksum
@@ -62,6 +64,18 @@ def create_mcp_server(file_path: Path, config: Config) -> FastMCP:
         by_date = datetime.fromisoformat(by) if by else datetime.now()
         df = prepare_securities_dataframe(portfolio, config, by_date, active, in_stock)
         return cast(list[dict[str, Any]], df.to_dict(orient='records'))
+
+    @mcp.tool()
+    def view_accounts(
+        by: str | None = None,
+        account_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List all accounts with balances and validation messages. Optional account_type: DEPOSIT or SECURITIES."""
+        portfolio = _ensure_fresh_portfolio()
+        by_date = datetime.fromisoformat(by) if by else datetime.now()
+        parsed_type = AccountType(account_type) if account_type else None
+        df = prepare_accounts_dataframe(portfolio, config, by_date, parsed_type)
+        return cast(list[dict[str, Any]], df.reset_index().to_dict(orient='records'))
 
     return mcp
 

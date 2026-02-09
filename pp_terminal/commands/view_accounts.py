@@ -16,6 +16,7 @@
     You should have received a copy of the GNU General Public License
     along with pp-terminal. If not, see <http://www.gnu.org/licenses/>.
 """
+# pylint: disable=duplicate-code
 
 import logging
 from datetime import datetime
@@ -55,10 +56,6 @@ def _prepare_df_for_display(
     else:
         currency_cols = []
 
-    # Drop currency column before reset_index if it exists (to avoid collision with index level)
-    if 'currency' in df.columns:
-        df = df.drop(columns=['currency'])
-
     df = df.reset_index()
 
     selected_fields = []
@@ -69,7 +66,6 @@ def _prepare_df_for_display(
             selected_fields.append(col)
 
     df = df[selected_fields]
-    df = df.rename(columns={uuid: attr.name for uuid, attr in snapshot.portfolio.account_attributes.items()})
 
     if 'accountId' in df.columns:
         df = df.set_index('accountId')
@@ -101,6 +97,42 @@ def calculate_securities_accounts_sum(snapshot: PortfolioSnapshot) -> pd.DataFra
     return values
 
 
+def prepare_accounts_dataframe(
+    portfolio: Portfolio,
+    config: Config,
+    by: datetime,
+    account_type: AccountType | None = None
+) -> pd.DataFrame:
+    snapshot = PortfolioSnapshot(portfolio, by)
+
+    df1 = None
+    if account_type == AccountType.DEPOSIT or account_type is None:
+        df1 = calculate_deposit_accounts_sum(snapshot)
+
+    df2 = None
+    if account_type == AccountType.SECURITIES or account_type is None:
+        df2 = calculate_securities_accounts_sum(snapshot)
+
+    df = pd.concat([df1, df2]) if df1 is not None or df2 is not None else None
+
+    if df is None:
+        raise InputError('invalid account type')
+
+    validation_results = validate_accounts(portfolio, snapshot, config)
+    account_ids = df.index.get_level_values('accountId')
+    df['Messages'] = account_ids.map(
+        lambda aid: validation_results.get(str(aid), ValidationResult.empty()).messages or ''
+    )
+
+    # currency exists both as index level (from balances) and column (from accounts); drop the column
+    if 'currency' in df.columns:
+        df = df.drop(columns=['currency'])
+
+    df = df.rename(columns={uuid: attr.name for uuid, attr in portfolio.account_attributes.items()})
+
+    return df
+
+
 @app.command(name="accounts")
 def print_accounts(  # pylint: disable=too-many-locals
     ctx: typer.Context,
@@ -120,27 +152,8 @@ def print_accounts(  # pylint: disable=too-many-locals
         config_fields = get_command_config(config, 'view.accounts.fields')
         fields = ','.join(config_fields) if config_fields else 'AccountId,Name,Type,Balance,Messages'
 
+    df = prepare_accounts_dataframe(portfolio, config, by, type)
     snapshot = PortfolioSnapshot(portfolio, by)
-
-    df1 = None
-    if type == AccountType.DEPOSIT or type is None:
-        df1 = calculate_deposit_accounts_sum(snapshot)
-
-    df2 = None
-    if type == AccountType.SECURITIES or type is None:
-        df2 = calculate_securities_accounts_sum(snapshot)
-
-    df = pd.concat([df1, df2]) if df1 is not None or df2 is not None else None
-
-    if df is None:
-        raise InputError('invalid account type')
-
-    # Add validation messages column
-    validation_results = validate_accounts(portfolio, snapshot, config)
-    account_ids = df.index.get_level_values('accountId')
-    df['Messages'] = account_ids.map(
-        lambda aid: validation_results.get(str(aid), ValidationResult.empty()).messages or ''
-    )
 
     requested_columns = [col.strip() for col in fields.split(',')]
 

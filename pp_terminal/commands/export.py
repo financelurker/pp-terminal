@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 @app.command(name="export")
 def export_file(
     ctx: typer.Context,
-    output_file: Path = typer.Option(
+    output_file: Path = typer.Argument(
         ...,
         help="Output path for XML file",
         file_okay=True,

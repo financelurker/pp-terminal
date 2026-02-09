@@ -2,16 +2,26 @@
 
 ![build status](https://github.com/ma4nn/pp-terminal/actions/workflows/ci.yml/badge.svg) [![Join My Discord](https://dev-investor.de/wp-content/uploads/join-discord.svg)](https://dev-investor.de/chat)
 
-A powerful command-line tool that uses the openness of [Portfolio Performance](https://www.portfolio-performance.info/) data 
-and the convenient access of [ppxml2db](https://github.com/pfalcon/ppxml2db) to offer a whole new level of insights into your portfolio.  
+A powerful command-line interface (CLI) that allows programmatic access to [Portfolio Performance](https://www.portfolio-performance.info/) data 
+to offer a whole new level of insights into your assets.  
 
-For example, _pp-terminal_ includes a command to calculate the preliminary tax values ("Vorabpauschale") for Germany:
+The tool can also act as an [MCP server](https://modelcontextprotocol.io/docs/getting-started/intro) to give AI models like Claude or Gemini (anonymized) access to your portfolio to 
+intelligently answer questions like
+- "Am I overweight in any security?"
+- "Are there any issues with my portfolio?"
+- "Do I have enough cash in my deposit accounts to cover the upcoming Vorabpauschale tax?"
+- "I need X EUR after tax. Which securities should I sell to minimize taxes?"
+
+For example, _pp-terminal_ includes a CLI command to calculate the preliminary tax values ("Vorabpauschale") for Germany:
 
 ![Vorabpauschale command in pp-terminal](docs/sample_vorabpauschale.png)
 
 > [!IMPORTANT]
 > I am not a tax consultant. All results of this application are just a non-binding indication and without guarantee.
 > They may deviate from the actual values.
+
+> [!TIP]
+> Using MoneyMoney for managing your finances? Check out how to [export Sankey Charts](https://github.com/ma4nn/moneymoney-sankey).
 
 _pp-terminal_ is a lightweight tool for all the nice-to-have features that won't make it into the official Portfolio Performance app.
 This can be because of country-dependant tax rules, complex Java implementation, highly individual requirements, 
@@ -25,18 +35,16 @@ too many edge-cases, etc.
 6. [Known Limitations](#known-limitations-)
 7. [License](#license)
 
-> [!TIP]
-> Using MoneyMoney for managing your finances? Check out my [Sankey Charts Extension](https://github.com/ma4nn/moneymoney-sankey).
-
 ## Available Commands
 
 Code completion for commands and options is available.  
-You can choose between different output formats like JSON, CSV or Excel with the `--format` option.
+You can choose between different output formats like JSON, CSV or Excel with the `--output` option.
 
 In addition to the standard set, you can easily [create your own commands](#user-content-create-your-own-command-️) 
 and share them with the community.
 
 By default, `pp-terminal --help` provides the following commands:
+
 
 ### Inspect Portfolio
 
@@ -68,8 +76,8 @@ The tax configuration for the simulations can be customized in the [configuratio
 rate = 26.375  # percentage
 # Optionally define the already paid taxes per share (e.g. for the share-sell command)
 files = ["taxes_paid.csv"]  # Format: isin;year;deemed_income_per_share
-exemption-rate = 30  # percentage
-exemption-rate-attribute = "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"  # for per-security exemption rates 
+exempt-rate = 30  # percentage
+exempt-rate-attribute = "b3c38686-2d22-4b5d-8e38-e61dcf6fdde3"  # for per-security exemption rates 
 ```
 
 ### Validate Data
@@ -90,7 +98,7 @@ type = "balance-limit"
 value = 25000
 applies-to = ["c9c57e01-7ea0-4e70-bed9-4656941f7687"]  # Portfolio Performance account id from the XML file
 
-# Validate that each bank account is within the EU deposit insurance limit
+# Validate that each bank account is within the deposit insurance limit
 [[commands.validate.accounts.rules]]
 type = "balance-limit"
 value = 100000
@@ -148,7 +156,7 @@ valid-months = [3]
 
 Use the `--anonymize` flag to export an anonymized version:
 ```bash
-pp-terminal --file depot.xml --anonymize export --output-file anonymized.xml
+pp-terminal --file depot.xml --anonymize export anonymized.xml
 ```
 
 Anonymization can be customized in the [configuration file](#configuration-file):
@@ -195,7 +203,9 @@ To view all available arguments you can always use the `--help` option.
 
 ### Configuration File
 To persist the CLI options you can pass a configuration file in [TOML format](https://toml.io/en/) with `pp-terminal --config=config.toml --help`.  
+
 The configuration file can also be provided as environment variable: `PP_TERMINAL_CONFIG=config.toml pp-terminal --help`
+
 The CLI options always overwrite the settings in the configuration file.
 
 ```toml
@@ -259,11 +269,11 @@ If your command makes sense for a broader audience, I'm happy to accept a [pull 
 
 ## Issues 🚧
 
-> [!INFO]
+> [!IMPORTANT]
 > The script is still in beta version, so there might be Portfolio Performance files that are not compatible with and also public APIs can change.
 
 In case you are experiencing any problems:
-1. Create an anonymized version of your portfolio with `pp-terminal --file depot.xml --anonymize export --output-file anonymized.xml` (verify!)
+1. Create an anonymized version of your portfolio with `pp-terminal --file depot.xml --anonymize export anonymized.xml` (verify!)
 2. Add the `--verbose` option to the command that is causing the issue
 3. And [submit a new issue](https://github.com/ma4nn/pp-terminal/issues/new) and include the results from steps 1. and 2.
 

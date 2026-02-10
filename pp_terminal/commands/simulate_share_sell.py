@@ -25,9 +25,10 @@ from typing_extensions import Annotated
 
 import pandas as pd
 import typer
+from pandera.typing import DataFrame
+
 from pp_terminal.data.filters import filter_by_account_and_security, filter_by_security, filter_by_account
 from pp_terminal.domain.cost_basis import enrich_fifo_lots, finalize_sell_lots
-
 from pp_terminal.data.tax import load_prepaid_tax_data
 from pp_terminal.domain.sell_strategy import SellStrategy, FixedSharesStrategy, MinTaxStrategy
 from pp_terminal.exceptions import InputError
@@ -37,20 +38,85 @@ from pp_terminal.utils.options import tax_rate_callback, tax_csv_callback
 from pp_terminal.output.strategy import OutputStrategy, Console
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.portfolio import Portfolio, get_security_by_id
-from pp_terminal.domain.schemas import Percent, Money
+from pp_terminal.domain.schemas import Percent, Money, TaxPaidSchema
 from pp_terminal.output.table_decorator import TableOptions
 
 app = typer.Typer()
 console = Console()
 log = logging.getLogger(__name__)
 
+_RESULT_COLUMNS = ['securityName', 'date', 'shares', 'currency', 'purchasePrice', 'costBasis',
+                   'fees', 'salePrice', 'grossProceeds', 'capitalGain', 'deemedIncome',
+                   'taxableGain', 'totalTax', 'netProceeds']
+
 
 def get_today() -> datetime:
     return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
+def prepare_share_sell_df(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+        portfolio: Portfolio,
+        config: Config,
+        date: datetime,
+        tax_rate: Percent,
+        security_id: str | None = None,
+        account_id: str | None = None,
+        shares: float | None = None,
+        price: Money | None = None,
+        target_net: Money | None = None,
+        tax_csv_data: DataFrame[TaxPaidSchema] | None = None,
+) -> pd.DataFrame:
+    snapshot = PortfolioSnapshot(portfolio, date)
+    holdings = snapshot.shares
+
+    if security_id:
+        holdings = holdings.pipe(filter_by_security, security_id=security_id)
+    if account_id:
+        holdings = holdings.pipe(filter_by_account, account_id=account_id)
+
+    if holdings.empty:
+        return pd.DataFrame()
+
+    security_ids = holdings.index.get_level_values('securityId').unique()
+    latest_prices = snapshot.latest_prices
+
+    missing_prices = [sid for sid in security_ids if sid not in latest_prices.index]
+    if missing_prices:
+        raise InputError(f"No price data for: {', '.join(missing_prices)}")
+
+    all_enriched = []
+    for (acc_id, sec_id, _currency), _shares_held in holdings.items():
+        transactions = snapshot.securities_account_transactions.pipe(
+            filter_by_account_and_security, security_id=sec_id, account_id=acc_id
+        )
+        sale_price = price if price else latest_prices.loc[sec_id]
+        enriched = enrich_fifo_lots(
+            transactions, snapshot.date, sale_price, tax_rate,
+            tax_csv_data, exempt_rate=get_exempt_rate(config)
+        )
+        if not enriched.empty:
+            all_enriched.append(enriched)
+
+    if not all_enriched:
+        return pd.DataFrame()
+
+    result = pd.concat(all_enriched)
+
+    strategy = _build_strategy(security_id, shares, target_net)
+    if strategy:
+        result = finalize_sell_lots(strategy.select_lots(result), tax_rate)
+
+    result = result.reset_index()
+    result['securityName'] = result['securityId'].map(
+        lambda sid: get_security_by_id(portfolio, sid).name
+    )
+    result = result.sort_values(['securityName', 'date'])
+
+    return result[_RESULT_COLUMNS]
+
+
 @app.command(name="share-sell")
-def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-statements,too-many-branches
+def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         ctx: typer.Context,
         security_id: Annotated[str | None, typer.Argument(help="Security ID (defaults to all securities)")] = None,
         account_id: Annotated[str | None, typer.Option("--account-id", "-a", help="Securities account ID (defaults to all accounts)")] = None,
@@ -74,64 +140,20 @@ def simulate_share_sell(  # pylint: disable=too-many-arguments,too-many-position
     if date is None:
         date = get_today()
 
-    snapshot = PortfolioSnapshot(portfolio, date)
-    holdings = snapshot.shares
-
-    if security_id:
-        holdings = holdings.pipe(filter_by_security, security_id=security_id)
-    if account_id:
-        holdings = holdings.pipe(filter_by_account, account_id=account_id)
-
-    if holdings.empty:
-        console.print(output.empty_result())
-        return
-
-    security_ids = holdings.index.get_level_values('securityId').unique()
-    latest_prices = snapshot.latest_prices
-
-    missing_prices = [sid for sid in security_ids if sid not in latest_prices.index]
-    if missing_prices:
-        raise InputError(f"No price data for: {', '.join(missing_prices)}")
-
     tax_files = [tax_csv] if tax_csv else get_tax_files(config)
     tax_csv_data = load_prepaid_tax_data(tax_files, portfolio)
 
-    all_enriched = []
-    for (acc_id, sec_id, _currency), _shares_held in holdings.items():
-        transactions = snapshot.securities_account_transactions.pipe(
-            filter_by_account_and_security, security_id=sec_id, account_id=acc_id
-        )
-        sale_price = price if price else latest_prices.loc[sec_id]
-        enriched = enrich_fifo_lots(
-            transactions, snapshot.date, sale_price, tax_rate,
-            tax_csv_data, exempt_rate=get_exempt_rate(config)
-        )
-        if not enriched.empty:
-            all_enriched.append(enriched)
+    result = prepare_share_sell_df(
+        portfolio, config, date, tax_rate,
+        security_id, account_id, shares, price, target_net, tax_csv_data
+    )
 
-    if not all_enriched:
+    if result.empty:
         console.print(output.empty_result())
         return
 
-    result = pd.concat(all_enriched)
-
-    strategy = _build_strategy(security_id, shares, target_net)
-    if strategy:
-        combined = strategy.select_lots(result)
-        result = finalize_sell_lots(combined, tax_rate)
-
-    result = result.reset_index()
-    result['securityName'] = result['securityId'].map(
-        lambda sid: get_security_by_id(portfolio, sid).name
-    )
-    result = result.sort_values(['securityName', 'date'])
-
-    columns = ['securityName', 'date', 'shares', 'currency', 'purchasePrice', 'costBasis',
-               'fees', 'salePrice', 'grossProceeds', 'capitalGain', 'deemedIncome',
-               'taxableGain', 'totalTax', 'netProceeds']
-
     console.print(*output.result_table(
-        result[columns],
+        result,
         TableOptions(title=f"Share Sale Simulation on {date.strftime('%Y-%m-%d')}", show_index=False, show_total=True)
     ))
 

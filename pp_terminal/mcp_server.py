@@ -28,16 +28,18 @@ import pandas as pd
 import typer
 from mcp.server.fastmcp import FastMCP
 
+from pp_terminal.commands.simulate_share_sell import prepare_share_sell_df
 from pp_terminal.commands.view_accounts import prepare_accounts_df
 from pp_terminal.commands.view_securities import prepare_securities_df
 from pp_terminal.data.filters import clean_for_display
+from pp_terminal.data.tax import load_prepaid_tax_data
+from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.domain.schemas import AccountType
 from pp_terminal.data.pp_portfolio_builder import CachedPpPortfolioBuilder
-from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.utils.cache import checksum
 from pp_terminal.domain.portfolio_snapshot import PortfolioSnapshot
 from pp_terminal.domain.vap import calculate_vap, get_base_rate_for_year, add_account_balances
-from pp_terminal.utils.config import Config, get_tax_rate, get_exempt_rate, get_exempt_rate_attribute
+from pp_terminal.utils.config import Config, get_tax_rate, get_exempt_rate, get_exempt_rate_attribute, get_tax_files
 
 log = logging.getLogger(__name__)
 _SERVER_NAME = "pp-mcp"
@@ -94,24 +96,24 @@ def create_mcp_server(file_path: Path, config: Config) -> FastMCP:
 
     @mcp.tool()
     def query_securities(
-        by: str | None = None,
+        date: str | None = None,
         active: bool = False,
         in_stock: bool = False,
     ) -> list[dict[str, Any]]:
         """List all securities with shares, cost basis, validation messages, and Vorabpauschale."""
         portfolio = _ensure_fresh_portfolio()
-        by_date = datetime.fromisoformat(by) if by else datetime.now()
+        by_date = datetime.fromisoformat(date) if date else datetime.now()
         df = prepare_securities_df(portfolio, config, by_date, active, in_stock)
         return _clean_records(df)
 
     @mcp.tool()
     def query_accounts(
-        by: str | None = None,
+        date: str | None = None,
         account_type: str | None = None,
     ) -> list[dict[str, Any]]:
         """List all accounts with balances and validation messages. Optional account_type: DEPOSIT or SECURITIES."""
         portfolio = _ensure_fresh_portfolio()
-        by_date = datetime.fromisoformat(by) if by else datetime.now()
+        by_date = datetime.fromisoformat(date) if date else datetime.now()
         parsed_type = AccountType(account_type) if account_type else None
         df = prepare_accounts_df(portfolio, config, by_date, parsed_type)
         return _clean_records(df.reset_index())
@@ -152,6 +154,108 @@ def create_mcp_server(file_path: Path, config: Config) -> FastMCP:
 
         result = add_account_balances(result, portfolio, snapshot_end)
         return _clean_records(result)
+
+    def _sell_defaults(date: str | None, tax_rate: float | None) -> tuple[datetime, float]:
+        sell_date = datetime.fromisoformat(date) if date else datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        effective_tax_rate = tax_rate if tax_rate is not None else get_tax_rate(config)
+        return sell_date, effective_tax_rate
+
+    @mcp.tool()
+    def query_fifo_lots(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        security_id: str | None = None,
+        account_id: str | None = None,
+        date: str | None = None,
+        tax_rate: float | None = None,
+        price: float | None = None,
+    ) -> list[dict[str, Any]]:
+        """List all FIFO purchase lots with projected tax on hypothetical sale.
+
+        Each row is one purchase lot (FIFO order) showing: securityName, purchase date, shares,
+        currency, purchasePrice, costBasis, fees, salePrice, grossProceeds, capitalGain,
+        deemedIncome (Vorabpauschale), taxableGain, totalTax, netProceeds.
+
+        Args:
+            security_id: Filter to a single security (defaults to all securities)
+            account_id: Filter to a single securities account (defaults to all accounts)
+            date: Valuation date as ISO string, e.g. '2025-06-15' (defaults to today)
+            tax_rate: Personal tax rate in percent (defaults to config or 26.375%)
+            price: Override sale price per share (only meaningful with security_id, defaults to latest price)
+        """
+        portfolio = _ensure_fresh_portfolio()
+        sell_date, effective_tax_rate = _sell_defaults(date, tax_rate)
+        tax_csv_data = load_prepaid_tax_data(get_tax_files(config), portfolio)
+
+        result = prepare_share_sell_df(
+            portfolio, config, sell_date, effective_tax_rate,
+            security_id, account_id, price=price, tax_csv_data=tax_csv_data
+        )
+        return _clean_records(result) if not result.empty else []
+
+    @mcp.tool()
+    def simulate_sell_shares(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        security_id: str,
+        shares: float,
+        account_id: str | None = None,
+        date: str | None = None,
+        tax_rate: float | None = None,
+        price: float | None = None,
+    ) -> list[dict[str, Any]]:
+        """Simulate selling a specific number of shares using FIFO order.
+
+        Returns the FIFO purchase lots consumed by the sale. Each row is one lot showing:
+        securityName, purchase date, shares sold from that lot, currency, purchasePrice,
+        costBasis, fees, salePrice, grossProceeds, capitalGain, deemedIncome (Vorabpauschale),
+        taxableGain, totalTax, netProceeds.
+
+        Args:
+            security_id: Security to sell (required)
+            shares: Number of shares to sell (required)
+            account_id: Securities account ID (defaults to all accounts holding this security)
+            date: Sale date as ISO string, e.g. '2025-06-15' (defaults to today)
+            tax_rate: Personal tax rate in percent (defaults to config or 26.375%)
+            price: Sale price per share (defaults to latest known price)
+        """
+        portfolio = _ensure_fresh_portfolio()
+        sell_date, effective_tax_rate = _sell_defaults(date, tax_rate)
+        tax_csv_data = load_prepaid_tax_data(get_tax_files(config), portfolio)
+
+        result = prepare_share_sell_df(
+            portfolio, config, sell_date, effective_tax_rate,
+            security_id, account_id, shares=shares, price=price, tax_csv_data=tax_csv_data
+        )
+        return _clean_records(result) if not result.empty else []
+
+    @mcp.tool()
+    def simulate_sell_target_net(
+        target_net: float,
+        security_id: str | None = None,
+        account_id: str | None = None,
+        date: str | None = None,
+        tax_rate: float | None = None,
+    ) -> list[dict[str, Any]]:
+        """Find the minimum-tax combination of FIFO lots to achieve a target net proceeds amount.
+
+        Selects lots across securities/accounts to minimize total tax while reaching the target.
+        Uses latest known prices. Each row is one FIFO lot showing: securityName, purchase date,
+        shares to sell, currency, purchasePrice, costBasis, fees, salePrice, grossProceeds,
+        capitalGain, deemedIncome (Vorabpauschale), taxableGain, totalTax, netProceeds.
+
+        Args:
+            target_net: Target net proceeds to realize (required)
+            security_id: Restrict to a single security (defaults to all securities)
+            account_id: Restrict to a single securities account (defaults to all accounts)
+            date: Sale date as ISO string, e.g. '2025-06-15' (defaults to today)
+            tax_rate: Personal tax rate in percent (defaults to config or 26.375%)
+        """
+        portfolio = _ensure_fresh_portfolio()
+        sell_date, effective_tax_rate = _sell_defaults(date, tax_rate)
+        tax_csv_data = load_prepaid_tax_data(get_tax_files(config), portfolio)
+
+        result = prepare_share_sell_df(
+            portfolio, config, sell_date, effective_tax_rate,
+            security_id, account_id, target_net=target_net, tax_csv_data=tax_csv_data
+        )
+        return _clean_records(result) if not result.empty else []
 
     return mcp
 

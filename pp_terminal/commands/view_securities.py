@@ -62,6 +62,9 @@ def prepare_securities_df(
     else:
         df['shares'] = 0.0
 
+    latest_prices = snapshot.latest_prices.rename('latestPrice')
+    df = df.merge(latest_prices, left_on='securityId', right_index=True, how='left')
+
     if active and 'isRetired' in df.columns:
         df = df[~df['isRetired']]
 

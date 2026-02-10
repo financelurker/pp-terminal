@@ -80,6 +80,8 @@ def prepare_securities_df(
         lambda sid: calculate_total_cost_basis(portfolio.securities_account_transactions.pipe(filter_by_security, security_id=sid))
     )
 
+    df['marketValue'] = df['latestPrice'] * df['shares']
+
     vap_by_security = calculate_vap_by_security(
         portfolio,
         by.year,

@@ -5,9 +5,10 @@
 A powerful command-line interface (CLI) that allows programmatic access to [Portfolio Performance](https://www.portfolio-performance.info/) data 
 to offer a whole new level of insights into your assets.  
 
-The tool can also act as an [MCP server](#mcp-server) to give AI models like Claude or Gemini (anonymized) access to your portfolio to 
+The tool can also act as an [MCP server](#mcp-server) to give AI models like Claude Opus, Gemini or Qwen (anonymized) access to your portfolio to 
 intelligently answer questions like
 - "Am I overweight in any security?"
+- "What do you think about my portfolio allocation?"
 - "Are there any issues with my portfolio?"
 - "Do I have enough cash to cover the upcoming Vorabpauschale taxes?"
 - "I need X EUR after tax. Which securities should I sell to minimize taxes?"

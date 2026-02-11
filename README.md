@@ -64,6 +64,7 @@ pp-terminal mcp
 |-------------------|----------------------------------------------------------------------------------------|
 | `view accounts`   | Get detailed information about the balances per each deposit and/or securities account |
 | `view securities` | Get detailed information about the securities                                          |
+| `view taxonomies` | Get detailed information about the taxonomies                                          |
 
 The commands can be customized in the [configuration file](#configuration-file):
 ```toml

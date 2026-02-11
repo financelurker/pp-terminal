@@ -94,6 +94,45 @@ def clean_for_display(df: pd.DataFrame, attributes: dict[str, Attribute]) -> pd.
     return df.rename(columns={uuid: attr.name for uuid, attr in attributes.items()})
 
 
+_TAXONOMY_FULL_WEIGHT = 10000
+
+
+def pivot_taxonomy_columns(
+    df: pd.DataFrame,
+    taxonomy_assignments: pd.DataFrame,
+    id_column: str,
+    item_type: str
+) -> pd.DataFrame:
+    if taxonomy_assignments.empty:
+        return df
+
+    id_in_columns = id_column in df.columns
+    id_in_index = id_column == df.index.name or id_column in (df.index.names or [])
+    if not id_in_columns and not id_in_index:
+        return df
+
+    filtered = taxonomy_assignments[taxonomy_assignments['itemType'] == item_type].copy()
+    if filtered.empty:
+        return df
+
+    def _format_label(row: pd.Series) -> str:
+        if row['weight'] == _TAXONOMY_FULL_WEIGHT:
+            return str(row['categoryName'])
+        pct = round(row['weight'] / 100)
+        return f"{row['categoryName']} ({pct}%)"
+
+    filtered['label'] = filtered.apply(_format_label, axis=1)
+
+    grouped = (filtered.groupby(['itemId', 'taxonomyName'])['label']
+               .agg(', '.join)
+               .unstack('taxonomyName')
+               .rename_axis(index=id_column, columns=None))
+
+    if id_in_columns:
+        return df.merge(grouped, left_on=id_column, right_index=True, how='left')
+    return df.merge(grouped, left_index=True, right_index=True, how='left')
+
+
 def unstack_column_by_currency(df: pd.DataFrame, column: str, base_currency: str) -> pd.DataFrame:
     column_unstacked = df[column].unstack(level='currency')
     df_modified = df.drop(columns=column).reset_index(level='currency', drop=True)

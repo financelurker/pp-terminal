@@ -36,6 +36,12 @@ class Attribute:
     converter: str
 
 
+@dataclass(frozen=True)
+class Taxonomy:
+    uuid: str
+    name: str
+
+
 class TransactionType(Enum):
     BUY = "BUY"
     SELL = "SELL"

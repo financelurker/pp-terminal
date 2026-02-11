@@ -121,7 +121,7 @@ class PaidTaxValidationRule(ValidationRule):
                 log.debug('yield values within tolerance for %d: %s vs. %s', year, calculated_value, csv_value)
 
         if mismatches:
-            message = f"unexpected or missing paid tax values: {', '.join(mismatches)}"
+            message = f"unexpected/missing paid tax values: {', '.join(mismatches)}"
             return self.is_error(), message
 
         return False, None

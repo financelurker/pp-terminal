@@ -25,18 +25,20 @@ from pandera.errors import SchemaError
 from pandera.typing import DataFrame
 
 from .schemas import AccountType, TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema, Account, \
-    Security, Attribute
+    Security, Attribute, Taxonomy
 from ..exceptions import InputError
 
 log = logging.getLogger(__name__)
 
 
-class Portfolio:
+class Portfolio:  # pylint: disable=too-many-instance-attributes
     _accounts: DataFrame[AccountSchema] = AccountSchema.empty()
     _securities: DataFrame[SecuritySchema] = SecuritySchema.empty()
     _transactions: DataFrame[TransactionSchema] = TransactionSchema.empty()
     _prices: DataFrame[SecurityPriceSchema] = SecurityPriceSchema.empty()
     _attributes: dict[str, dict[str, Attribute]] = {}
+    _taxonomies: dict[str, Taxonomy] = {}
+    _taxonomy_assignments: pd.DataFrame = pd.DataFrame()
     base_currency: str = ''
 
     def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -45,7 +47,9 @@ class Portfolio:
             transactions: DataFrame[TransactionSchema] | None = None,
             securities: DataFrame[SecuritySchema] | None = None,
             prices: DataFrame[SecurityPriceSchema] | None = None,
-            attributes: dict[str, dict[str, Attribute]] | None = None
+            attributes: dict[str, dict[str, Attribute]] | None = None,
+            taxonomies: dict[str, Taxonomy] | None = None,
+            taxonomy_assignments: pd.DataFrame | None = None
     ):
         if accounts is not None:
             try:
@@ -72,6 +76,8 @@ class Portfolio:
                 log.error('security prices schema invalid: %s', e)
 
         self._attributes = attributes if attributes is not None else {}
+        self._taxonomies = taxonomies if taxonomies is not None else {}
+        self._taxonomy_assignments = taxonomy_assignments if taxonomy_assignments is not None else pd.DataFrame()
 
     @property
     def securities_accounts(self) -> DataFrame[AccountSchema]:
@@ -110,6 +116,18 @@ class Portfolio:
     @property
     def account_attributes(self) -> dict[str, Attribute]:
         return self._attributes.get('accounts', {})
+
+    @property
+    def taxonomies(self) -> dict[str, Taxonomy]:
+        return self._taxonomies
+
+    @property
+    def taxonomy_assignments(self) -> pd.DataFrame:
+        return self._taxonomy_assignments
+
+    @property
+    def taxonomy_names(self) -> list[str]:
+        return [t.name for t in self._taxonomies.values()]
 
 
 def get_securities_account_by_id(portfolio: Portfolio, account_id: str) -> Account:

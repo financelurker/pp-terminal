@@ -26,7 +26,7 @@ import pandas as pd
 from pandera.typing import DataFrame
 
 from pp_terminal.domain.portfolio import Portfolio
-from pp_terminal.domain.schemas import TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema, TransactionType, Attribute
+from pp_terminal.domain.schemas import TransactionSchema, AccountSchema, SecuritySchema, SecurityPriceSchema, TransactionType, Attribute, Taxonomy
 from pp_terminal.utils.cache import cleanup_old_cache_files, get_cache_path
 from pp_terminal.utils.helper import enum_list_to_values
 from .attribute_type_converter import convert_attribute_types, get_converter_column_name
@@ -61,6 +61,7 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
 
         securities_attrs = self._get_attributes(_ATTRIBUTE_TYPE_SECURITY)
         account_attrs = self._get_attributes(_ATTRIBUTE_TYPE_ACCOUNT)
+        taxonomies, taxonomy_assignments = self._parse_taxonomies()
 
         portfolio = Portfolio(
             accounts = self._parse_accounts(account_attrs),
@@ -70,7 +71,9 @@ class PpPortfolioBuilder:  # pylint: disable=too-few-public-methods
             attributes = {
                 'accounts': account_attrs,
                 'securities': securities_attrs
-            }
+            },
+            taxonomies = taxonomies,
+            taxonomy_assignments = taxonomy_assignments
         )
 
         portfolio.base_currency = str(self._get_property('baseCurrency'))
@@ -156,6 +159,24 @@ left join xact_unit as xu on xu.xact = x.uuid and xu.type = 'GROSS_VALUE'
         accounts = convert_attribute_types(accounts, account_attrs)
 
         return AccountSchema.validate(accounts)
+
+    def _parse_taxonomies(self) -> tuple[dict[str, Taxonomy], pd.DataFrame]:
+        cursor = self._db.connection.cursor()
+        cursor.execute('SELECT uuid, name FROM taxonomy')
+        taxonomies = {str(row[0]): Taxonomy(uuid=str(row[0]), name=str(row[1])) for row in cursor.fetchall()}
+
+        if not taxonomies:
+            return {}, pd.DataFrame()
+
+        assignments = pd.read_sql_query("""
+            SELECT t.name AS taxonomyName, ta.item AS itemId, ta.item_type AS itemType,
+                   tc.name AS categoryName, ta.weight
+            FROM taxonomy_assignment ta
+            JOIN taxonomy t ON t.uuid = ta.taxonomy
+            JOIN taxonomy_category tc ON tc.uuid = ta.category
+        """, self._db.connection)
+
+        return taxonomies, assignments
 
     def _get_property(self, name: str) -> str | None:
         cursor = self._db.connection.cursor()

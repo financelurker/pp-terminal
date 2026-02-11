@@ -27,7 +27,7 @@ import typer
 
 from pp_terminal.domain.portfolio import Portfolio
 from pp_terminal.output.column_utils import normalize_columns
-from pp_terminal.data.filters import clean_for_display, unstack_column_by_currency
+from pp_terminal.data.filters import clean_for_display, unstack_column_by_currency, pivot_taxonomy_columns
 from pp_terminal.exceptions import InputError
 from pp_terminal.utils.helper import footer
 from pp_terminal.output.strategy import OutputStrategy, Console
@@ -120,7 +120,7 @@ def prepare_accounts_df(
 
     validation_results = validate_accounts(portfolio, snapshot, config)
     account_ids = df.index.get_level_values('accountId')
-    df['Messages'] = account_ids.map(
+    df['messages'] = account_ids.map(
         lambda aid: validation_results.get(str(aid), ValidationResult.empty()).messages or ''
     )
 
@@ -128,6 +128,7 @@ def prepare_accounts_df(
     if 'currency' in df.columns:
         df = df.drop(columns=['currency'])
 
+    df = df.pipe(pivot_taxonomy_columns, portfolio.taxonomy_assignments, 'accountId', 'account')
     return df.pipe(clean_for_display, portfolio.account_attributes)
 
 

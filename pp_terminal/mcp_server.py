@@ -31,6 +31,7 @@ from mcp.server.fastmcp import FastMCP
 from pp_terminal.commands.simulate_share_sell import prepare_share_sell_df
 from pp_terminal.commands.view_accounts import prepare_accounts_df
 from pp_terminal.commands.view_securities import prepare_securities_df
+from pp_terminal.commands.view_taxonomies import prepare_taxonomies_df
 from pp_terminal.data.filters import clean_for_display
 from pp_terminal.data.tax import load_prepaid_tax_data
 from pp_terminal.domain.portfolio import Portfolio
@@ -53,6 +54,7 @@ Workflow:
 Tool selection guide:
 - "Show my holdings" / "What securities do I have?" → query_securities
 - "Show my accounts" / "What is my cash balance?" → query_accounts
+- "What taxonomies exist?" / "Show asset allocation categories" → portfolio://taxonomies resource
 - "What if I sell everything?" / "Total tax on my portfolio?" → simulate_sell_all
 - "I need X EUR after tax" / "Sell to get X net" / "Minimize taxes for X amount" → simulate_sell_target_net
 - "What if I sell N shares of X?" → simulate_sell_shares
@@ -139,6 +141,13 @@ def create_mcp_server(file_path: Path, config: Config) -> FastMCP:  # pylint: di
               .pipe(clean_for_display, portfolio.security_attributes))
         return json.dumps(_clean_records(df))
 
+    @mcp.resource("portfolio://taxonomies", mime_type="application/json")
+    def taxonomies_resource() -> str:
+        """All taxonomies with their categories and assignment counts."""
+        portfolio = _ensure_fresh_portfolio()
+        df = prepare_taxonomies_df(portfolio)
+        return json.dumps(_clean_records(df))
+
     @mcp.tool()
     def query_securities(
         date: str | None = None,
@@ -148,7 +157,8 @@ def create_mcp_server(file_path: Path, config: Config) -> FastMCP:  # pylint: di
         """List all securities with current holdings and key metrics.
 
         Each row is one security showing: securityId, name, ISIN, WKN, currency, shares held,
-        latestPrice (per share), costBasis, vap (Vorabpauschale), and Messages (validation warnings).
+        latestPrice (per share), costBasis, vap (Vorabpauschale), Messages (validation warnings),
+        and taxonomy columns (e.g. Asset Allocation, Regions) when assigned.
         Use securityId or ISIN from results to identify securities in other tools.
 
         Args:

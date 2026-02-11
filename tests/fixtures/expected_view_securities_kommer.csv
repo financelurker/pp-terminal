@@ -1,4 +1,4 @@
-currency,securityId,name,wkn,shares,Messages
+currency,securityId,name,wkn,shares,messages
 USD,3cfa101b-0558-4ec4-a9e5-baab4eeddb2a,Amazon.com Inc.,906866,20.00,
 EUR,4fcafd74-6fe9-4699-8fe7-8ec44136392e,Bitcoin,,0.00,
 EUR,5638b182-da36-49ee-94c1-5f059cc0129a,Daimler Truck Holding AG,DTR0CK,0.00,

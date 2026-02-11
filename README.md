@@ -5,13 +5,12 @@
 A powerful command-line interface (CLI) that allows programmatic access to [Portfolio Performance](https://www.portfolio-performance.info/) data 
 to offer a whole new level of insights into your assets.  
 
-The tool can also act as an [MCP server](#mcp-server) to give AI models like Claude Opus, Gemini or Qwen (anonymized) access to your portfolio to 
-intelligently answer questions like
-- "Am I overweight in any security?"
-- "What do you think about my portfolio allocation?"
-- "Are there any issues with my portfolio?"
+_pp-terminal_ can act as an [MCP server](#mcp-server) to give AI models like Claude Opus, Gemini or Qwen access to your 
+(anonymized) portfolio to help you answer questions like
+- "Give me an overview of my portfolio"
+- "What do you think about my portfolio allocation? Am I overweight anywhere?"
 - "Do I have enough cash to cover the upcoming Vorabpauschale taxes?"
-- "I need X EUR after tax. Which securities should I sell to minimize taxes?"
+- "I need 1k EUR after tax. Which securities should I sell to minimize taxes?"
 
 For example, _pp-terminal_ includes a CLI command to calculate the preliminary tax values ("Vorabpauschale") for Germany:
 
@@ -70,9 +69,6 @@ The commands can be customized in the [configuration file](#configuration-file):
 ```toml
 [commands.view.accounts]
 fields = ["AccountId", "Name", "Balance"]  # call with --fields=xx to see a list of all available fields
-
-[commands.view.securities]
-fields = ["SecurityId", "Name", "Shares"]
 ```
 
 ### Simulate Scenarios
@@ -283,10 +279,11 @@ If your command makes sense for a broader audience, I'm happy to accept a [pull 
 ## Issues 🚧
 
 > [!IMPORTANT]
-> The script is still in beta version, so there might be Portfolio Performance files that are not compatible with and also public APIs can change.
+> The script is still in beta version, so there might be Portfolio Performance files that are not compatible with and also
+> public APIs, config or option names may change.
 
 In case you are experiencing any problems:
-1. Create an anonymized version of your portfolio with `pp-terminal --file depot.xml --anonymize export anonymized.xml` (verify!)
+1. Create an [anonymized version](#export) of your portfolio (verify!) or use the [kommer sample](tests/fixtures/kommer.toml)
 2. Add the `--verbose` option to the command that is causing the issue
 3. And [submit a new issue](https://github.com/ma4nn/pp-terminal/issues/new) and include the results from steps 1. and 2.
 

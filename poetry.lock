@@ -2335,14 +2335,14 @@ shellingham = ">=1.3.0"
 
 [[package]]
 name = "typer-config"
-version = "1.4.3"
+version = "1.5.0"
 description = "Utilities for working with configuration files in typer CLIs. "
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "typer_config-1.4.3-py3-none-any.whl", hash = "sha256:d135fc96e3115150759d5abb907aba3afcb0cb81e102d84616858cf5de2f0614"},
-    {file = "typer_config-1.4.3.tar.gz", hash = "sha256:597412a73486ca10966e8673e592bf073bc61c47f482c91c3b4256df547f27fb"},
+    {file = "typer_config-1.5.0-py3-none-any.whl", hash = "sha256:ef6ee98b0eba8286c14f9b512b97df927a892b0616c6b10aff151c0db561e1ce"},
+    {file = "typer_config-1.5.0.tar.gz", hash = "sha256:06de6f9a361439cb405825a1467f726041fe556129c74a2ba7118ef78eee2fc5"},
 ]
 
 [package.dependencies]

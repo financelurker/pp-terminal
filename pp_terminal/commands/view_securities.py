@@ -81,6 +81,7 @@ def prepare_securities_df(
     )
 
     df['marketValue'] = df['latestPrice'] * df['shares']
+    df['unrealizedGains'] = df['marketValue'] - df['costBasis']
 
     vap_by_security = calculate_vap_by_security(
         portfolio,

@@ -44,6 +44,11 @@ def test_import_pp_empty_xml(request: TopRequest) -> None:
     CachedPpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'empty.ids.xml')
 
 
+def test_import_xml_with_null_property_value(request: TopRequest) -> None:
+    """PP v69+ can have properties with empty/null values (e.g. portfolio-chart-details)."""
+    CachedPpPortfolioBuilder().construct(request.path.parent.parent / 'fixtures' / 'empty_null_prop.ids.xml')
+
+
 def test_xml_file_opened_readonly(request: TopRequest) -> None:
     """Verify that Portfolio Performance XML files are opened in read-only mode."""
     xml_file_path = request.path.parent.parent / 'fixtures' / 'empty.ids.xml'

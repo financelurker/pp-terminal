@@ -1,44 +1,53 @@
 Submodule ppxml2db contains modified content
 diff --git a/ppxml2db/ppxml2db.py b/ppxml2db/ppxml2db.py
-index 070418f..64f348b 100644
+index f3cd053..9cf668c 100644
 --- a/ppxml2db/ppxml2db.py
 +++ b/ppxml2db/ppxml2db.py
 @@ -9,8 +9,8 @@ import os.path
-
+ 
  import lxml.etree as ET
-
+ 
 -from version import __version__
 -import dbhelper
 +from .version import __version__
 +from . import dbhelper
-
-
+ 
+ 
  _log = logging.getLogger(__name__)
-@@ -388,9 +388,10 @@ class PortfolioPerformanceXML2DB:
+@@ -380,7 +380,7 @@ class PortfolioPerformanceXML2DB:
+             d = self.parse_entry(prop_el)
+             assert d[0][0] == "string"
+             assert d[1][0] == "string"
+-            fields = {"name": d[0][1], "value": d[1][1]}
++            fields = {"name": d[0][1], "value": d[1][1] if d[1][1] is not None else ""}
+             dbhelper.insert("property", fields)
+ 
+     def handle_client(self, el):
+@@ -389,9 +389,10 @@ class PortfolioPerformanceXML2DB:
          for n in props:
              dbhelper.insert("property", {"name": n, "value": fields[n], "special": 1})
-
+ 
 -    def __init__(self, xml):
 +    def __init__(self, xml, skip_prices=False):
          self.xml = xml
          self.refcache = {}
 +        self.skip_prices = skip_prices
-
+ 
      def parse(self):
          props = ["version", "baseCurrency"]
-@@ -486,7 +487,7 @@ class PortfolioPerformanceXML2DB:
+@@ -487,7 +488,7 @@ class PortfolioPerformanceXML2DB:
                      self.id2uuid_map[self.cur_xmlid] = el.text
-
+ 
                  elif el.tag == "price":
 -                    if not args.skip_prices:
 +                    if not self.skip_prices:
                          self.handle_price(el)
                  elif el.tag == "latest":
                      self.handle_latest(el)
-@@ -553,7 +554,10 @@ class PortfolioPerformanceXML2DB:
+@@ -554,7 +555,10 @@ class PortfolioPerformanceXML2DB:
                          else:
                              assert False, "Unexpected crossEntry class: " + parent.get("class")
-
+ 
 -                        assert self.uuid2ctr_map[uuid].startswith(what), self.uuid2ctr_map[uuid]
 +                        if what == "account":
 +                            assert self.is_account_tag(self.uuid2ctr_map[uuid]), self.uuid2ctr_map[uuid]
@@ -47,14 +56,14 @@ index 070418f..64f348b 100644
                          self.handle_xact(what, uuid, el, 0)
                  elif el.tag == "transactionFrom":
                      if el.get("id"):
-@@ -609,7 +613,7 @@ class PortfolioPerformanceXML2DB:
+@@ -606,7 +610,7 @@ class PortfolioPerformanceXML2DB:
                      preserve = True
                  elif self.el_stack and self.el_stack[-1] == "watchlist" and el.tag == "securities":
                      preserve = True
 -                elif self.container_stack and self.container_stack[-1][0] in ("security", "account", "portfolio") and el.tag == "attributes":
 +                elif self.container_stack and self.container_stack[-1][0] in ("security", "account", "portfolio", "accountFrom", "accountTo", "referenceAccount", "portfolioFrom", "portfolioTo") and el.tag == "attributes":
                      preserve = True
-
+ 
                  if not preserve:
 diff --git a/ppxml2db/ppxml2db_init.py b/ppxml2db/ppxml2db_init.py
 index 8784dc4..2e8918c 100644
@@ -63,11 +72,11 @@ index 8784dc4..2e8918c 100644
 @@ -2,8 +2,8 @@ import sys
  import argparse
  import logging
-
+ 
 -from version import __version__
 -import dbhelper
 +from .version import __version__
 +from . import dbhelper
-
-
+ 
+ 
  SCHEMA = [
